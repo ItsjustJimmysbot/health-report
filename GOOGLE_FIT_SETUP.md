@@ -1,61 +1,69 @@
-# Google Fit API Integration (Preparation)
+# Google Fit API Integration
 
-> Status: Awaiting OAuth Credentials
+> Status: **Ready for OAuth Authorization**
 
-## Required Setup Steps
+## Quick Start (Now Simplified)
 
-### 1) Enable Google Fit API in Cloud Console
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Select project: **my first project**
-3. Navigate to: APIs & Services → Library
-4. Search and enable: **Fitness API**
-
-### 2) Create OAuth 2.0 Credentials
-1. APIs & Services → Credentials
-2. Click **Create Credentials** → **OAuth 2.0 Client ID**
-3. Application type: **Desktop app** (or Web app if preferred)
-4. Name: `openclaw-health-agent`
-5. Download the JSON file (client_secret_xxx.json)
-
-### 3) Store Credentials Securely
+### 1) Run Authorization Setup
 ```bash
-# Place the downloaded JSON here:
-mkdir -p ~/.openclaw/credentials
-cp ~/Downloads/client_secret_*.json ~/.openclaw/credentials/google-fit-credentials.json
-chmod 600 ~/.openclaw/credentials/google-fit-credentials.json
+cd ~/.openclaw/workspace-health
+bash scripts/setup-google-fit-auth.sh
+```
+This will:
+- Open browser for Google authorization
+- Guide you to paste the auth code
+- Save access token to `~/.openclaw/credentials/google-fit-token.json`
+
+### 2) Test Data Sync
+```bash
+bash scripts/sync-google-fit.sh
 ```
 
-### 4) Required Scopes for Health Agent
-- `https://www.googleapis.com/auth/fitness.activity.read`
-- `https://www.googleapis.com/auth/fitness.body.read`
-- `https://www.googleapis.com/auth/fitness.sleep.read`
-- `https://www.googleapis.com/auth/fitness.heart_rate.read`
+### 3) Enable Automatic Sync
+Already configured in `HEARTBEAT.md`. Each heartbeat will:
+- Refresh access token
+- Fetch yesterday's health data
+- Append to `memory/shared/health-shared.md`
+- Auto-commit and push
 
-### 5) Test Connection
-After setup, run:
-```bash
-gcloud auth application-default login --scopes \
-  https://www.googleapis.com/auth/fitness.activity.read,\
-  https://www.googleapis.com/auth/fitness.body.read,\
-  https://www.googleapis.com/auth/fitness.sleep.read
-```
+---
+
+## Manual Steps (If Script Fails)
+
+### Required Scopes
+The scripts request these permissions:
+- `fitness.activity.read` (步数)
+- `fitness.body.read` (卡路里)
+- `fitness.sleep.read` (睡眠)
+- `fitness.heart_rate.read` (心率)
+
+### Credentials Location
+- Downloaded: `~/Downloads/client_secret_*.json`
+- Secured at: `~/.openclaw/credentials/google-fit-credentials.json`
+- Token file: `~/.openclaw/credentials/google-fit-token.json` (auto-created)
+
+---
 
 ## Data Sync Plan
 
-| Metric | Source | Frequency | Storage |
-|--------|--------|-----------|---------|
-| Steps | Fit | Daily | memory/shared/health-shared.md |
-| Heart Rate | Fit | Daily | memory/shared/health-shared.md |
-| Sleep | Fit | Daily | memory/shared/health-shared.md |
-| Calories | Fit | Daily | memory/shared/health-shared.md |
+| 指标 | 来源 | 频率 | 存储位置 |
+|------|------|------|----------|
+| 步数 | Google Fit | 每日 | `memory/shared/health-shared.md` |
+| 卡路里 | Google Fit | 每日 | `memory/shared/health-shared.md` |
+| 心率 | Google Fit | 每日 | `memory/shared/health-shared.md` |
+| 睡眠 | Google Fit | 每日 | `memory/shared/health-shared.md` |
 
-## Next Steps (After Credentials Ready)
-1. [ ] Download and place credentials
-2. [ ] Run OAuth flow
-3. [ ] Create sync script: `scripts/sync-google-fit.sh`
-4. [ ] Add to HEARTBEAT.md automation
-5. [ ] Test data retrieval
+## Troubleshooting
 
-## Reference
-- [Google Fit REST API Docs](https://developers.google.com/fit/rest/v1/reference)
+**"No token file" error**
+→ 先运行 `setup-google-fit-auth.sh` 完成授权
+
+**Token expired**
+→ `sync-google-fit.sh` 会自动用 refresh_token 续期
+
+**No data returned**
+→ 确保手机上的 Google Fit 已同步数据到云端
+
+## References
+- [Google Fit REST API](https://developers.google.com/fit/rest/v1/reference)
 - [OAuth 2.0 for Desktop Apps](https://developers.google.com/identity/protocols/oauth2/native-app)
