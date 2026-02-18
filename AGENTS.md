@@ -215,9 +215,11 @@ This is a starting point. Add your own conventions, style, and rules as you figu
 
 Before handling any task in this workspace, also read:
 1. `AGENT_SYSTEM_PROMPT.md`
-2. `AGENT_ROLES.md`
-3. `AGENT_WORKFLOWS.md`
-4. `memory/shared/SHARED_CONSTRAINTS.md`
-5. `memory/shared/SHARED_DECISIONS.md`
-6. `memory/shared/SHARED_RISKS.md`
-7. `memory/shared/SHARED_TODOS.md`
+2. `HEALTH_AGENT_SYSTEM_PROMPT.md` (Health-specific)
+3. `AGENT_ROLES.md`
+4. `AGENT_WORKFLOWS.md`
+5. `GOOGLE_FIT_SETUP.md` (Health data integration status)
+6. `memory/shared/SHARED_CONSTRAINTS.md`
+7. `memory/shared/SHARED_DECISIONS.md`
+8. `memory/shared/SHARED_RISKS.md`
+9. `memory/shared/SHARED_TODOS.md`
