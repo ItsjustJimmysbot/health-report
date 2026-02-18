@@ -44,6 +44,25 @@
 - 流程：读 shared 健康上下文 -> 给计划 -> 标注风险与提醒级别
 - 记忆写入：`memory/shared/SHARED_CONSTRAINTS.md`、`memory/shared/SHARED_TODOS.md` + `memory/YYYY-MM-DD.md`
 
+### 定时任务（Daily Cron）
+- **任务**: 每日健康分析报告
+- **时间**: 每天 12:00 (Asia/Shanghai)
+- **Job ID**: `daily-health-report`
+- **执行**: 
+  1. 运行 `scripts/daily-health-report.sh` 获取 Google Fit 数据
+  2. 读取 `memory/shared/health-goals.md` 目标配置
+  3. 读取历史记录 `memory/shared/health-shared.md` 进行趋势分析
+  4. 生成报告保存至 `memory/health-daily/YYYY-MM-DD.md`
+  5. 向用户发送分析报告，包括：
+     - 昨日运动强度+睡眠评估
+     - 昨日饮食评估（待用户补充）
+     - 昨日备注/身体状态（待用户补充）
+     - 昨日总体评分
+     - 今日建议（饮食、运动量、形式、时间）
+     - 周/月趋势评估
+  6. 提醒用户私发补充饮食和备注信息
+- **输出格式**: 简洁、专业、数据翔实
+
 ## 6) work-ops
 - 输入：PDF/Docx/XLSX/文本任务
 - 流程：读模板偏好 -> 处理文档 -> 产出结果与可复现步骤
