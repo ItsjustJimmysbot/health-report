@@ -11,7 +11,7 @@ CACHE_DIR=".openclaw/cache/OpenClawMemoryBackup"
 STATE_FILE=".openclaw/heartbeat-memory-sync.state"
 
 # 防止 heartbeat 过于频繁导致噪声：默认 30 分钟最小间隔
-MIN_INTERVAL_SEC="${MEM_SYNC_MIN_INTERVAL_SEC:-1800}"
+MIN_INTERVAL_SEC="${MEM_SYNC_MIN_INTERVAL_SEC:-10800}"
 NOW="$(date +%s)"
 LAST=0
 if [[ -f "$STATE_FILE" ]]; then

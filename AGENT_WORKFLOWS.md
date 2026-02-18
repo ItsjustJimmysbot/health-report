@@ -68,3 +68,20 @@ heartbeat 到来时执行：
 2. 执行 `scripts/heartbeat_memory_sync.sh`
 3. 若有 agent 队列任务，按 `AGENT_ROLES.md` + 本文件流程处理
 4. 自动提交 memory 变更到 git（可选自动 push）
+
+## Shared 记忆写入规范（防冲突）
+
+为减少同一行冲突，所有 agent 写 `memory/shared/*.md` 时必须：
+- 只做**追加**，不要改写/重排旧条目
+- 每条使用统一结构（建议追加到文件末尾）：
+
+```md
+## [YYYY-MM-DD HH:mm] <agent-id>
+- 结论：
+- 依据：
+- 风险：
+- 下一步：
+- 状态：todo|doing|blocked|done
+```
+
+- 若需修正旧结论，不覆盖原文，追加“修正条目”并引用旧时间戳

@@ -10,4 +10,5 @@ sharedFiles:
   - SHARED_TODOS.md
 autoCommit: true
 autoPush: true
+minIntervalSec: 10800
 commitMessagePrefix: "chore(memory): heartbeat sync"
