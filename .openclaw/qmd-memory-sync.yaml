@@ -1,0 +1,13 @@
+version: 1
+name: qmd-memory-sync
+sourceRepo: "https://github.com/ItsjustJimmysbot/OpenClawMemoryBackup.git"
+sourcePath: "memory/shared"
+targetPath: "memory/shared"
+sharedFiles:
+  - SHARED_CONSTRAINTS.md
+  - SHARED_DECISIONS.md
+  - SHARED_RISKS.md
+  - SHARED_TODOS.md
+autoCommit: true
+autoPush: true
+commitMessagePrefix: "chore(memory): heartbeat sync"
