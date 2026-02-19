@@ -59,10 +59,12 @@ if [[ -f "$NOTES_FILE" ]]; then
     NOTES_CONTENT=$(cat "$NOTES_FILE")
 fi
 
-# 计算评分和状态
-RECOVERY_SCORE=$(( (HRV >= 50 ? 10 : HRV >= 40 ? 7 : 5) * 35 / 10 + \
-    (SLEEP_HOURS >= 7 ? 10 : SLEEP_HOURS >= 5 ? 5 : 3) * 35 / 10 + \
-    (STEPS >= 8000 ? 10 : STEPS >= 6000 ? 6 : 4) * 30 / 10 ))
+# 计算评分和状态（使用 bc 处理浮点数）
+HRV_SCORE=$(echo "$HRV" | awk '{if($1>=50) print 10; else if($1>=40) print 7; else print 5}')
+SLEEP_SCORE=$(echo "$SLEEP_HOURS" | awk '{if($1>=7) print 10; else if($1>=5) print 5; else print 3}')
+STEP_SCORE=$(echo "$STEPS" | awk '{if($1>=10000) print 10; else if($1>=8000) print 8; else if($1>=6000) print 6; else print 4}')
+
+RECOVERY_SCORE=$(echo "scale=0; ($HRV_SCORE * 35 + $SLEEP_SCORE * 35 + $STEP_SCORE * 30) / 100" | bc)
 
 if [[ $RECOVERY_SCORE -ge 8 ]]; then
     RECOVERY_STATUS="良好"
