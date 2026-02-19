@@ -2,6 +2,7 @@
 """
 多语言每日健康报告生成器
 支持中文(zh)和英文(en)
+集成 AI 个性化分析
 """
 import json
 import sys
@@ -30,6 +31,18 @@ def generate_multilingual_report(health_data, output_file, lang='zh'):
         weekday_str = get_weekday_cn(weekday)
     else:
         weekday_str = get_weekday_en(weekday)
+    
+    # 🆕 尝试获取 AI 分析
+    ai_analysis = None
+    try:
+        from ai_analyzer import get_ai_analysis
+        ai_analysis = get_ai_analysis(health_data, lang)
+        if ai_analysis:
+            print(f"  🤖 使用 AI 生成个性化{lang}分析...")
+        else:
+            print(f"  ℹ️  未配置 AI API，使用模板化{lang}分析")
+    except Exception as e:
+        print(f"  ⚠️  AI 分析出错，使用模板: {e}")
     
     # 生成图表配置
     hr_chart = generate_heart_rate_chart(health_data, lang)
@@ -551,13 +564,13 @@ def generate_multilingual_report(health_data, output_file, lang='zh'):
             <!-- Conclusions -->
             <div class="conclusions">
                 <h3>📋 {get_text('conclusions', lang)}</h3>
-                {generate_conclusions(health_data, recovery_score, sleep_score, exercise_score, lang)}
+                {generate_conclusions(health_data, recovery_score, sleep_score, exercise_score, lang, ai_analysis)}
             </div>
             
             <!-- Recommendations -->
             <div class="recommendations">
                 <h3>💡 {get_text('recommendations', lang)}</h3>
-                {generate_recommendations(health_data, recovery_score, lang)}
+                {generate_recommendations(health_data, recovery_score, lang, ai_analysis)}
             </div>
             
             <!-- Diet Suggestions -->
@@ -667,8 +680,37 @@ def generate_workout_list(data, lang):
     html += '</div>'
     return html
 
-def generate_conclusions(data, recovery_score, sleep_score, exercise_score, lang):
+def generate_conclusions(data, recovery_score, sleep_score, exercise_score, lang, ai_analysis=None):
     """生成结论 HTML"""
+    
+    # 如果有 AI 分析结果，优先使用
+    if ai_analysis and 'conclusions' in ai_analysis:
+        html = ''
+        for conclusion in ai_analysis['conclusions']:
+            # AI 返回的是纯文本，我们添加合适的 emoji 和样式
+            if lang == 'zh':
+                if '优秀' in conclusion or '良好' in conclusion or '充足' in conclusion:
+                    emoji, badge_class = '🟢', 'badge-good'
+                elif '不足' in conclusion or '严重' in conclusion or '偏高' in conclusion or '偏低' in conclusion:
+                    emoji, badge_class = '🔴', 'badge-bad'
+                elif '注意' in conclusion or '建议' in conclusion:
+                    emoji, badge_class = '🟡', 'badge-warning'
+                else:
+                    emoji, badge_class = '🔵', 'badge-info'
+            else:
+                if 'excellent' in conclusion.lower() or 'good' in conclusion.lower() or 'sufficient' in conclusion.lower():
+                    emoji, badge_class = '🟢', 'badge-good'
+                elif 'insufficient' in conclusion.lower() or 'severe' in conclusion.lower() or 'high' in conclusion.lower() or 'low' in conclusion.lower():
+                    emoji, badge_class = '🔴', 'badge-bad'
+                elif 'caution' in conclusion.lower() or 'suggest' in conclusion.lower():
+                    emoji, badge_class = '🟡', 'badge-warning'
+                else:
+                    emoji, badge_class = '🔵', 'badge-info'
+            
+            html += f'<div class="conclusion-item"><span class="badge {badge_class}">{emoji}</span><span>{conclusion}</span></div>'
+        return html
+    
+    # 否则使用模板化分析
     conclusions = []
     
     # Recovery conclusion
@@ -718,8 +760,36 @@ def generate_trend_item(value, unit, label, trend, lang):
     </div>
     '''
 
-def generate_recommendations(data, recovery_score, lang):
+def generate_recommendations(data, recovery_score, lang, ai_analysis=None):
     """生成建议 HTML"""
+    
+    # 如果有 AI 分析结果，优先使用
+    if ai_analysis and 'recommendations' in ai_analysis:
+        html = ''
+        for rec in ai_analysis['recommendations']:
+            priority = rec.get('priority', 'medium')
+            text = rec.get('text', '')
+            
+            # 映射 priority 到 label
+            if priority == 'high':
+                label = get_text('priority', lang)
+            elif priority == 'low':
+                label = get_text('optional', lang)
+            else:
+                label = get_text('suggestion', lang)
+            
+            priority_class = f'priority-{priority}'
+            html += f'<div class="rec-item {priority}"><span class="priority {priority_class}">{label}</span><span>{text}</span></div>'
+        
+        # 添加 AI 使用提示
+        if lang == 'zh':
+            html += '<div style="margin-top: 15px; padding: 10px; background: #e0f2fe; border-radius: 8px; font-size: 9pt; color: #0369a1; text-align: center;">🤖 本报告使用 AI 生成个性化建议</div>'
+        else:
+            html += '<div style="margin-top: 15px; padding: 10px; background: #e0f2fe; border-radius: 8px; font-size: 9pt; color: #0369a1; text-align: center;">🤖 Personalized recommendations generated by AI</div>'
+        
+        return html
+    
+    # 否则使用模板化分析
     recs = []
     sleep_hours = data.get('sleep_hours', 0)
     has_sleep = data.get('has_sleep_data', False)
@@ -787,6 +857,12 @@ def generate_recommendations(data, recovery_score, lang):
     for priority, label, text in recs:
         priority_class = f'priority-{priority}'
         html += f'<div class="rec-item {priority}"><span class="priority {priority_class}">{label}</span><span>{text}</span></div>'
+    
+    # 添加模板提示
+    if lang == 'zh':
+        html += '<div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; font-size: 9pt; color: #92400e; text-align: center;">💡 运行 ./scripts/setup-ai.sh 配置 AI API，获取更个性化的建议</div>'
+    else:
+        html += '<div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; font-size: 9pt; color: #92400e; text-align: center;">💡 Run ./scripts/setup-ai.sh to configure AI API for more personalized recommendations</div>'
     
     return html
 
