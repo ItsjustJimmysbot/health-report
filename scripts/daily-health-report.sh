@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TOKEN_FILE="${HOME}/.openclaw/credentials/google-fit-token.json"
 CRED_FILE="${HOME}/.openclaw/credentials/google-fit-credentials.json"
-APPLE_HEALTH_DIR="${HOME}/Desktop/health"
+APPLE_HEALTH_DIR="${HOME}/我的云端硬盘/Health Auto Export/Health Data"
 
 # 日期计算
 TODAY=$(date +%F)
@@ -28,7 +28,7 @@ echo ""
 # ============================================
 echo "📱 Checking Apple Health data..."
 
-APPLE_HEALTH_FILE="${APPLE_HEALTH_DIR}/health-${YESTERDAY}.json"
+APPLE_HEALTH_FILE="${APPLE_HEALTH_DIR}/HealthAutoExport-${YESTERDAY}.json"
 APPLE_HEALTH_LATEST="${APPLE_HEALTH_DIR}/latest.json"
 
 HRV_AVG="N/A"
@@ -41,7 +41,7 @@ APPLE_SLEEP_DEEP=0
 APPLE_SLEEP_REM=0
 
 if [[ -f "$APPLE_HEALTH_FILE" ]]; then
-  echo "✅ Found Apple Health data: health-${YESTERDAY}.json"
+  echo "✅ Found Apple Health data: HealthAutoExport-${YESTERDAY}.json"
   AH_FILE="$APPLE_HEALTH_FILE"
 elif [[ -f "$APPLE_HEALTH_LATEST" ]]; then
   echo "⚠️ Using latest.json (may not be yesterday's data)"
@@ -52,28 +52,45 @@ else
 fi
 
 if [[ -n "$AH_FILE" && -f "$AH_FILE" ]]; then
-  # 读取 HRV
-  HRV_AVG=$(jq -r '.metrics.heartRateVariability.avg // "N/A"' "$AH_FILE" 2>/dev/null)
-  HRV_MIN=$(jq -r '.metrics.heartRateVariability.min // "N/A"' "$AH_FILE" 2>/dev/null)
-  HRV_MAX=$(jq -r '.metrics.heartRateVariability.max // "N/A"' "$AH_FILE" 2>/dev/null)
+  # 读取 HRV (从 metrics 数组中筛选)
+  HRV_AVG=$(jq -r '.data.metrics[] | select(.name == "heart_rate_variability") | [.data[].qty] | add / length' "$AH_FILE" 2>/dev/null | cut -d. -f1)
+  HRV_MIN=$(jq -r '.data.metrics[] | select(.name == "heart_rate_variability") | [.data[].qty] | min' "$AH_FILE" 2>/dev/null | cut -d. -f1)
+  HRV_MAX=$(jq -r '.data.metrics[] | select(.name == "heart_rate_variability") | [.data[].qty] | max' "$AH_FILE" 2>/dev/null | cut -d. -f1)
   
-  # 读取静息心率
-  RESTING_HR=$(jq -r '.metrics.restingHeartRate.value // "N/A"' "$AH_FILE" 2>/dev/null)
+  # 读取静息心率 (取最后一个值)
+  RESTING_HR=$(jq -r '.data.metrics[] | select(.name == "resting_heart_rate") | .data[-1].qty // "N/A"' "$AH_FILE" 2>/dev/null | cut -d. -f1)
   
-  # 读取呼吸频率
-  RESPIRATORY_RATE=$(jq -r '.metrics.respiratoryRate.avg // "N/A"' "$AH_FILE" 2>/dev/null)
+  # 读取呼吸频率 (平均值)
+  RESPIRATORY_RATE=$(jq -r '.data.metrics[] | select(.name == "respiratory_rate") | [.data[].qty] | add / length' "$AH_FILE" 2>/dev/null | cut -d. -f1)
   
-  # 读取血氧
-  SPO2_AVG=$(jq -r '.metrics.oxygenSaturation.avg // "N/A"' "$AH_FILE" 2>/dev/null)
+  # 读取血氧 (平均值)
+  SPO2_AVG=$(jq -r '.data.metrics[] | select(.name == "blood_oxygen_saturation") | [.data[].qty] | add / length' "$AH_FILE" 2>/dev/null | cut -d. -f1)
   
   # 读取 Apple Health 睡眠数据
-  APPLE_SLEEP_MINUTES=$(jq -r '.metrics.sleep.totalMinutes // 0' "$AH_FILE" 2>/dev/null)
-  APPLE_SLEEP_DEEP=$(jq -r '.metrics.sleep.deepMinutes // 0' "$AH_FILE" 2>/dev/null)
-  APPLE_SLEEP_REM=$(jq -r '.metrics.sleep.remMinutes // 0' "$AH_FILE" 2>/dev/null)
-  APPLE_SLEEP_EFFICIENCY=$(jq -r '.metrics.sleep.efficiency // 0' "$AH_FILE" 2>/dev/null)
+  SLEEP_RECORD=$(jq -r '.data.metrics[] | select(.name == "sleep_analysis") | .data[0]' "$AH_FILE" 2>/dev/null)
+  if [[ -n "$SLEEP_RECORD" && "$SLEEP_RECORD" != "null" ]]; then
+    APPLE_SLEEP_HOURS=$(echo "$SLEEP_RECORD" | jq -r '.totalSleep // 0')
+    APPLE_SLEEP_MINUTES=$(echo "$APPLE_SLEEP_HOURS * 60" | bc | cut -d. -f1)
+    APPLE_SLEEP_DEEP_HOURS=$(echo "$SLEEP_RECORD" | jq -r '.deep // 0')
+    APPLE_SLEEP_DEEP=$(echo "$APPLE_SLEEP_DEEP_HOURS * 60" | bc | cut -d. -f1)
+    APPLE_SLEEP_REM_HOURS=$(echo "$SLEEP_RECORD" | jq -r '.rem // 0')
+    APPLE_SLEEP_REM=$(echo "$APPLE_SLEEP_REM_HOURS * 60" | bc | cut -d. -f1)
+    APPLE_SLEEP_CORE_HOURS=$(echo "$SLEEP_RECORD" | jq -r '.core // 0')
+    APPLE_SLEEP_AWAKE_HOURS=$(echo "$SLEEP_RECORD" | jq -r '.awake // 0')
+    APPLE_SLEEP_START=$(echo "$SLEEP_RECORD" | jq -r '.sleepStart // "N/A"')
+    APPLE_SLEEP_END=$(echo "$SLEEP_RECORD" | jq -r '.sleepEnd // "N/A"')
+    APPLE_SLEEP_EFFICIENCY=$(echo "$SLEEP_RECORD" | jq -r '.efficiency // 0')
+  fi
   
-  echo "  HRV: ${HRV_AVG}ms | RHR: ${RESTING_HR}bpm | RR: ${RESPIRATORY_RATE}/min | SpO2: ${SPO2_AVG}%"
-  echo "  Sleep: ${APPLE_SLEEP_MINUTES}min (Deep: ${APPLE_SLEEP_DEEP}, REM: ${APPLE_SLEEP_REM})"
+  # 读取步数
+  APPLE_STEPS=$(jq -r '.data.metrics[] | select(.name == "step_count") | [.data[].qty] | add' "$AH_FILE" 2>/dev/null | cut -d. -f1)
+  
+  # 读取锻炼时间
+  APPLE_EXERCISE_MIN=$(jq -r '.data.metrics[] | select(.name == "apple_exercise_time") | [.data[].qty] | add' "$AH_FILE" 2>/dev/null | cut -d. -f1)
+  
+  echo "  HRV: ${HRV_AVG}ms (${HRV_MIN}-${HRV_MAX}) | RHR: ${RESTING_HR}bpm | RR: ${RESPIRATORY_RATE}/min | SpO2: ${SPO2_AVG}%"
+  echo "  Sleep: ${APPLE_SLEEP_HOURS}h (Deep: ${APPLE_SLEEP_DEEP_HOURS}h, REM: ${APPLE_SLEEP_REM_HOURS}h)"
+  echo "  Steps: ${APPLE_STEPS} | Exercise: ${APPLE_EXERCISE_MIN}min"
 fi
 
 echo ""
@@ -140,9 +157,54 @@ SLEEP_HOURS=$(echo "$SLEEP_MINUTES / 60" | bc)
 SESSIONS_RESPONSE=$(curl -s -X GET "https://www.googleapis.com/fitness/v1/users/me/sessions?startTime=${YESTERDAY}T00:00:00.000Z&endTime=${YESTERDAY}T23:59:59.999Z" \
   -H "Authorization: Bearer $ACCESS_TOKEN")
 
-# 生成分析报告
-REPORT_FILE="$WORKSPACE_DIR/memory/health-daily/${YESTERDAY}.md"
-mkdir -p "$WORKSPACE_DIR/memory/health-daily"
+# ============================================
+# 计算各项评分 (在生成报告之前)
+# ============================================
+
+# 运动强度评分
+if [[ $STEPS -ge 10000 ]] && echo "$SESSIONS_RESPONSE" | jq -e '.session[] | select(.activityType == 80)' >/dev/null; then
+  INTENSITY="高"
+  INTENSITY_SCORE=10
+elif [[ $STEPS -ge 8000 ]] && [[ $ACTIVE_MIN -ge 60 ]]; then
+  INTENSITY="中高"
+  INTENSITY_SCORE=8
+elif [[ $STEPS -ge 6000 ]]; then
+  INTENSITY="中"
+  INTENSITY_SCORE=6
+elif [[ $STEPS -ge 4000 ]]; then
+  INTENSITY="低"
+  INTENSITY_SCORE=4
+else
+  INTENSITY="极低"
+  INTENSITY_SCORE=2
+fi
+
+# 睡眠评分 (优先使用 Apple Health 数据)
+if [[ $APPLE_SLEEP_MINUTES -gt 0 ]]; then
+  # 使用 Apple Health 睡眠数据
+  if [[ $APPLE_SLEEP_MINUTES -ge 420 ]] && [[ $APPLE_SLEEP_MINUTES -le 540 ]]; then
+    SLEEP_QUALITY="良好"
+    SLEEP_SCORE=8
+  elif [[ $APPLE_SLEEP_MINUTES -ge 360 ]]; then
+    SLEEP_QUALITY="一般"
+    SLEEP_SCORE=6
+  else
+    SLEEP_QUALITY="不足"
+    SLEEP_SCORE=4
+  fi
+else
+  # 使用 Google Fit 睡眠数据
+  if [[ $SLEEP_MINUTES -ge 420 ]] && [[ $SLEEP_MINUTES -le 540 ]]; then
+    SLEEP_QUALITY="良好"
+    SLEEP_SCORE=8
+  elif [[ $SLEEP_MINUTES -ge 360 ]]; then
+    SLEEP_QUALITY="一般"
+    SLEEP_SCORE=6
+  else
+    SLEEP_QUALITY="不足"
+    SLEEP_SCORE=4
+  fi
+fi
 
 # 计算 Recovery Score (基于可用数据)
 RECOVERY_SCORE=0
@@ -189,6 +251,10 @@ else
     RECOVERY_COLOR="🔴"
   fi
 fi
+
+# 生成分析报告
+REPORT_FILE="$WORKSPACE_DIR/memory/health-daily/${YESTERDAY}.md"
+mkdir -p "$WORKSPACE_DIR/memory/health-daily"
 
 cat > "$REPORT_FILE" << EOF
 # 每日健康报告 - ${YESTERDAY}
