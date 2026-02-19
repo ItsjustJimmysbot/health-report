@@ -108,13 +108,13 @@ def main():
     }
     
     # 生成报告
-    from generate_visual_report import generate_visual_report
+    from generate_simple_report import generate_simple_report
     
     output_dir = Path.home() / '.openclaw/workspace/shared/health-reports'
     output_dir.mkdir(parents=True, exist_ok=True)
     
     html_file = output_dir / f'{yesterday}-visual-report.html'
-    generate_visual_report(report_data, str(html_file))
+    generate_simple_report(report_data, str(html_file))
     
     print(f"✅ 报告已生成: {html_file}")
     
