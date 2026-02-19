@@ -8,6 +8,11 @@ on run argv
     set pdfFile to item 1 of argv
     set recipientEmail to item 2 of argv
     
+    -- 如果没有指定收件人，使用默认
+    if recipientEmail is "" then
+        set recipientEmail to "revolutionljk@gmail.com"
+    end if
+    
     -- 获取文件名作为日期
     set fileName to name of (info for (pdfFile as POSIX file))
     set reportDate to do shell script "echo " & quoted form of fileName & " | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || date '+%Y-%m-%d'"
