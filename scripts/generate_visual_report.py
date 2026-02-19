@@ -1272,16 +1272,22 @@ def generate_recommendations(data, recovery_score, sleep_score, exercise_score):
     
     # 睡眠建议
     sleep_hours = data.get('sleep_hours', 0)
-    if sleep_hours < 6:
+    has_sleep = data.get('has_sleep_data', False)
+    if not has_sleep:
+        recs.append(('high', '[优先]', '昨日睡眠数据缺失，今晚务必保证 7-8 小时睡眠'))
+    elif sleep_hours < 6:
         recs.append(('high', '[优先]', '睡眠严重不足，明日建议午休 20-30 分钟补偿'))
     elif sleep_hours < 7:
         recs.append(('medium', '[建议]', '今晚尝试提前 30 分钟上床，建立固定睡前仪式'))
     
-    # 运动建议
+    # 运动建议（明日目标）
     steps = data.get('steps', 0)
-    if steps < 8000:
-        remaining = 10000 - steps
-        recs.append(('medium', '[建议]', f'今日目标还差 {remaining:,} 步，建议爬楼梯 20 分钟或快走 30 分钟补足'))
+    if steps < 6000:
+        recs.append(('medium', '[建议]', '明日目标：10,000 步，建议安排 40 分钟爬楼梯或快走'))
+    elif steps < 8000:
+        recs.append(('medium', '[建议]', '明日目标：10,000 步，建议增加日常步行'))
+    else:
+        recs.append(('low', '[可选]', '明日维持 8,000+ 步即可，适当休息'))
     
     # HRV 建议
     hrv = data.get('hrv', 0)
@@ -1290,7 +1296,7 @@ def generate_recommendations(data, recovery_score, sleep_score, exercise_score):
     
     # 饮食建议
     if not data.get('diet_content'):
-        recs.append(('medium', '[建议]', '请补充今日饮食记录，以便进行营养分析'))
+        recs.append(('medium', '[建议]', '请补充饮食记录，以便进行营养分析'))
     
     html = ''
     for priority, label, text in recs:
