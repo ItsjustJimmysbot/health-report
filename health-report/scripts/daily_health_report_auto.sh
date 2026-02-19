@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# 每日健康报告自动化脚本
-# 每天 12:30 运行，生成前一天的健康报告并发送邮件
+# Health Report - 每日健康报告
+# 自动从 Apple Health 和 Google Fit 生成健康报告
 #
 
 set -euo pipefail
@@ -10,98 +10,106 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # 计算昨天的日期
-YESTERDAY=$(date -v-1d +%F)
-YESTERDAY_FORMATTED=$(date -v-1d +%Y-%m-%d)
+YESTERDAY=$(date -v-1d +%F 2>/dev/null || date -d "yesterday" +%F)
 
 echo "=========================================="
-echo "  每日健康报告自动化"
-echo "  报告日期: ${YESTERDAY}"
-echo "  生成时间: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  Daily Health Report"
+echo "  Report Date: ${YESTERDAY}"
+echo "  Generated: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "=========================================="
 echo ""
 
-# 文件路径
-HEALTH_FILE="${HOME}/我的云端硬盘/Health Auto Export/Health Data/HealthAutoExport-${YESTERDAY}.json"
-WORKOUT_FILE="${HOME}/我的云端硬盘/Health Auto Export/Workout Data/HealthAutoExport-${YESTERDAY}.json"
-OUTPUT_HTML="${WORKSPACE_DIR}/../workspace/shared/health-reports/${YESTERDAY}-daily-report.html"
-OUTPUT_PDF="${WORKSPACE_DIR}/../workspace/shared/health-reports/pdf/${YESTERDAY}-daily-report.pdf"
-RECIPIENT="revolutionljk@gmail.com"
+# 配置文件路径
+CREDENTIALS_DIR="${HOME}/.openclaw/credentials"
+mkdir -p "$CREDENTIALS_DIR"
 
-# 检查 Health 数据文件是否存在
+# 读取配置
+HEALTH_PATH_FILE="$CREDENTIALS_DIR/health-report-path.conf"
+EMAIL_FILE="$CREDENTIALS_DIR/health-report-email.conf"
+
+if [[ -f "$HEALTH_PATH_FILE" ]]; then
+    HEALTH_PATH=$(cat "$HEALTH_PATH_FILE")
+else
+    HEALTH_PATH="${HOME}/Google Drive/Health Auto Export"
+    if [[ ! -d "$HEALTH_PATH" ]]; then
+        HEALTH_PATH="${HOME}/Library/CloudStorage/GoogleDrive-*/Health Auto Export"
+    fi
+fi
+
+if [[ -f "$EMAIL_FILE" ]]; then
+    RECIPIENT=$(cat "$EMAIL_FILE")
+else
+    RECIPIENT=""
+fi
+
+HEALTH_FILE="${HEALTH_PATH}/Health Data/HealthAutoExport-${YESTERDAY}.json"
+WORKOUT_FILE="${HEALTH_PATH}/Workout Data/HealthAutoExport-${YESTERDAY}.json"
+OUTPUT_HTML="${WORKSPACE_DIR}/reports/${YESTERDAY}-report.html"
+OUTPUT_PDF="${WORKSPACE_DIR}/reports/${YESTERDAY}-report.pdf"
+mkdir -p "${WORKSPACE_DIR}/reports"
+
+# 检查必要文件
 if [[ ! -f "$HEALTH_FILE" ]]; then
-    echo "❌ 未找到 Health 数据文件: $HEALTH_FILE"
-    echo "   跳过今日报告生成"
+    echo "❌ Health data file not found: $HEALTH_FILE"
+    echo "   Please ensure Health Auto Export is syncing to Google Drive"
     exit 1
 fi
 
 if [[ ! -f "$WORKOUT_FILE" ]]; then
-    echo "⚠️ 未找到 Workout 数据文件: $WORKOUT_FILE"
-    echo "   将继续生成报告（不含详细运动数据）"
-    # 使用 /dev/null 作为 workout 文件，让脚本处理不存在的情况
+    echo "⚠️  Workout data file not found, continuing without workout details"
     WORKOUT_FILE="/dev/null"
 fi
 
-echo "✅ 数据文件检查通过"
-echo "   Health: $HEALTH_FILE"
-echo "   Workout: $([[ "$WORKOUT_FILE" == "/dev/null" ]] && echo "无" || echo "$WORKOUT_FILE")"
-echo ""
+# 检测系统语言
+LANG=$(defaults read -g AppleLocale 2>/dev/null || echo "en_US")
+if [[ "$LANG" == zh* ]]; then
+    REPORT_LANG="zh"
+    echo "📝 Generating Chinese report..."
+else
+    REPORT_LANG="en"
+    echo "📝 Generating English report..."
+fi
 
-# 生成 HTML 报告
-echo "📊 生成健康报告..."
+# 生成报告
 cd "$WORKSPACE_DIR"
-python3 "${SCRIPT_DIR}/generate_report_final.py" \
+python3 "${SCRIPT_DIR}/generate_multilingual_report.py" \
     --health "$HEALTH_FILE" \
     --workout "$WORKOUT_FILE" \
     --output "$OUTPUT_HTML" \
-    --date "$YESTERDAY" || {
-    echo "❌ 生成 HTML 报告失败"
-    exit 1
-}
+    --date "$YESTERDAY" \
+    --lang "$REPORT_LANG"
+
+echo ""
+echo "📄 Generating PDF..."
+python3 "${SCRIPT_DIR}/generate_pdf_playwright.py" "$OUTPUT_HTML" "$OUTPUT_PDF"
 
 echo ""
 
-# 生成 PDF
-echo "📄 生成 PDF..."
-python3 "${SCRIPT_DIR}/generate_pdf_playwright.py" "$OUTPUT_HTML" "$OUTPUT_PDF" || {
-    echo "⚠️ PDF 生成失败，尝试使用备用方案..."
-    # 备用方案：使用 Chrome 直接生成
-    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-        --headless \
-        --disable-gpu \
-        --print-to-pdf="$OUTPUT_PDF" \
-        --run-all-compositor-stages-before-draw \
-        --virtual-time-budget=15000 \
-        "file://$OUTPUT_HTML" 2>/dev/null || {
-        echo "❌ PDF 生成完全失败"
-        exit 1
-    }
-}
-
-echo ""
-
-# 发送邮件
-echo "📧 发送邮件到 ${RECIPIENT}..."
-osascript "${SCRIPT_DIR}/send_email_applescript.scpt" "$OUTPUT_PDF" "$RECIPIENT" || {
-    echo "⚠️ 邮件发送失败"
-}
-
-echo ""
+# 发送邮件（如果配置了邮箱）
+if [[ -n "$RECIPIENT" ]]; then
+    echo "📧 Sending email to ${RECIPIENT}..."
+    osascript "${SCRIPT_DIR}/send_email_applescript.scpt" "$OUTPUT_PDF" "$RECIPIENT"
+    echo ""
+fi
 
 # Git 提交
-echo "💾 提交到 Git..."
+echo "💾 Saving to Git..."
 cd "$WORKSPACE_DIR"
 if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
     git add -A
-    git commit -m "chore(health): daily report for ${YESTERDAY}" || true
-    git push || echo "⚠️ Push 失败"
-    echo "✅ 已提交到 Git"
+    git commit -m "chore: daily report for ${YESTERDAY}" || true
+    git push 2>/dev/null || echo "⚠️  Push failed"
+    echo "✅ Saved to Git"
 else
-    echo "⚠️ 无变更需要提交"
+    echo "⚠️  No changes to commit"
 fi
 
 echo ""
 echo "=========================================="
-echo "  ✅ 每日健康报告完成！"
-echo "  报告已发送至: ${RECIPIENT}"
-echo "  PDF: ${OUTPUT_PDF}"
+echo "  ✅ Daily Health Report Complete!"
+echo "  HTML: $OUTPUT_HTML"
+echo "  PDF:  $OUTPUT_PDF"
+if [[ -n "$RECIPIENT" ]]; then
+    echo "  Email sent to: ${RECIPIENT}"
+fi
 echo "=========================================="
