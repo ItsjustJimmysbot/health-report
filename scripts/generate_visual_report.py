@@ -134,6 +134,12 @@ def calculate_exercise_score(data):
 def generate_heart_rate_chart(data):
     """生成全天心率折线图数据"""
     hr_data = data.get('heart_rate_series', [])
+    
+    # 如果数据点太多，进行采样
+    if len(hr_data) > 20:
+        step = len(hr_data) // 15
+        hr_data = hr_data[::step]
+    
     if not hr_data:
         # 生成模拟数据
         hr_data = [
@@ -146,6 +152,12 @@ def generate_heart_rate_chart(data):
     
     times = [d['time'] for d in hr_data]
     hrs = [d['hr'] for d in hr_data]
+    
+    # 根据实际心率数据调整 Y 轴范围
+    max_hr = max(hrs) if hrs else 140
+    min_hr = min(hrs) if hrs else 40
+    y_max = max(180, max_hr + 20)
+    y_min = max(30, min_hr - 10)
     
     chart_config = f"""
     {{
@@ -174,8 +186,8 @@ def generate_heart_rate_chart(data):
             scales: {{
                 y: {{
                     beginAtZero: false,
-                    min: 40,
-                    max: 140,
+                    min: {y_min},
+                    max: {y_max},
                     grid: {{ color: 'rgba(0,0,0,0.05)' }},
                     ticks: {{ font: {{ size: 10 }} }}
                 }},
@@ -191,20 +203,30 @@ def generate_heart_rate_chart(data):
 def generate_workout_chart(data):
     """生成锻炼心率图"""
     workout_data = data.get('workout_hr_series', [])
+    
+    # 如果数据点太多，进行采样
+    if len(workout_data) > 15:
+        step = len(workout_data) // 10
+        workout_data = workout_data[::step]
+    
     if not workout_data:
         # 生成模拟数据
         workout_data = [
-            {"time": "0:00", "hr": 110, "zone": "warmup"},
-            {"time": "0:05", "hr": 135, "zone": "fat_burn"},
-            {"time": "0:10", "hr": 152, "zone": "cardio"},
-            {"time": "0:15", "hr": 148, "zone": "cardio"},
-            {"time": "0:20", "hr": 158, "zone": "peak"},
-            {"time": "0:25", "hr": 145, "zone": "cardio"},
-            {"time": "0:30", "hr": 120, "zone": "cooldown"}
+            {"time": "0:00", "hr": 110},
+            {"time": "0:05", "hr": 135},
+            {"time": "0:10", "hr": 152},
+            {"time": "0:15", "hr": 148},
+            {"time": "0:20", "hr": 158},
+            {"time": "0:25", "hr": 145},
+            {"time": "0:30", "hr": 120}
         ]
     
     times = [d['time'] for d in workout_data]
     hrs = [d['hr'] for d in workout_data]
+    
+    # 根据实际心率数据调整 Y 轴范围
+    max_hr = max(hrs) if hrs else 180
+    y_max = max(180, max_hr + 10)
     
     chart_config = f"""
     {{
@@ -261,7 +283,7 @@ def generate_workout_chart(data):
                         }},
                         zone4: {{
                             type: 'box',
-                            yMin: 152, yMax: 180,
+                            yMin: 152, yMax: {y_max},
                             backgroundColor: 'rgba(239, 68, 68, 0.08)',
                             borderWidth: 0
                         }}
@@ -272,7 +294,7 @@ def generate_workout_chart(data):
                 y: {{
                     beginAtZero: false,
                     min: 80,
-                    max: 180,
+                    max: {y_max},
                     grid: {{ color: 'rgba(0,0,0,0.05)' }},
                     ticks: {{ font: {{ size: 10 }} }}
                 }},
@@ -287,12 +309,11 @@ def generate_workout_chart(data):
 
 def generate_sleep_chart(data):
     """生成睡眠结构图"""
-    sleep_stages = data.get('sleep_stages', {
-        'deep': 1.5,
-        'rem': 1.8,
-        'core': 3.5,
-        'awake': 0.4
-    })
+    # 使用真实的睡眠阶段数据
+    sleep_deep = data.get('sleep_deep', 1.0)
+    sleep_rem = data.get('sleep_rem', 1.0)
+    sleep_core = data.get('sleep_core', 3.0)
+    sleep_awake = data.get('sleep_awake', 0.5)
     
     chart_config = f"""
     {{
@@ -300,7 +321,7 @@ def generate_sleep_chart(data):
         data: {{
             labels: ['深睡', 'REM', '浅睡', '清醒'],
             datasets: [{{
-                data: [{sleep_stages.get('deep', 0)}, {sleep_stages.get('rem', 0)}, {sleep_stages.get('core', 0)}, {sleep_stages.get('awake', 0)}],
+                data: [{sleep_deep}, {sleep_rem}, {sleep_core}, {sleep_awake}],
                 backgroundColor: ['#4f46e5', '#8b5cf6', '#06b6d4', '#f59e0b'],
                 borderWidth: 0,
                 hoverOffset: 4

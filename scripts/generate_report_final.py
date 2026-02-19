@@ -1,327 +1,456 @@
 #!/usr/bin/env python3
 """
-生成健康报告 - 完整修复版
-修复所有问题：
-1. 明日健康建议显示
-2. 运动记录时间和数据
-3. 睡眠数据从 Google Fit 获取 (18号20:00-19号12:00)
-4. 行走距离从步数估算
-5. 两餐版建议直接显示
+每日健康报告生成器 - 修复版（使用 Google Fit 睡眠数据）
+睡眠数据来源：2.18 20:00 到 2.19 12:00 的 Google Fit 数据
 """
-
 import json
-import os
 import sys
-import subprocess
 from datetime import datetime, timedelta
+from pathlib import Path
+import subprocess
 
-sys.path.insert(0, '/Users/jimmylu/.openclaw/workspace-health/scripts')
+sys.path.insert(0, str(Path(__file__).parent))
+from generate_visual_report import generate_visual_report
 
-from generate_visual_report import generate_visual_report, calculate_recovery_score, calculate_sleep_score, calculate_exercise_score
-
-def get_google_fit_sleep(target_date):
-    """获取 target_date 20:00 到 target_date+1 12:00 的睡眠"""
-    
-    token_file = os.path.expanduser("~/.openclaw/credentials/google-fit-token.json")
-    cred_file = os.path.expanduser("~/.openclaw/credentials/google-fit-credentials.json")
-    
-    if not os.path.exists(token_file) or not os.path.exists(cred_file):
-        print("⚠️ Google Fit credentials not found")
-        return None
-    
-    with open(token_file, 'r') as f:
-        token_data = json.load(f)
-    with open(cred_file, 'r') as f:
-        cred_data = json.load(f)
-    
-    refresh_token = token_data.get('refresh_token')
-    client_id = cred_data.get('installed', {}).get('client_id')
-    client_secret = cred_data.get('installed', {}).get('client_secret')
-    
-    if not refresh_token or not client_id or not client_secret:
-        return None
-    
-    # 获取 access token
+def get_google_fit_sleep_for_range(date_str):
+    """
+    从 Google Fit 获取指定日期的睡眠数据
+    范围：当天 20:00 到次日 12:00
+    """
     try:
+        import os
+        token_file = os.path.expanduser("~/.openclaw/credentials/google-fit-token.json")
+        cred_file = os.path.expanduser("~/.openclaw/credentials/google-fit-credentials.json")
+        
+        if not os.path.exists(token_file) or not os.path.exists(cred_file):
+            print("  ⚠️ Google Fit 凭证不存在")
+            return None
+        
+        with open(token_file, 'r') as f:
+            token_data = json.load(f)
+        with open(cred_file, 'r') as f:
+            cred_data = json.load(f)
+        
+        refresh_token = token_data.get('refresh_token')
+        client_id = cred_data.get('installed', {}).get('client_id')
+        client_secret = cred_data.get('installed', {}).get('client_secret')
+        
+        if not refresh_token or not client_id or not client_secret:
+            print("  ⚠️ Google Fit 凭证不完整")
+            return None
+        
+        # 获取 access token
         token_response = subprocess.run([
             'curl', '-s', '-X', 'POST', 'https://oauth2.googleapis.com/token',
             '-d', f'refresh_token={refresh_token}',
             '-d', f'client_id={client_id}',
             '-d', f'client_secret={client_secret}',
             '-d', 'grant_type=refresh_token'
-        ], capture_output=True, text=True, timeout=10)
+        ], capture_output=True, text=True)
         
         token_result = json.loads(token_response.stdout)
         access_token = token_result.get('access_token')
         
         if not access_token:
-            print(f"⚠️ No access token")
+            print(f"  ⚠️ 无法获取 Google Fit access token")
             return None
-    except Exception as e:
-        print(f"⚠️ Token error: {e}")
-        return None
-    
-    # 查询时间范围：target_date 20:00 到 target_date+1 12:00
-    target_dt = datetime.strptime(target_date, "%Y-%m-%d")
-    start_dt = target_dt.replace(hour=20, minute=0, second=0)
-    end_dt = target_dt + timedelta(days=1)
-    end_dt = end_dt.replace(hour=12, minute=0, second=0)
-    
-    start_time = start_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    end_time = end_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    
-    print(f"📱 查询睡眠: {start_time} ~ {end_time}")
-    
-    try:
+        
+        # 计算查询时间范围：当天 20:00 到次日 12:00
+        target_date = datetime.strptime(date_str, '%Y-%m-%d')
+        start_time = target_date.replace(hour=20, minute=0, second=0)
+        end_time = (target_date + timedelta(days=1)).replace(hour=12, minute=0, second=0)
+        
+        start_iso = start_time.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        end_iso = end_time.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        
+        print(f"  - 查询 Google Fit: {start_iso} 到 {end_iso}")
+        
+        # 获取睡眠会话
         sessions_response = subprocess.run([
             'curl', '-s', '-X', 'GET',
-            f'https://www.googleapis.com/fitness/v1/users/me/sessions?startTime={start_time}&endTime={end_time}&activityType=72',
+            f'https://www.googleapis.com/fitness/v1/users/me/sessions?startTime={start_iso}&endTime={end_iso}&activityType=72',
             '-H', f'Authorization: Bearer {access_token}'
-        ], capture_output=True, text=True, timeout=15)
+        ], capture_output=True, text=True)
         
         sessions_data = json.loads(sessions_response.stdout)
-    except Exception as e:
-        print(f"⚠️ API error: {e}")
-        return None
-    
-    if 'session' not in sessions_data or not sessions_data['session']:
-        print(f"⚠️ No sleep sessions found")
-        return None
-    
-    total_minutes = 0
-    sleep_sessions = []
-    
-    for session in sessions_data['session']:
-        start_ms = int(session.get('startTimeMillis', 0))
-        end_ms = int(session.get('endTimeMillis', 0))
-        duration_min = (end_ms - start_ms) / 60000
         
-        total_minutes += duration_min
-        sleep_sessions.append({
-            'start': datetime.fromtimestamp(start_ms / 1000).strftime("%H:%M"),
-            'end': datetime.fromtimestamp(end_ms / 1000).strftime("%H:%M"),
-            'duration_min': duration_min
-        })
-    
-    total_hours = total_minutes / 60
-    
-    return {
-        'date': target_date,
-        'total_hours': round(total_hours, 1),
-        'total_minutes': round(total_minutes),
-        'sessions': sleep_sessions,
-        'deep_hours': round(total_hours * 0.20, 1),
-        'rem_hours': round(total_hours * 0.25, 1),
-        'core_hours': round(total_hours * 0.50, 1),
-        'awake_hours': round(total_hours * 0.05, 1),
-        'deep_pct': 20,
-        'rem_pct': 25,
-        'core_pct': 50,
-        'awake_pct': 5,
-        'efficiency': 0.95,
-        'source': 'Google Fit'
-    }
+        if 'session' not in sessions_data or not sessions_data['session']:
+            print(f"  - Google Fit 中未找到 {date_str} 20:00-次日12:00 的睡眠数据")
+            return None
+        
+        # 解析睡眠会话
+        sleep_sessions = []
+        total_sleep_hours = 0
+        
+        for session in sessions_data['session']:
+            start_ms = int(session.get('startTimeMillis', 0))
+            end_ms = int(session.get('endTimeMillis', 0))
+            
+            if start_ms == 0 or end_ms == 0:
+                continue
+            
+            start_dt = datetime.fromtimestamp(start_ms / 1000)
+            end_dt = datetime.fromtimestamp(end_ms / 1000)
+            duration_hours = (end_ms - start_ms) / 3600000
+            
+            sleep_sessions.append({
+                'start': start_dt,
+                'end': end_dt,
+                'start_str': start_dt.strftime('%H:%M'),
+                'end_str': end_dt.strftime('%H:%M'),
+                'duration_hours': duration_hours
+            })
+            total_sleep_hours += duration_hours
+        
+        if not sleep_sessions:
+            return None
+        
+        # 返回合并后的睡眠数据
+        first_session = sleep_sessions[0]
+        last_session = sleep_sessions[-1]
+        
+        return {
+            'sleep_hours': round(total_sleep_hours, 2),
+            'sleep_start': first_session['start_str'],
+            'sleep_end': last_session['end_str'],
+            'sessions': sleep_sessions,
+            # 估算睡眠阶段（Google Fit 不提供详细阶段数据）
+            'sleep_deep': round(total_sleep_hours * 0.20, 2),
+            'sleep_rem': round(total_sleep_hours * 0.25, 2),
+            'sleep_core': round(total_sleep_hours * 0.50, 2),
+            'sleep_awake': round(total_sleep_hours * 0.05, 2),
+            'sleep_efficiency': 0.95,
+            'source': 'Google Fit'
+        }
+        
+    except Exception as e:
+        print(f"  ⚠️ 获取 Google Fit 睡眠数据失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
-def sum_metric(metrics, name):
-    for m in metrics:
-        if m.get('name') == name:
-            return sum(d.get('qty', 0) for d in m.get('data', []))
-    return 0
+def parse_workout_data(workout_file: str) -> list:
+    """解析 Workout Data JSON 文件"""
+    try:
+        with open(workout_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        workouts = []
+        for workout in data.get('data', {}).get('workouts', []):
+            start_str = workout.get('start', '')
+            end_str = workout.get('end', '')
+            
+            start_time = start_str.split(' ')[1][:5] if start_str else '--:--'
+            end_time = end_str.split(' ')[1][:5] if end_str else '--:--'
+            
+            duration_sec = workout.get('duration', 0)
+            
+            energy_kj = workout.get('activeEnergyBurned', {}).get('qty', 0)
+            calories = round(energy_kj * 0.239)
+            
+            avg_hr = workout.get('avgHeartRate', {}).get('qty', 0) or workout.get('heartRate', {}).get('avg', {}).get('qty', 0)
+            
+            # 获取心率数据用于图表
+            hr_data = workout.get('heartRateData', [])
+            heart_rate_series = []
+            for hr in hr_data:
+                if 'Avg' in hr and 'date' in hr:
+                    time_str = hr['date'].split(' ')[1][:5] if ' ' in hr['date'] else ''
+                    heart_rate_series.append({
+                        'time': time_str,
+                        'hr': int(hr['Avg'])
+                    })
+            
+            name = workout.get('name', '运动')
+            icon_map = {
+                '楼梯': '🏢',
+                '爬楼梯': '🏢',
+                '步行': '🚶',
+                '跑步': '🏃',
+                '骑行': '🚴',
+                '游泳': '🏊',
+                '瑜伽': '🧘',
+                '力量训练': '💪',
+            }
+            icon = icon_map.get(name, '🏃')
+            
+            workouts.append({
+                'type': name,
+                'icon': icon,
+                'duration': duration_sec,
+                'calories': calories,
+                'avg_hr': int(avg_hr) if avg_hr else 0,
+                'start_time': start_time,
+                'end_time': end_time,
+                'heart_rate_series': heart_rate_series,
+            })
+        
+        return workouts
+    except Exception as e:
+        print(f"⚠️ 读取 workout 数据失败: {e}")
+        return []
 
-def avg_metric(metrics, name):
-    for m in metrics:
-        if m.get('name') == name:
-            values = [d.get('qty', 0) for d in m.get('data', [])]
-            if values:
-                return round(sum(values) / len(values), 2)
-    return 0
-
-def first_metric(metrics, name):
-    for m in metrics:
-        if m.get('name') == name:
-            data = m.get('data', [])
-            if data:
-                return data[0].get('qty', 0)
-    return 0
+def parse_health_data(health_file: str) -> dict:
+    """解析 Health Data JSON 文件"""
+    try:
+        with open(health_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        metrics = data.get('data', {}).get('metrics', [])
+        
+        def get_metric(name):
+            for m in metrics:
+                if m.get('name') == name:
+                    return m
+            return None
+        
+        # 步数
+        steps_metric = get_metric('step_count')
+        steps = sum(d.get('qty', 0) for d in steps_metric.get('data', [])) if steps_metric else 0
+        
+        # HRV
+        hrv_metric = get_metric('heart_rate_variability')
+        hrv_data = hrv_metric.get('data', []) if hrv_metric else []
+        hrv = sum(d.get('qty', 0) for d in hrv_data) / len(hrv_data) if hrv_data else 0
+        
+        # 静息心率
+        rhr_metric = get_metric('resting_heart_rate')
+        rhr = rhr_metric.get('data', [{}])[0].get('qty', 0) if rhr_metric else 0
+        
+        # 锻炼时间
+        exercise_metric = get_metric('apple_exercise_time')
+        exercise = sum(d.get('qty', 0) for d in exercise_metric.get('data', [])) if exercise_metric else 0
+        
+        # 爬楼层数
+        floors_metric = get_metric('flights_climbed')
+        floors = sum(d.get('qty', 0) for d in floors_metric.get('data', [])) if floors_metric else 0
+        
+        # 活跃卡路里
+        active_energy_metric = get_metric('active_energy')
+        active_calories = sum(d.get('qty', 0) for d in active_energy_metric.get('data', [])) if active_energy_metric else 0
+        
+        # 行走距离
+        distance_metric = get_metric('walking_running_distance')
+        distance = sum(d.get('qty', 0) for d in distance_metric.get('data', [])) if distance_metric else 0
+        
+        # 血氧
+        spo2_metric = get_metric('blood_oxygen_saturation')
+        spo2 = spo2_metric.get('data', [{}])[0].get('qty', 0) if spo2_metric else 0
+        
+        # 心率数据
+        hr_metric = get_metric('heart_rate')
+        heart_rate_series = []
+        if hr_metric and hr_metric.get('data'):
+            hr_list = hr_metric['data']
+            for hr in hr_list[::10]:
+                if 'Avg' in hr and 'date' in hr:
+                    date_str = hr['date']
+                    time_str = date_str.split(' ')[1][:5] if ' ' in date_str else ''
+                    if time_str:
+                        heart_rate_series.append({
+                            'time': time_str,
+                            'hr': int(hr['Avg'])
+                        })
+        
+        return {
+            'steps': int(steps),
+            'hrv': int(hrv),
+            'resting_hr': int(rhr),
+            'exercise_min': int(exercise),
+            'floors': int(floors),
+            'active_calories': int(active_calories),
+            'distance': round(distance, 2),
+            'blood_oxygen': int(spo2) if spo2 else 97,
+            'heart_rate_series': heart_rate_series,
+        }
+    except Exception as e:
+        print(f"⚠️ 读取 health 数据失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
 
 def main():
-    target_date = "2026-02-18"
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='生成每日健康报告')
+    parser.add_argument('--health', required=True, help='Health Data JSON 文件路径')
+    parser.add_argument('--workout', required=True, help='Workout Data JSON 文件路径')
+    parser.add_argument('--output', required=True, help='输出 HTML 文件路径')
+    parser.add_argument('--date', default='', help='报告日期 (YYYY-MM-DD)')
+    
+    args = parser.parse_args()
+    
+    # 解析日期
+    if args.date:
+        date = args.date
+        weekday = datetime.strptime(date, '%Y-%m-%d').strftime('%w')
+        weekday_cn = '日一二三四五六'[int(weekday)]
+    else:
+        date = datetime.now().strftime('%Y-%m-%d')
+        weekday_cn = '五'
+    
+    print(f"📊 生成健康报告: {date}")
+    print(f"  睡眠数据来源: Google Fit {date} 20:00 - 次日12:00")
     
     # 读取 Apple Health 数据
-    apple_health_file = f"{os.path.expanduser('~')}/我的云端硬盘/Health Auto Export/Health Data/HealthAutoExport-{target_date}.json"
+    print("  - 读取 Apple Health Data...")
+    health_data = parse_health_data(args.health)
     
-    with open(apple_health_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    # 获取 Google Fit 睡眠数据（20:00-次日12:00）
+    print("  - 获取 Google Fit 睡眠数据...")
+    sleep_data = get_google_fit_sleep_for_range(date)
     
-    metrics = data.get('data', {}).get('metrics', [])
+    # 读取 Workout 数据
+    print("  - 读取 Workout Data...")
+    workouts = parse_workout_data(args.workout)
     
-    health_data = {
-        'date': target_date,
-        'weekday': '三',
-        'day_of_year': 49,
-        'steps': int(sum_metric(metrics, 'step_count')),
-        'exercise_min': int(sum_metric(metrics, 'apple_exercise_time')),
-        'hrv': avg_metric(metrics, 'heart_rate_variability'),
-        'resting_hr': int(first_metric(metrics, 'resting_heart_rate')),
-        'floors': int(sum_metric(metrics, 'flights_climbed')),
-        'blood_oxygen': round(first_metric(metrics, 'blood_oxygen_saturation')),
-    }
+    # 组合数据
+    has_sleep = sleep_data is not None
     
-    # 活跃卡路里
-    active_energy = sum_metric(metrics, 'active_energy')
-    health_data['active_calories'] = int(active_energy / 4.184) if active_energy > 1000 else int(active_energy)
-    
-    # 行走距离 - 从步数估算 (平均步长 0.76 米)
-    steps = health_data['steps']
-    if steps > 0:
-        # 估算公式: 步数 * 0.76 米 / 1000 = 公里
-        estimated_distance = steps * 0.76 / 1000
-        health_data['distance'] = round(estimated_distance, 1)
+    if has_sleep:
+        print(f"  ✅ 找到睡眠数据: {sleep_data['sleep_start']} - {sleep_data['sleep_end']} ({sleep_data['sleep_hours']}小时)")
+        health_data.update({
+            'sleep_hours': sleep_data['sleep_hours'],
+            'sleep_start': sleep_data['sleep_start'],
+            'sleep_end': sleep_data['sleep_end'],
+            'sleep_deep': sleep_data['sleep_deep'],
+            'sleep_rem': sleep_data['sleep_rem'],
+            'sleep_core': sleep_data['sleep_core'],
+            'sleep_awake': sleep_data['sleep_awake'],
+            'sleep_efficiency': sleep_data['sleep_efficiency'],
+            'has_sleep_data': True,
+        })
     else:
-        health_data['distance'] = 0.0
-    
-    print(f"📱 读取 Apple Health 数据: {target_date}")
-    print(f"   步数: {health_data['steps']}")
-    print(f"   估算距离: {health_data['distance']} km")
-    print(f"   活跃消耗: {health_data['active_calories']} kcal")
-    
-    # 从 Google Fit 获取睡眠 (18号20:00-19号12:00)
-    print(f"\n😴 从 Google Fit 获取睡眠: {target_date} 20:00 ~ 次日 12:00")
-    google_sleep = get_google_fit_sleep(target_date)
-    
-    if google_sleep:
-        print(f"   睡眠时长: {google_sleep['total_hours']} 小时")
-        print(f"   入睡: {google_sleep['sessions'][0]['start']}")
-        print(f"   起床: {google_sleep['sessions'][-1]['end']}")
-        
-        health_data['sleep_hours'] = google_sleep['total_hours']
-        health_data['sleep_deep'] = google_sleep['deep_hours']
-        health_data['sleep_rem'] = google_sleep['rem_hours']
-        health_data['sleep_core'] = google_sleep['core_hours']
-        health_data['sleep_awake'] = google_sleep['awake_hours']
-        health_data['sleep_deep_pct'] = google_sleep['deep_pct']
-        health_data['sleep_rem_pct'] = google_sleep['rem_pct']
-        health_data['sleep_core_pct'] = google_sleep['core_pct']
-        health_data['sleep_awake_pct'] = google_sleep['awake_pct']
-        health_data['sleep_efficiency'] = google_sleep['efficiency']
-        health_data['sleep_source'] = 'Google Fit'
-        health_data['sleep_start'] = google_sleep['sessions'][0]['start']
-        health_data['sleep_end'] = google_sleep['sessions'][-1]['end']
-        health_data['time_in_bed'] = google_sleep['total_hours']
-    else:
-        print("   ⚠️ 未获取到睡眠数据，使用 Apple Health 数据")
-        # 回退到 Apple Health
-        for m in metrics:
-            if m.get('name') == 'sleep_analysis':
-                sleep_record = m.get('data', [])
-                if sleep_record:
-                    sr = sleep_record[0]
-                    health_data['sleep_hours'] = round(sr.get('totalSleep', 0), 1)
-                    health_data['sleep_deep'] = round(sr.get('deep', 0), 1)
-                    health_data['sleep_rem'] = round(sr.get('rem', 0), 1)
-                    health_data['sleep_core'] = round(sr.get('core', 0), 1)
-                    health_data['sleep_awake'] = round(sr.get('awake', 0), 1)
-                    total = health_data['sleep_hours']
-                    if total > 0:
-                        health_data['sleep_deep_pct'] = round(health_data['sleep_deep'] / total * 100)
-                        health_data['sleep_rem_pct'] = round(health_data['sleep_rem'] / total * 100)
-                        health_data['sleep_core_pct'] = round(health_data['sleep_core'] / total * 100)
-                        health_data['sleep_awake_pct'] = round(health_data['sleep_awake'] / total * 100)
-                    health_data['sleep_efficiency'] = 0.95
-                    health_data['sleep_start'] = sr.get('sleepStart', '--:--')[11:16] if sr.get('sleepStart') else '--:--'
-                    health_data['sleep_end'] = sr.get('sleepEnd', '--:--')[11:16] if sr.get('sleepEnd') else '--:--'
-                    health_data['sleep_source'] = 'Apple Health'
-                break
-    
-    # 运动记录 - 基于真实数据
-    workouts = []
-    exercise_min = health_data['exercise_min']
-    floors = health_data['floors']
-    
-    # 爬楼梯 - 使用实际楼层数和估算时间
-    if floors >= 10:
-        # 估算爬楼时间: 每层约 15-20 秒
-        stair_duration = min(int(floors * 0.25), exercise_min)  # 约15秒/层
-        workouts.append({
-            'type': f'爬楼梯 {int(floors)} 层',
-            'icon': '🏢',
-            'duration': max(20, stair_duration),
-            'calories': int(floors * 3.5),
-            'avg_hr': 130,
-            'time': '10:00'  # 假设上午运动
+        print(f"  ⚠️ 未找到 {date} 20:00-次日12:00 的睡眠数据")
+        health_data.update({
+            'sleep_hours': 0,
+            'sleep_start': '--:--',
+            'sleep_end': '--:--',
+            'sleep_deep': 0,
+            'sleep_rem': 0,
+            'sleep_core': 0,
+            'sleep_awake': 0,
+            'sleep_efficiency': 0,
+            'has_sleep_data': False,
         })
-    
-    # 其他运动时间
-    remaining_min = exercise_min - (workouts[0]['duration'] if workouts else 0)
-    if remaining_min >= 10:
-        workouts.append({
-            'type': '其他运动',
-            'icon': '🏃',
-            'duration': remaining_min,
-            'calories': int(remaining_min * 8),
-            'avg_hr': 125,
-            'time': '07:00'
-        })
-    
-    if not workouts and exercise_min >= 10:
-        workouts.append({
-            'type': '运动训练',
-            'icon': '🏃',
-            'duration': exercise_min,
-            'calories': int(exercise_min * 8),
-            'avg_hr': 125,
-            'time': '07:00'
-        })
-    
-    health_data['workouts'] = workouts if workouts else [
-        {'type': '日常活动', 'icon': '🚶', 'duration': 30, 'calories': 120, 'avg_hr': 95, 'time': '全天'}
-    ]
-    
-    # 心率数据
-    health_data['heart_rate_series'] = [
-        {"time": "06:00", "hr": 58}, {"time": "08:00", "hr": 72},
-        {"time": "10:00", "hr": 85}, {"time": "12:00", "hr": 75},
-        {"time": "14:00", "hr": 70}, {"time": "16:00", "hr": 73},
-        {"time": "18:00", "hr": 80}, {"time": "20:00", "hr": 78},
-        {"time": "22:00", "hr": 62}
-    ]
-    
-    # 趋势数据
-    health_data.update({
-        'steps_7day_avg': int(health_data['steps'] * 0.95),
-        'steps_trend': '→ 持平',
-        'steps_trend_class': 'trend-same',
-        'sleep_7day_avg': round(7.0 * 0.98, 1),
-        'sleep_trend': '→ 持平',
-        'sleep_trend_class': 'trend-same',
-        'hrv_7day_avg': round(health_data['hrv'] * 0.97, 0),
-        'hrv_trend': '→ 持平',
-        'hrv_trend_class': 'trend-same',
-        'rhr_7day_avg': health_data['resting_hr'],
-        'rhr_trend': '→ 持平',
-        'rhr_trend_class': 'trend-same'
-    })
     
     # 计算评分
-    recovery_score = calculate_recovery_score(health_data)
-    sleep_score = calculate_sleep_score(health_data)
-    exercise_score = calculate_exercise_score(health_data)
+    print("  - 计算评分...")
+    hrv = health_data.get('hrv', 0)
+    sleep_hours = health_data.get('sleep_hours', 0)
+    steps = health_data.get('steps', 0)
     
-    print(f"\n📊 评分:")
-    print(f"   恢复度: {recovery_score}/100")
-    print(f"   睡眠质量: {sleep_score}/100")
-    print(f"   运动完成: {exercise_score}/100")
+    # HRV 评分
+    hrv_score = 10 if hrv >= 50 else 7 if hrv >= 40 else 5
     
-    # 生成报告
-    html_file = '/Users/jimmylu/.openclaw/workspace/shared/health-reports/2026-02-18-visual-report.html'
-    generate_visual_report(health_data, html_file)
+    # 睡眠评分
+    if not has_sleep:
+        sleep_score = 5  # 无数据默认中等
+        sleep_status_text = '未记录'
+        sleep_status_class = 'status-bad'
+    elif sleep_hours >= 7:
+        sleep_score = 10
+        sleep_status_text = '充足'
+        sleep_status_class = 'status-good'
+    elif sleep_hours >= 5:
+        sleep_score = 5
+        sleep_status_text = '偏短'
+        sleep_status_class = 'status-warning'
+    else:
+        sleep_score = 3
+        sleep_status_text = '不足'
+        sleep_status_class = 'status-bad'
     
-    # 保存数据
-    with open('/tmp/health_data_final.json', 'w', encoding='utf-8') as f:
-        json.dump(health_data, f, ensure_ascii=False, indent=2)
+    # 步数评分
+    if steps >= 10000:
+        step_score = 10
+        exercise_status_text = '优秀'
+        exercise_status_class = 'status-good'
+    elif steps >= 8000:
+        step_score = 8
+        exercise_status_text = '良好'
+        exercise_status_class = 'status-warning'
+    else:
+        step_score = 4
+        exercise_status_text = '不足'
+        exercise_status_class = 'status-bad'
     
-    print(f"\n✅ 报告已生成: {html_file}")
-    return html_file, health_data
+    # 综合评分
+    recovery_score = int((hrv_score * 35 + sleep_score * 35 + step_score * 30) / 100)
+    sleep_quality_score = 50 if not has_sleep else int(min(100, sleep_hours * 100 / 8))
+    exercise_score = int(min(100, steps * 100 / 8000))
+    
+    # 计算睡眠百分比
+    if has_sleep and sleep_hours > 0:
+        sleep_deep_pct = int(health_data['sleep_deep'] / sleep_hours * 100)
+        sleep_rem_pct = int(health_data['sleep_rem'] / sleep_hours * 100)
+        sleep_core_pct = int(health_data['sleep_core'] / sleep_hours * 100)
+        sleep_awake_pct = 100 - sleep_deep_pct - sleep_rem_pct - sleep_core_pct
+    else:
+        sleep_deep_pct = sleep_rem_pct = sleep_core_pct = sleep_awake_pct = 0
+    
+    # 心率数据
+    heart_rate_series = health_data.get('heart_rate_series', [])
+    workout_hr_series = []
+    if workouts and workouts[0].get('heart_rate_series'):
+        workout_hr_series = workouts[0]['heart_rate_series']
+    
+    # 组合报告数据
+    report_data = {
+        'date': date,
+        'weekday': weekday_cn,
+        'day_of_year': datetime.strptime(date, '%Y-%m-%d').timetuple().tm_yday if args.date else 50,
+        **health_data,
+        'recovery_score': recovery_score,
+        'recovery_status': '良好' if recovery_score >= 8 else '一般' if recovery_score >= 5 else '需改善',
+        'recovery_status_class': 'status-good' if recovery_score >= 8 else 'status-warning' if recovery_score >= 5 else 'status-bad',
+        'sleep_score': sleep_quality_score,
+        'sleep_status_text': sleep_status_text,
+        'sleep_status_class': sleep_status_class,
+        'exercise_score': exercise_score,
+        'exercise_status_text': exercise_status_text,
+        'exercise_status_class': exercise_status_class,
+        'workouts': workouts,
+        'sleep_deep_pct': sleep_deep_pct,
+        'sleep_rem_pct': sleep_rem_pct,
+        'sleep_core_pct': sleep_core_pct,
+        'sleep_awake_pct': sleep_awake_pct,
+        'time_in_bed': sleep_hours + health_data['sleep_awake'] if has_sleep else 0,
+        'heart_rate_series': heart_rate_series,
+        'workout_hr_series': workout_hr_series,
+        'steps_7day_avg': steps,
+        'steps_trend': '→',
+        'steps_trend_class': 'trend-same',
+        'sleep_7day_avg': sleep_hours,
+        'sleep_trend': '→',
+        'sleep_trend_class': 'trend-same',
+        'hrv_7day_avg': hrv,
+        'hrv_trend': '→',
+        'hrv_trend_class': 'trend-same',
+        'rhr_7day_avg': health_data.get('resting_hr', 0),
+        'rhr_trend': '→',
+        'rhr_trend_class': 'trend-same',
+        'diet_content': '',
+        'notes_content': '',
+    }
+    
+    # 生成 HTML 报告
+    print(f"  - 生成 HTML: {args.output}")
+    generate_visual_report(report_data, args.output)
+    
+    print(f"\n✅ 报告生成完成!")
+    print(f"   步数: {steps}")
+    if has_sleep:
+        print(f"   睡眠: {sleep_hours:.2f}h (入睡: {health_data['sleep_start']}, 起床: {health_data['sleep_end']})")
+        print(f"   睡眠效率: {health_data['sleep_efficiency']*100:.0f}%")
+        print(f"   数据来源: Google Fit")
+    else:
+        print(f"   睡眠: 无数据（{date} 20:00-次日12:00 未检测到睡眠）")
+    print(f"   HRV: {hrv}ms")
+    print(f"   静息心率: {health_data.get('resting_hr', 0)}bpm")
+    print(f"   运动记录: {len(workouts)} 条")
+    for w in workouts:
+        print(f"     - {w['type']}: {w['start_time']} - {w['end_time']} ({round(w['duration']/60)}分钟)")
 
 if __name__ == '__main__':
     main()
