@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TOKEN_FILE="${HOME}/.openclaw/credentials/google-fit-token.json"
 CRED_FILE="${HOME}/.openclaw/credentials/google-fit-credentials.json"
-APPLE_HEALTH_DIR="${HOME}/.openclaw/workspace-health/data/apple-health"
+APPLE_HEALTH_DIR="${HOME}/Desktop/health"
 
 # 日期计算
 TODAY=$(date +%F)
