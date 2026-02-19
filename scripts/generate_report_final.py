@@ -225,9 +225,22 @@ def parse_health_data(health_file: str) -> dict:
         floors_metric = get_metric('flights_climbed')
         floors = sum(d.get('qty', 0) for d in floors_metric.get('data', [])) if floors_metric else 0
         
-        # 活跃卡路里
+        # 热量消耗（Apple Health 导出为 kJ，需要转换为 kcal）
+        # 1 kJ = 0.239 kcal
+        KJ_TO_KCAL = 0.239
+        
+        # 活跃能量（运动消耗）
         active_energy_metric = get_metric('active_energy')
-        active_calories = sum(d.get('qty', 0) for d in active_energy_metric.get('data', [])) if active_energy_metric else 0
+        active_energy_kj = sum(d.get('qty', 0) for d in active_energy_metric.get('data', [])) if active_energy_metric else 0
+        active_calories = int(active_energy_kj * KJ_TO_KCAL)  # 转换为 kcal
+        
+        # 基础代谢（静息消耗）
+        basal_energy_metric = get_metric('basal_energy_burned')
+        basal_energy_kj = sum(d.get('qty', 0) for d in basal_energy_metric.get('data', [])) if basal_energy_metric else 0
+        basal_calories = int(basal_energy_kj * KJ_TO_KCAL)  # 转换为 kcal
+        
+        # 总热量消耗 = 活跃消耗 + 基础消耗
+        total_calories = active_calories + basal_calories
         
         # 行走距离
         distance_metric = get_metric('walking_running_distance')
@@ -258,7 +271,9 @@ def parse_health_data(health_file: str) -> dict:
             'resting_hr': int(rhr),
             'exercise_min': int(exercise),
             'floors': int(floors),
-            'active_calories': int(active_calories),
+            'active_calories': active_calories,
+            'basal_calories': basal_calories,
+            'total_calories': total_calories,
             'distance': round(distance, 2),
             'blood_oxygen': int(spo2) if spo2 else 97,
             'heart_rate_series': heart_rate_series,
