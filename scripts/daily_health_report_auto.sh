@@ -37,11 +37,13 @@ fi
 if [[ ! -f "$WORKOUT_FILE" ]]; then
     echo "⚠️ 未找到 Workout 数据文件: $WORKOUT_FILE"
     echo "   将继续生成报告（不含详细运动数据）"
+    # 使用 /dev/null 作为 workout 文件，让脚本处理不存在的情况
+    WORKOUT_FILE="/dev/null"
 fi
 
 echo "✅ 数据文件检查通过"
 echo "   Health: $HEALTH_FILE"
-echo "   Workout: $WORKOUT_FILE"
+echo "   Workout: $([[ "$WORKOUT_FILE" == "/dev/null" ]] && echo "无" || echo "$WORKOUT_FILE")"
 echo ""
 
 # 生成 HTML 报告
@@ -51,19 +53,37 @@ python3 "${SCRIPT_DIR}/generate_report_final.py" \
     --health "$HEALTH_FILE" \
     --workout "$WORKOUT_FILE" \
     --output "$OUTPUT_HTML" \
-    --date "$YESTERDAY"
+    --date "$YESTERDAY" || {
+    echo "❌ 生成 HTML 报告失败"
+    exit 1
+}
 
 echo ""
 
 # 生成 PDF
 echo "📄 生成 PDF..."
-python3 "${SCRIPT_DIR}/generate_pdf_playwright.py" "$OUTPUT_HTML" "$OUTPUT_PDF"
+python3 "${SCRIPT_DIR}/generate_pdf_playwright.py" "$OUTPUT_HTML" "$OUTPUT_PDF" || {
+    echo "⚠️ PDF 生成失败，尝试使用备用方案..."
+    # 备用方案：使用 Chrome 直接生成
+    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+        --headless \
+        --disable-gpu \
+        --print-to-pdf="$OUTPUT_PDF" \
+        --run-all-compositor-stages-before-draw \
+        --virtual-time-budget=15000 \
+        "file://$OUTPUT_HTML" 2>/dev/null || {
+        echo "❌ PDF 生成完全失败"
+        exit 1
+    }
+}
 
 echo ""
 
 # 发送邮件
 echo "📧 发送邮件到 ${RECIPIENT}..."
-osascript "${SCRIPT_DIR}/send_email_applescript.scpt" "$OUTPUT_PDF" "$RECIPIENT"
+osascript "${SCRIPT_DIR}/send_email_applescript.scpt" "$OUTPUT_PDF" "$RECIPIENT" || {
+    echo "⚠️ 邮件发送失败"
+}
 
 echo ""
 
