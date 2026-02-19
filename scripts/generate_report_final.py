@@ -131,6 +131,12 @@ def get_google_fit_sleep_for_range(date_str):
 
 def parse_workout_data(workout_file: str) -> list:
     """解析 Workout Data JSON 文件"""
+    # 如果文件不存在，返回空列表
+    import os
+    if not os.path.exists(workout_file):
+        print(f"  - Workout 文件不存在，无运动数据")
+        return []
+    
     try:
         with open(workout_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
