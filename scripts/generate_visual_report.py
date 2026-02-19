@@ -1139,59 +1139,22 @@ def generate_visual_report(health_data, output_file):
     return output_file
 
 def generate_workout_list(data):
-    """生成运动列表 HTML"""
+    """生成运动列表 HTML - 使用真实的 workout 数据"""
     workouts = data.get('workouts', [])
-    if not workouts:
-        # 如果没有 workout 数据，显示从 Apple Health 推断的数据
-        floors = data.get('floors', 0)
-        exercise_min = data.get('exercise_min', 0)
-        
-        # 根据爬楼层数推断爬楼梯运动
-        if floors > 0:
-            # 估算爬楼梯时间：每层楼约 15-20 秒，加上休息时间
-            stair_duration = min(60, max(10, floors * 0.4))  # 估算分钟数
-            workouts = [
-                {
-                    'type': f'爬楼梯 {floors} 层',
-                    'icon': '🏢',
-                    'duration': int(stair_duration),
-                    'calories': int(floors * 3.5),  # 估算卡路里
-                    'avg_hr': 130,
-                    'start_time': data.get('workout_start', '12:25'),
-                    'end_time': data.get('workout_end', '13:06')
-                }
-            ]
-            # 如果有额外运动时间，添加其他运动
-            if exercise_min > stair_duration:
-                workouts.append({
-                    'type': '其他运动',
-                    'icon': '🏃',
-                    'duration': int(exercise_min - stair_duration),
-                    'calories': int((exercise_min - stair_duration) * 8),
-                    'avg_hr': 125,
-                    'start_time': data.get('workout_start2', '07:00'),
-                    'end_time': data.get('workout_end2', '07:30')
-                })
-        elif exercise_min > 0:
-            workouts = [
-                {
-                    'type': '日常活动',
-                    'icon': '🚶',
-                    'duration': int(exercise_min),
-                    'calories': int(exercise_min * 6),
-                    'avg_hr': 110,
-                    'start_time': data.get('workout_start', '--:--'),
-                    'end_time': data.get('workout_end', '--:--')
-                }
-            ]
-        else:
-            workouts = []
     
     html = '<div class="workout-list">'
     for w in workouts:
+        # 从 workout 数据中提取时间
         start = w.get('start_time', w.get('time', '--:--'))
         end = w.get('end_time', '--:--')
         time_range = f"{start} - {end}" if end != '--:--' else start
+        
+        # 计算持续时间（分钟）
+        duration = w.get('duration', 0)
+        if isinstance(duration, (int, float)) and duration > 100:
+            # 如果 duration 是秒数，转换为分钟
+            duration = round(duration / 60)
+        
         html += f'''
         <div class="workout-item">
             <div class="icon">{w.get('icon', '🏃')}</div>
@@ -1200,7 +1163,7 @@ def generate_workout_list(data):
                 <div class="meta">{time_range} · 平均心率 {w.get('avg_hr', 0)} bpm</div>
             </div>
             <div class="stats">
-                <div class="duration">{w.get('duration', 0)} 分钟</div>
+                <div class="duration">{duration} 分钟</div>
                 <div class="calories">{w.get('calories', 0)} 千卡</div>
             </div>
         </div>
