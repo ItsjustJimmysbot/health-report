@@ -273,6 +273,32 @@ def generate_multilingual_report(health_data, output_file, lang='zh'):
             font-size: 9pt;
             color: #9ca3af;
         }}
+        .trend-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }}
+        .trend-item {{
+            text-align: center;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 10px;
+        }}
+        .trend-item .label {{
+            font-size: 8pt;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }}
+        .trend-item .value {{
+            font-size: 14pt;
+            font-weight: 700;
+            color: #1f2937;
+        }}
+        .trend-item .change {{
+            font-size: 9pt;
+            margin-top: 2px;
+        }}
         .conclusions {{
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border-left: 5px solid #0ea5e9;
@@ -337,6 +363,73 @@ def generate_multilingual_report(health_data, output_file, lang='zh'):
             font-weight: 700;
             min-width: 60px;
             font-size: 9pt;
+        }}
+        .user-input {{
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 2px dashed #f59e0b;
+            border-radius: 12px;
+            padding: 18px;
+            margin: 12px 0;
+            min-height: 60px;
+        }}
+        .user-input h4 {{
+            color: #b45309;
+            font-size: 11pt;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }}
+        .user-input .placeholder {{
+            color: #9ca3af;
+            font-style: italic;
+            font-size: 10pt;
+        }}
+        .diet-recommendations {{
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 10px;
+        }}
+        .diet-recommendations h4 {{
+            color: #166534;
+            font-size: 11pt;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }}
+        .diet-meal {{
+            background: white;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #22c55e;
+        }}
+        .diet-meal .meal-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }}
+        .diet-meal .meal-name {{
+            font-weight: 700;
+            color: #166534;
+            font-size: 11pt;
+        }}
+        .diet-meal .meal-time {{
+            font-size: 9pt;
+            color: #6b7280;
+            background: #f0fdf4;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }}
+        .diet-meal .meal-foods {{
+            font-size: 10pt;
+            color: #374151;
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }}
+        .diet-meal .meal-notes {{
+            font-size: 9pt;
+            color: #059669;
+            font-style: italic;
         }}
         .footer {{
             text-align: center;
@@ -444,10 +537,51 @@ def generate_multilingual_report(health_data, output_file, lang='zh'):
                 {generate_workout_list(health_data, lang)}
             </div>
             
+            <!-- 7-Day Trend -->
+            <div class="section">
+                <div class="section-title"><span class="icon">📊</span>{get_text('trend_comparison', lang)}</div>
+                <div class="trend-grid">
+                    {generate_trend_item(health_data.get('steps_7day_avg', 0), '', get_text('steps_vs_last', lang), health_data.get('steps_trend', '→'), lang)}
+                    {generate_trend_item(f"{health_data.get('sleep_7day_avg', 0):.1f}", 'h', get_text('sleep_vs_last', lang), health_data.get('sleep_trend', '→'), lang)}
+                    {generate_trend_item(health_data.get('hrv_7day_avg', 0), 'ms', get_text('hrv_vs_last', lang), health_data.get('hrv_trend', '→'), lang)}
+                    {generate_trend_item(health_data.get('rhr_7day_avg', 0), 'bpm', get_text('rhr_vs_last', lang), health_data.get('rhr_trend', '→'), lang)}
+                </div>
+            </div>
+            
             <!-- Conclusions -->
             <div class="conclusions">
                 <h3>📋 {get_text('conclusions', lang)}</h3>
                 {generate_conclusions(health_data, recovery_score, sleep_score, exercise_score, lang)}
+            </div>
+            
+            <!-- Recommendations -->
+            <div class="recommendations">
+                <h3>💡 {get_text('recommendations', lang)}</h3>
+                {generate_recommendations(health_data, recovery_score, lang)}
+            </div>
+            
+            <!-- Diet Suggestions -->
+            <div class="section">
+                <div class="section-title"><span class="icon">🥗</span>{get_text('diet_suggestions', lang)}</div>
+                {generate_diet_section(health_data, lang)}
+            </div>
+            
+            <!-- Diet Record -->
+            <div class="section">
+                <div class="section-title"><span class="icon">🍽️</span>{get_text('diet_record', lang)}</div>
+                <div class="user-input">
+                    <h4>📝 {get_text('diet_record', lang)}</h4>
+                    {health_data.get('diet_content') or f'<div class="placeholder">{get_text("diet_placeholder", lang)}</div>'}
+                </div>
+            </div>
+            
+            <!-- Notes -->
+            <div class="section">
+                <div class="section-title"><span class="icon">📝</span>{get_text('notes', lang)}</div>
+                <div class="user-input">
+                    <h4>🤔 {get_text('notes', lang)}</h4>
+                    {health_data.get('notes_content') or f'<div class="placeholder">{get_text("notes_placeholder", lang)}</div>'}
+                </div>
             </div>
         </div>
         
@@ -570,6 +704,159 @@ def generate_conclusions(data, recovery_score, sleep_score, exercise_score, lang
     html = ''
     for emoji, badge_class, desc in conclusions:
         html += f'<div class="conclusion-item"><span class="badge {badge_class}">{emoji}</span><span>{desc}</span></div>'
+    
+    return html
+
+def generate_trend_item(value, unit, label, trend, lang):
+    """生成趋势项 HTML"""
+    trend_class = 'trend-up' if '↑' in trend else 'trend-down' if '↓' in trend else 'trend-same'
+    return f'''
+    <div class="trend-item">
+        <div class="label">{label}</div>
+        <div class="value">{value}{unit}</div>
+        <div class="change {trend_class}">{trend}</div>
+    </div>
+    '''
+
+def generate_recommendations(data, recovery_score, lang):
+    """生成建议 HTML"""
+    recs = []
+    sleep_hours = data.get('sleep_hours', 0)
+    has_sleep = data.get('has_sleep_data', False)
+    steps = data.get('steps', 0)
+    hrv = data.get('hrv', 0)
+    
+    # Recovery recommendations
+    if recovery_score < 60:
+        recs.append(('high', get_text('priority', lang), 
+                    'Go to bed before 22:30, ensure 7.5+ hours of sleep, avoid screens 1 hour before bed' if lang == 'en' else 
+                    '今晚 22:30 前入睡，确保 7.5+ 小时睡眠，睡前 1 小时远离屏幕'))
+        recs.append(('high', get_text('priority', lang), 
+                    'Reduce high-intensity exercise tomorrow, switch to light activities like walking or yoga' if lang == 'en' else 
+                    '明日减少高强度运动，改为散步或瑜伽等轻度活动'))
+    elif recovery_score < 80:
+        recs.append(('medium', get_text('suggestion', lang), 
+                    'Can do moderate training, monitor heart rate not exceeding 150 bpm' if lang == 'en' else 
+                    '可进行中等强度训练，注意监控心率不超过 150 bpm'))
+    else:
+        recs.append(('low', get_text('optional', lang), 
+                    'Good recovery, challenge high-intensity interval training or long-distance cardio' if lang == 'en' else 
+                    '恢复良好，可挑战高强度间歇训练或长距离有氧'))
+    
+    # Sleep recommendations
+    if not has_sleep:
+        recs.append(('high', get_text('priority', lang), 
+                    'No sleep data yesterday, ensure 7-8 hours of sleep tonight' if lang == 'en' else 
+                    '昨日睡眠数据缺失，今晚务必保证 7-8 小时睡眠'))
+    elif sleep_hours < 6:
+        recs.append(('high', get_text('priority', lang), 
+                    'Severely insufficient sleep, suggest 20-30 minute nap tomorrow to compensate' if lang == 'en' else 
+                    '睡眠严重不足，明日建议午休 20-30 分钟补偿'))
+    elif sleep_hours < 7:
+        recs.append(('medium', get_text('suggestion', lang), 
+                    'Try going to bed 30 minutes earlier tonight, establish a regular bedtime routine' if lang == 'en' else 
+                    '今晚尝试提前 30 分钟上床，建立固定睡前仪式'))
+    
+    # Exercise recommendations
+    if steps < 6000:
+        recs.append(('medium', get_text('suggestion', lang), 
+                    'Tomorrow\'s goal: 10,000 steps, suggest 40 minutes of stair climbing or brisk walking' if lang == 'en' else 
+                    '明日目标：10,000 步，建议安排 40 分钟爬楼梯或快走'))
+    elif steps < 8000:
+        recs.append(('medium', get_text('suggestion', lang), 
+                    'Tomorrow\'s goal: 10,000 steps, suggest increasing daily walking' if lang == 'en' else 
+                    '明日目标：10,000 步，建议增加日常步行'))
+    else:
+        recs.append(('low', get_text('optional', lang), 
+                    'Tomorrow maintain 8,000+ steps, rest appropriately' if lang == 'en' else 
+                    '明日维持 8,000+ 步即可，适当休息'))
+    
+    # HRV recommendations
+    if hrv < 40:
+        recs.append(('high', get_text('priority', lang), 
+                    'Low HRV, suggest deep breathing exercises (4-7-8 method) or 10 minutes of meditation' if lang == 'en' else 
+                    'HRV 偏低，建议进行深呼吸练习（4-7-8 呼吸法）或冥想 10 分钟'))
+    
+    # Diet recommendations
+    if not data.get('diet_content'):
+        recs.append(('medium', get_text('suggestion', lang), 
+                    'Please supplement diet records for nutritional analysis' if lang == 'en' else 
+                    '请补充饮食记录，以便进行营养分析'))
+    
+    html = ''
+    for priority, label, text in recs:
+        priority_class = f'priority-{priority}'
+        html += f'<div class="rec-item {priority}"><span class="priority {priority_class}">{label}</span><span>{text}</span></div>'
+    
+    return html
+
+def generate_diet_section(data, lang):
+    """生成饮食建议 HTML"""
+    sleep_hours = data.get('sleep_hours', 0)
+    exercise_min = data.get('exercise_min', 0)
+    
+    if lang == 'zh':
+        # 中文版饮食建议
+        html = '''
+        <div class="diet-recommendations">
+            <h4>🍽️ 明日饮食建议（一日三餐版）</h4>
+            <div class="diet-meal">
+                <div class="meal-header">
+                    <span class="meal-name">🌅 早餐</span>
+                    <span class="meal-time">07:30-08:30</span>
+                </div>
+                <div class="meal-foods">全麦面包/燕麦 + 鸡蛋 1-2个 + 牛奶/豆浆 + 水果</div>
+                <div class="meal-notes">💡 早餐摄入全天30%热量，补充蛋白质启动代谢</div>
+            </div>
+            <div class="diet-meal">
+                <div class="meal-header">
+                    <span class="meal-name">☀️ 午餐</span>
+                    <span class="meal-time">12:00-13:00</span>
+                </div>
+                <div class="meal-foods">米饭/杂粮饭 150g + 瘦肉/鱼 100g + 绿叶蔬菜 + 豆制品</div>
+                <div class="meal-notes">💡 午餐摄入全天40%热量，保证碳水供能下午工作</div>
+            </div>
+            <div class="diet-meal">
+                <div class="meal-header">
+                    <span class="meal-name">🌙 晚餐</span>
+                    <span class="meal-time">18:00-19:00</span>
+                </div>
+                <div class="meal-foods">杂粮/薯类 100g + 鸡胸肉/鱼 100g + 大量蔬菜 + 菌菇类</div>
+                <div class="meal-notes">💡 晚餐摄入全天30%热量，睡前3小时完成进食</div>
+            </div>
+        </div>
+        '''
+    else:
+        # English version
+        html = '''
+        <div class="diet-recommendations">
+            <h4>🍽️ Tomorrow's Diet Suggestions (Three Meals)</h4>
+            <div class="diet-meal">
+                <div class="meal-header">
+                    <span class="meal-name">🌅 Breakfast</span>
+                    <span class="meal-time">07:30-08:30</span>
+                </div>
+                <div class="meal-foods">Whole wheat bread/oatmeal + 1-2 eggs + milk/soy milk + fruit</div>
+                <div class="meal-notes">💡 30% of daily calories, protein to boost metabolism</div>
+            </div>
+            <div class="diet-meal">
+                <div class="meal-header">
+                    <span class="meal-name">☀️ Lunch</span>
+                    <span class="meal-time">12:00-13:00</span>
+                </div>
+                <div class="meal-foods">Rice/grains 150g + lean meat/fish 100g + leafy greens + tofu</div>
+                <div class="meal-notes">💡 40% of daily calories, carbs for afternoon energy</div>
+            </div>
+            <div class="diet-meal">
+                <div class="meal-header">
+                    <span class="meal-name">🌙 Dinner</span>
+                    <span class="meal-time">18:00-19:00</span>
+                </div>
+                <div class="meal-foods">Grains/potatoes 100g + chicken breast/fish 100g + vegetables + mushrooms</div>
+                <div class="meal-notes">💡 30% of daily calories, finish 3 hours before bed</div>
+            </div>
+        </div>
+        '''
     
     return html
 
