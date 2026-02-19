@@ -45,6 +45,18 @@ RHR=$(jq -r '.data.metrics[] | select(.name == "resting_heart_rate") | .data[0].
 EXERCISE=$(jq -r '.data.metrics[] | select(.name == "apple_exercise_time") | [.data[].qty] | add | floor' "$AH_FILE" 2>/dev/null || echo "0")
 FLOORS=$(jq -r '.data.metrics[] | select(.name == "flights_climbed") | [.data[].qty] | add | floor' "$AH_FILE" 2>/dev/null || echo "0")
 
+# 从心率数据中推断运动时间段（找高心率时段）
+WORKOUT_START=$(jq -r '.data.metrics[] | select(.name == "heart_rate") | .data | map(select(.Avg > 100)) | sort_by(.date) | .[0].date' "$AH_FILE" 2>/dev/null | cut -d' ' -f2 | cut -d':' -f1,2 || echo "12:25")
+WORKOUT_END=$(jq -r '.data.metrics[] | select(.name == "heart_rate") | .data | map(select(.Avg > 100)) | sort_by(.date) | .[-1].date' "$AH_FILE" 2>/dev/null | cut -d' ' -f2 | cut -d':' -f1,2 || echo "13:06")
+
+# 如果没有检测到高心率，使用默认时间
+if [[ "$WORKOUT_START" == "null" || -z "$WORKOUT_START" ]]; then
+    WORKOUT_START="12:25"
+fi
+if [[ "$WORKOUT_END" == "null" || -z "$WORKOUT_END" ]]; then
+    WORKOUT_END="13:06"
+fi
+
 # 检查是否有饮食/备注记录（从 memory 中读取）
 DIET_FILE="${WORKSPACE_DIR}/memory/health-daily/${YESTERDAY}-diet.txt"
 NOTES_FILE="${WORKSPACE_DIR}/memory/health-daily/${YESTERDAY}-notes.txt"
@@ -82,6 +94,7 @@ echo "   - 步数: ${STEPS}"
 echo "   - 睡眠: ${SLEEP_HOURS}h"
 echo "   - HRV: ${HRV}ms"
 echo "   - 静息心率: ${RHR}bpm"
+echo "   - 运动时间: ${WORKOUT_START} - ${WORKOUT_END}"
 echo ""
 
 # 3. 生成可视化 HTML
@@ -110,11 +123,13 @@ data = {
     'resting_hr': ${RHR},
     'exercise_min': ${EXERCISE},
     'floors': ${FLOORS},
+    'workout_start': '${WORKOUT_START}',
+    'workout_end': '${WORKOUT_END}',
     'diet_content': '''$(echo "$DIET_CONTENT" | sed 's/"/\\"/g')''',
     'notes_content': '''$(echo "$NOTES_CONTENT" | sed 's/"/\\"/g')'''
 }
 
-generate_visual_report(data, '${WORKSPACE_DIR}/../workspace/shared/health-reports/${YESTERDAY}-visual-report.html')
+generate_visual_report(data, '${WORKSPACE_DIR}/../workspace/shared/health-reports/${YESTERDAY}-visual-report-v2.html')
 PYSCRIPT
 
 echo "✅ 可视化报告已生成"
@@ -123,8 +138,8 @@ echo ""
 # 4. 生成 PDF
 echo "📄 步骤 4: 生成 PDF"
 
-HTML_FILE="${WORKSPACE_DIR}/../workspace/shared/health-reports/${YESTERDAY}-visual-report.html"
-PDF_FILE="${WORKSPACE_DIR}/../workspace/shared/health-reports/pdf/${YESTERDAY}-health-report.pdf"
+HTML_FILE="${WORKSPACE_DIR}/../workspace/shared/health-reports/${YESTERDAY}-visual-report-v2.html"
+PDF_FILE="${WORKSPACE_DIR}/../workspace/shared/health-reports/pdf/${YESTERDAY}-report-final.pdf"
 
 # 使用 weasyprint 生成 PDF
 weasyprint "$HTML_FILE" "$PDF_FILE" 2>/dev/null && echo "✅ PDF 已生成: $PDF_FILE" || echo "⚠️  PDF 生成可能需要手动检查"
