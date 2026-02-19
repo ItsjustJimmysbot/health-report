@@ -131,10 +131,10 @@ def get_google_fit_sleep_for_range(date_str):
 
 def parse_workout_data(workout_file: str) -> list:
     """解析 Workout Data JSON 文件"""
-    # 如果文件不存在，返回空列表
+    # 如果文件不存在或者是 /dev/null，返回空列表
     import os
-    if not os.path.exists(workout_file):
-        print(f"  - Workout 文件不存在，无运动数据")
+    if not os.path.exists(workout_file) or workout_file == "/dev/null":
+        print(f"  - 无 Workout 数据")
         return []
     
     try:
