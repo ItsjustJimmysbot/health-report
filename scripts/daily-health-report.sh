@@ -2,6 +2,7 @@
 #
 # 每日健康分析与报告生成脚本
 # 由 cron 每日 12:00 触发，生成健康分析报告
+# 数据源: Google Fit + Apple Health (via Health Auto Export)
 #
 
 set -euo pipefail
@@ -10,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TOKEN_FILE="${HOME}/.openclaw/credentials/google-fit-token.json"
 CRED_FILE="${HOME}/.openclaw/credentials/google-fit-credentials.json"
+APPLE_HEALTH_DIR="${HOME}/.openclaw/workspace-health/data/apple-health"
 
 # 日期计算
 TODAY=$(date +%F)
@@ -19,6 +21,62 @@ MONTH_AGO=$(date -v-30d +%F)
 
 echo "=== 每日健康分析 [$TODAY 12:00] ==="
 echo "分析日期: $YESTERDAY"
+echo ""
+
+# ============================================
+# 读取 Apple Health 数据 (Health Auto Export)
+# ============================================
+echo "📱 Checking Apple Health data..."
+
+APPLE_HEALTH_FILE="${APPLE_HEALTH_DIR}/health-${YESTERDAY}.json"
+APPLE_HEALTH_LATEST="${APPLE_HEALTH_DIR}/latest.json"
+
+HRV_AVG="N/A"
+HRV_SCORE=0
+RESTING_HR="N/A"
+RESPIRATORY_RATE="N/A"
+SPO2_AVG="N/A"
+APPLE_SLEEP_MINUTES=0
+APPLE_SLEEP_DEEP=0
+APPLE_SLEEP_REM=0
+
+if [[ -f "$APPLE_HEALTH_FILE" ]]; then
+  echo "✅ Found Apple Health data: health-${YESTERDAY}.json"
+  AH_FILE="$APPLE_HEALTH_FILE"
+elif [[ -f "$APPLE_HEALTH_LATEST" ]]; then
+  echo "⚠️ Using latest.json (may not be yesterday's data)"
+  AH_FILE="$APPLE_HEALTH_LATEST"
+else
+  echo "⚠️ No Apple Health data found"
+  AH_FILE=""
+fi
+
+if [[ -n "$AH_FILE" && -f "$AH_FILE" ]]; then
+  # 读取 HRV
+  HRV_AVG=$(jq -r '.metrics.heartRateVariability.avg // "N/A"' "$AH_FILE" 2>/dev/null)
+  HRV_MIN=$(jq -r '.metrics.heartRateVariability.min // "N/A"' "$AH_FILE" 2>/dev/null)
+  HRV_MAX=$(jq -r '.metrics.heartRateVariability.max // "N/A"' "$AH_FILE" 2>/dev/null)
+  
+  # 读取静息心率
+  RESTING_HR=$(jq -r '.metrics.restingHeartRate.value // "N/A"' "$AH_FILE" 2>/dev/null)
+  
+  # 读取呼吸频率
+  RESPIRATORY_RATE=$(jq -r '.metrics.respiratoryRate.avg // "N/A"' "$AH_FILE" 2>/dev/null)
+  
+  # 读取血氧
+  SPO2_AVG=$(jq -r '.metrics.oxygenSaturation.avg // "N/A"' "$AH_FILE" 2>/dev/null)
+  
+  # 读取 Apple Health 睡眠数据
+  APPLE_SLEEP_MINUTES=$(jq -r '.metrics.sleep.totalMinutes // 0' "$AH_FILE" 2>/dev/null)
+  APPLE_SLEEP_DEEP=$(jq -r '.metrics.sleep.deepMinutes // 0' "$AH_FILE" 2>/dev/null)
+  APPLE_SLEEP_REM=$(jq -r '.metrics.sleep.remMinutes // 0' "$AH_FILE" 2>/dev/null)
+  APPLE_SLEEP_EFFICIENCY=$(jq -r '.metrics.sleep.efficiency // 0' "$AH_FILE" 2>/dev/null)
+  
+  echo "  HRV: ${HRV_AVG}ms | RHR: ${RESTING_HR}bpm | RR: ${RESPIRATORY_RATE}/min | SpO2: ${SPO2_AVG}%"
+  echo "  Sleep: ${APPLE_SLEEP_MINUTES}min (Deep: ${APPLE_SLEEP_DEEP}, REM: ${APPLE_SLEEP_REM})"
+fi
+
+echo ""
 
 # 检查凭证
 if [[ ! -f "$TOKEN_FILE" ]] || [[ ! -f "$CRED_FILE" ]]; then
@@ -86,99 +144,255 @@ SESSIONS_RESPONSE=$(curl -s -X GET "https://www.googleapis.com/fitness/v1/users/
 REPORT_FILE="$WORKSPACE_DIR/memory/health-daily/${YESTERDAY}.md"
 mkdir -p "$WORKSPACE_DIR/memory/health-daily"
 
+# 计算 Recovery Score (基于可用数据)
+RECOVERY_SCORE=0
+RECOVERY_STATUS="未知"
+RECOVERY_COLOR="⚪"
+
+if [[ "$HRV_AVG" != "N/A" && -n "$HRV_AVG" ]]; then
+  # HRV 评估 (简化版，正常范围 40-60ms)
+  HRV_VAL=$(echo "$HRV_AVG" | cut -d. -f1)
+  if [[ $HRV_VAL -ge 50 ]]; then
+    HRV_SCORE=10
+  elif [[ $HRV_VAL -ge 40 ]]; then
+    HRV_SCORE=7
+  elif [[ $HRV_VAL -ge 30 ]]; then
+    HRV_SCORE=5
+  else
+    HRV_SCORE=3
+  fi
+  
+  # 综合 Recovery Score (简化算法)
+  RECOVERY_SCORE=$(( (SLEEP_SCORE * 40 + HRV_SCORE * 35 + INTENSITY_SCORE * 25) / 100 ))
+  
+  if [[ $RECOVERY_SCORE -ge 7 ]]; then
+    RECOVERY_STATUS="良好"
+    RECOVERY_COLOR="🟢"
+  elif [[ $RECOVERY_SCORE -ge 4 ]]; then
+    RECOVERY_STATUS="一般"
+    RECOVERY_COLOR="🟡"
+  else
+    RECOVERY_STATUS="较差"
+    RECOVERY_COLOR="🔴"
+  fi
+else
+  # 没有 HRV 数据时，使用简化 Recovery Score
+  RECOVERY_SCORE=$(( (SLEEP_SCORE * 50 + INTENSITY_SCORE * 50) / 100 ))
+  if [[ $RECOVERY_SCORE -ge 7 ]]; then
+    RECOVERY_STATUS="良好"
+    RECOVERY_COLOR="🟢"
+  elif [[ $RECOVERY_SCORE -ge 4 ]]; then
+    RECOVERY_STATUS="一般"
+    RECOVERY_COLOR="🟡"
+  else
+    RECOVERY_STATUS="较差"
+    RECOVERY_COLOR="🔴"
+  fi
+fi
+
 cat > "$REPORT_FILE" << EOF
 # 每日健康报告 - ${YESTERDAY}
 
 **分析时间**: ${TODAY} 12:00  
-**数据来源**: Google Fit API
+**数据来源**: Google Fit API + Apple Health (Watch)
 
 ---
 
-## 📊 昨日数据 (${YESTERDAY})
+## 🔋 今日状态速览 (Recovery Score)
 
-### 基础指标
-| 指标 | 数值 | 目标 | 达成率 |
-|------|------|------|--------|
-| 步数 | ${STEPS} | 8,000 | $(echo "scale=1; $STEPS / 8000 * 100" | bc)% |
-| 卡路里 | ${CALORIES} kcal | - | - |
-| 活跃时间 | ${ACTIVE_MIN} min | 60 min | $(echo "scale=1; $ACTIVE_MIN / 60 * 100" | bc)% |
-| 睡眠 | ${SLEEP_HOURS}h ($((${SLEEP_MINUTES}%60))m) | 7-8h | - |
+\`\`\`
+┌────────────────────────────────────────┐
+│                                        │
+│      ${RECOVERY_COLOR} Recovery Score                    │
+│                                        │
+│         ┌─────────┐                    │
+│         │   ${RECOVERY_SCORE}0%   │  ← ${RECOVERY_STATUS}        │
+│         │  ${RECOVERY_STATUS}  │                    │
+│         └─────────┘                    │
+│                                        │
+│  ${RECOVERY_COLOR} ${RECOVERY_STATUS}区域: 
+EOF
+
+if [[ $RECOVERY_SCORE -ge 7 ]]; then
+  echo "可承受高强度训练" >> "$REPORT_FILE"
+elif [[ $RECOVERY_SCORE -ge 4 ]]; then
+  echo "建议降低训练强度，专注恢复" >> "$REPORT_FILE"
+else
+  echo "优先休息，避免高强度训练" >> "$REPORT_FILE"
+fi
+
+cat >> "$REPORT_FILE" << EOF
+│                                        │
+└────────────────────────────────────────┘
+\`\`\`
+
+### 昨日核心指标
+| 指标 | 数值 | 目标 | 状态 |
+|------|------|------|------|
+| 步数 | ${STEPS} | 8,000 | $(if [[ $STEPS -ge 8000 ]]; then echo "✅"; else echo "⚠️"; fi) |
+| 活跃时间 | ${ACTIVE_MIN} min | 60 min | $(if [[ $ACTIVE_MIN -ge 60 ]]; then echo "✅"; else echo "⚠️"; fi) |
+| 睡眠 | ${SLEEP_HOURS}h ($((${SLEEP_MINUTES}%60))m) | 7-8h | $(if [[ $SLEEP_MINUTES -ge 420 ]]; then echo "✅"; else echo "🔴"; fi) |
 | 平均心率 | ${HEART_RATE} bpm | - | - |
+EOF
 
-### 运动详情
+# 添加 Apple Health 数据（如果有）
+if [[ "$HRV_AVG" != "N/A" ]]; then
+cat >> "$REPORT_FILE" << EOF
+| HRV | ${HRV_AVG} ms | 40-60 | $(if [[ $(echo "$HRV_AVG >= 40" | bc) -eq 1 && $(echo "$HRV_AVG <= 60" | bc) -eq 1 ]]; then echo "✅"; else echo "⚠️"; fi) |
+| 静息心率 | ${RESTING_HR} bpm | 55-70 | $(if [[ "$RESTING_HR" != "N/A" && $(echo "$RESTING_HR >= 55" | bc) -eq 1 && $(echo "$RESTING_HR <= 70" | bc) -eq 1 ]]; then echo "✅"; elif [[ "$RESTING_HR" != "N/A" && $(echo "$RESTING_HR < 75" | bc) -eq 1 ]]; then echo "⚠️"; else echo "🔴"; fi) |
+EOF
+fi
+
+if [[ "$RESPIRATORY_RATE" != "N/A" ]]; then
+cat >> "$REPORT_FILE" << EOF
+| 呼吸频率 | ${RESPIRATORY_RATE} /min | 12-20 | $(if [[ $(echo "$RESPIRATORY_RATE >= 12" | bc) -eq 1 && $(echo "$RESPIRATORY_RATE <= 20" | bc) -eq 1 ]]; then echo "✅"; else echo "⚠️"; fi) |
+EOF
+fi
+
+if [[ "$SPO2_AVG" != "N/A" ]]; then
+cat >> "$REPORT_FILE" << EOF
+| 血氧 | ${SPO2_AVG}% | 95-100% | $(if [[ $(echo "$SPO2_AVG >= 95" | bc) -eq 1 ]]; then echo "✅"; else echo "🔴"; fi) |
+EOF
+fi
+
+cat >> "$REPORT_FILE" << EOF
+
+---
+
+## 📊 详细数据分析
+
+### 🏃 运动表现
+| 指标 | 数值 | 评估 |
+|------|------|------|
+| 步数 | ${STEPS} | 目标完成 $(echo "scale=1; $STEPS / 8000 * 100" | bc)% |
+| 卡路里 | ${CALORIES} kcal | - |
+| 活跃时间 | ${ACTIVE_MIN} min | $(if [[ $ACTIVE_MIN -ge 60 ]]; then echo "✅ 超额完成"; else echo "待提升"; fi) |
+| 平均心率 | ${HEART_RATE} bpm | $(if [[ $HEART_RATE -gt 0 && $HEART_RATE -lt 100 ]]; then echo "静息心率正常"; else echo "-"; fi) |
+
+**运动强度**: ${INTENSITY} (评分: ${INTENSITY_SCORE}/10)
+
 EOF
 
 # 添加运动会话详情
+cat >> "$REPORT_FILE" << EOF
+
+**运动详情**:
+EOF
 echo "$SESSIONS_RESPONSE" | jq -r '.session[] | 
   select(.activityType != 72) |
-  "- **\(.name)**: \(.startTimeMillis | tonumber / 1000 | strftime("%H:%M"))-\(.endTimeMillis | tonumber / 1000 | strftime("%H:%M")) ($(echo "((.endTimeMillis | tonumber) - (.startTimeMillis | tonumber)) / 60000" | bc)分钟)"
-' >> "$REPORT_FILE" 2>/dev/null || echo "- 无详细运动记录" >> "$REPORT_FILE"
+  "- **\(.name)**: \(.startTimeMillis | tonumber / 1000 | strftime("%H:%M"))-\(.endTimeMillis | tonumber / 1000 | strftime("%H:%M"))"' >> "$REPORT_FILE" 2>/dev/null || echo "- 无详细运动记录" >> "$REPORT_FILE"
 
 cat >> "$REPORT_FILE" << EOF
 
----
-
-## 🏃 运动强度评估
+**强度解读**:
 EOF
 
-# 运动强度评估逻辑
-if [[ $STEPS -ge 10000 ]] && echo "$SESSIONS_RESPONSE" | jq -e '.session[] | select(.activityType == 80)' >/dev/null; then
-  INTENSITY="高"
-  INTENSITY_SCORE=10
-elif [[ $STEPS -ge 8000 ]] && [[ $ACTIVE_MIN -ge 60 ]]; then
-  INTENSITY="中高"
-  INTENSITY_SCORE=8
-elif [[ $STEPS -ge 6000 ]]; then
-  INTENSITY="中"
-  INTENSITY_SCORE=6
-elif [[ $STEPS -ge 4000 ]]; then
-  INTENSITY="低"
-  INTENSITY_SCORE=4
-else
-  INTENSITY="极低"
-  INTENSITY_SCORE=2
-fi
-
-echo "**强度等级**: ${INTENSITY} (评分: ${INTENSITY_SCORE}/10)" >> "$REPORT_FILE"
-echo "" >> "$REPORT_FILE"
-
 if [[ $INTENSITY_SCORE -ge 8 ]]; then
-  echo "✅ 运动量充足，保持良好状态" >> "$REPORT_FILE"
+  echo "✅ 运动量充足，身体适应性良好。继续保持当前节奏。" >> "$REPORT_FILE"
 elif [[ $INTENSITY_SCORE -ge 6 ]]; then
-  echo "⚡ 运动量尚可，可适当增加强度" >> "$REPORT_FILE"
+  echo "⚡ 运动量尚可，但距离目标仍有提升空间。建议增加日常步行或轻度活动。" >> "$REPORT_FILE"
 else
-  echo "⚠️ 运动量不足，建议增加日常活动" >> "$REPORT_FILE"
+  echo "⚠️ 运动量不足，长期可能影响心肺功能和代谢健康。建议从每天增加 2,000 步开始。" >> "$REPORT_FILE"
 fi
 
 cat >> "$REPORT_FILE" << EOF
 
 ---
 
-## 💤 睡眠评估
+### 💤 睡眠分析
 
+EOF
+
+# 如果有 Apple Health 详细睡眠数据，展示睡眠架构
+if [[ $APPLE_SLEEP_MINUTES -gt 0 ]]; then
+  APPLE_SLEEP_HOURS=$((APPLE_SLEEP_MINUTES / 60))
+  APPLE_SLEEP_MINS=$((APPLE_SLEEP_MINUTES % 60))
+  DEEP_PCT=$((APPLE_SLEEP_DEEP * 100 / APPLE_SLEEP_MINUTES))
+  REM_PCT=$((APPLE_SLEEP_REM * 100 / APPLE_SLEEP_MINUTES))
+  
+cat >> "$REPORT_FILE" << EOF
+**睡眠架构 (Apple Watch)**:
+\`\`\`
+总睡眠: ${APPLE_SLEEP_HOURS}h ${APPLE_SLEEP_MINS}m
+
+深度睡眠  🟣 $(printf '%*s' $((DEEP_PCT/5)) '' | tr ' ' '█')$(printf '%*s' $((20-DEEP_PCT/5)) '' | tr ' ' '░')  ${DEEP_PCT}% (目标 15-20%)
+REM 睡眠  🟢 $(printf '%*s' $((REM_PCT/5)) '' | tr ' ' '█')$(printf '%*s' $((20-REM_PCT/5)) '' | tr ' ' '░')  ${REM_PCT}% (目标 20-25%)
+其他睡眠  🔵 (浅睡 + 清醒)
+
+效率: ${APPLE_SLEEP_EFFICIENCY}%
+\`\`\`
+
+EOF
+else
+  # 使用 Google Fit 的简化睡眠数据
+cat >> "$REPORT_FILE" << EOF
 **睡眠时长**: ${SLEEP_HOURS}小时 $((${SLEEP_MINUTES}%60))分钟
 
 EOF
-
-# 睡眠评估
-if [[ $SLEEP_MINUTES -ge 420 ]] && [[ $SLEEP_MINUTES -le 540 ]]; then
-  SLEEP_QUALITY="良好"
-  SLEEP_SCORE=8
-elif [[ $SLEEP_MINUTES -ge 360 ]]; then
-  SLEEP_QUALITY="一般"
-  SLEEP_SCORE=6
-else
-  SLEEP_QUALITY="不足"
-  SLEEP_SCORE=4
 fi
 
-echo "**质量评估**: ${SLEEP_QUALITY} (评分: ${SLEEP_SCORE}/10)" >> "$REPORT_FILE"
-echo "" >> "$REPORT_FILE"
+cat >> "$REPORT_FILE" << EOF
+**质量评估**: ${SLEEP_QUALITY} (评分: ${SLEEP_SCORE}/10)
+
+EOF
 
 if [[ $SLEEP_SCORE -ge 8 ]]; then
-  echo "✅ 睡眠充足，有助于身体恢复" >> "$REPORT_FILE"
+  echo "✅ 睡眠充足且质量良好，有助于身体恢复和认知功能维持。" >> "$REPORT_FILE"
 elif [[ $SLEEP_SCORE -ge 6 ]]; then
-  echo "⚡ 睡眠尚可，建议今晚提早入睡" >> "$REPORT_FILE"
+  echo "⚡ 睡眠尚可，但距离理想状态有差距。建议今晚提前 30 分钟准备入睡。" >> "$REPORT_FILE"
+else
+  echo "⚠️ **睡眠严重不足！** 这会影响你的恢复、情绪和专注力。今晚优先级：必须早睡！" >> "$REPORT_FILE"
+fi
+
+cat >> "$REPORT_FILE" << EOF
+
+---
+
+### ❤️ 恢复度分析 (Recovery)
+
+EOF
+
+if [[ "$HRV_AVG" != "N/A" ]]; then
+cat >> "$REPORT_FILE" << EOF
+**心率变异性 (HRV)**:
+- 平均值: ${HRV_AVG} ms
+- 范围: ${HRV_MIN} - ${HRV_MAX} ms
+- 评估: $(if [[ $(echo "$HRV_AVG >= 50" | bc) -eq 1 ]]; then echo "✅ 良好 - 自主神经系统恢复良好"; elif [[ $(echo "$HRV_AVG >= 40" | bc) -eq 1 ]]; then echo "⚡ 一般 - 恢复中，注意休息"; else echo "🔴 偏低 - 身体压力较大"; fi)
+
+HRV 反映自主神经系统的恢复状态。较高的 HRV 通常意味着更好的恢复和压力适应能力。
+
+EOF
+fi
+
+if [[ "$RESTING_HR" != "N/A" ]]; then
+cat >> "$REPORT_FILE" << EOF
+**静息心率**: ${RESTING_HR} bpm
+- 基线参考: 65 bpm
+- 趋势: $(if [[ $(echo "$RESTING_HR <= 65" | bc) -eq 1 ]]; then echo "✅ 低于/等于基线，恢复良好"; elif [[ $(echo "$RESTING_HR <= 70" | bc) -eq 1 ]]; then echo "⚡ 略高于基线，注意恢复"; else echo "🔴 明显高于基线，优先休息"; fi)
+
+EOF
+fi
+
+if [[ "$RESPIRATORY_RATE" != "N/A" ]]; then
+cat >> "$REPORT_FILE" << EOF
+**呼吸频率**: ${RESPIRATORY_RATE} 次/分钟
+- 正常范围: 12-20 次/分钟
+- 评估: $(if [[ $(echo "$RESPIRATORY_RATE >= 12 && $RESPIRATORY_RATE <= 20" | bc) -eq 1 ]]; then echo "✅ 正常"; else echo "⚠️ 需关注"; fi)
+
+EOF
+fi
+
+if [[ "$SPO2_AVG" != "N/A" ]]; then
+cat >> "$REPORT_FILE" << EOF
+**血氧饱和度**: ${SPO2_AVG}%
+- 正常范围: 95-100%
+- 评估: $(if [[ $(echo "$SPO2_AVG >= 95" | bc) -eq 1 ]]; then echo "✅ 正常"; else echo "🔴 偏低 - 如持续请就医"; fi)
+
+EOF
+fi
+
+cat >> "$REPORT_FILE" << EOF
+---
 else
   echo "⚠️ 睡眠不足，优先级：今晚必须早睡！" >> "$REPORT_FILE"
 fi
@@ -276,13 +490,26 @@ mkdir -p "$WORKSPACE_DIR/memory/shared"
   echo
   echo "## [${TODAY} 12:00] health"
   echo "- 日期: ${YESTERDAY}"
+  echo "- Recovery Score: ${RECOVERY_SCORE}/10 (${RECOVERY_STATUS})"
   echo "- 步数: ${STEPS}"
   echo "- 卡路里: ${CALORIES} kcal"
   echo "- 活跃时间: ${ACTIVE_MIN} min"
-  echo "- 睡眠: ${SLEEP_HOURS}h"
+  echo "- 睡眠: ${SLEEP_HOURS}h ($((${SLEEP_MINUTES}%60))m)"
   echo "- 平均心率: ${HEART_RATE} bpm"
   echo "- 运动强度: ${INTENSITY} (${INTENSITY_SCORE}/10)"
   echo "- 睡眠质量: ${SLEEP_QUALITY} (${SLEEP_SCORE}/10)"
+  if [[ "$HRV_AVG" != "N/A" ]]; then
+    echo "- HRV: ${HRV_AVG}ms"
+  fi
+  if [[ "$RESTING_HR" != "N/A" ]]; then
+    echo "- 静息心率: ${RESTING_HR}bpm"
+  fi
+  if [[ "$RESPIRATORY_RATE" != "N/A" ]]; then
+    echo "- 呼吸频率: ${RESPIRATORY_RATE}/min"
+  fi
+  if [[ "$SPO2_AVG" != "N/A" ]]; then
+    echo "- 血氧: ${SPO2_AVG}%"
+  fi
   echo "- 状态: done"
 } >> "$WORKSPACE_DIR/memory/shared/health-shared.md"
 
