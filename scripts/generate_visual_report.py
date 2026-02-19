@@ -140,15 +140,49 @@ def generate_heart_rate_chart(data):
         step = len(hr_data) // 15
         hr_data = hr_data[::step]
     
-    if not hr_data:
-        # 生成模拟数据
-        hr_data = [
-            {"time": "06:00", "hr": 55}, {"time": "08:00", "hr": 72},
-            {"time": "10:00", "hr": 68}, {"time": "12:00", "hr": 75},
-            {"time": "14:00", "hr": 70}, {"time": "16:00", "hr": 73},
-            {"time": "18:00", "hr": 85}, {"time": "20:00", "hr": 78},
-            {"time": "22:00", "hr": 62}, {"time": "23:00", "hr": 58}
-        ]
+    # 检查是否有心率数据
+    has_hr_data = len(hr_data) > 0
+    
+    if not has_hr_data:
+        # 无心率数据，返回空图表配置
+        return """
+    {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '心率 (bpm)',
+                data: [],
+                borderColor: '#9ca3af',
+                backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: { 
+                    display: true, 
+                    text: '无全天心率数据',
+                    font: { size: 14 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 40,
+                    max: 140,
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    }"""
     
     times = [d['time'] for d in hr_data]
     hrs = [d['hr'] for d in hr_data]
@@ -209,17 +243,49 @@ def generate_workout_chart(data):
         step = len(workout_data) // 10
         workout_data = workout_data[::step]
     
-    if not workout_data:
-        # 生成模拟数据
-        workout_data = [
-            {"time": "0:00", "hr": 110},
-            {"time": "0:05", "hr": 135},
-            {"time": "0:10", "hr": 152},
-            {"time": "0:15", "hr": 148},
-            {"time": "0:20", "hr": 158},
-            {"time": "0:25", "hr": 145},
-            {"time": "0:30", "hr": 120}
-        ]
+    # 检查是否有锻炼数据
+    has_workout = len(workout_data) > 0
+    
+    if not has_workout:
+        # 无锻炼数据，返回空图表配置
+        return """
+    {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '锻炼心率',
+                data: [],
+                borderColor: '#9ca3af',
+                backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: { 
+                    display: true, 
+                    text: '今日无锻炼记录',
+                    font: { size: 14 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 80,
+                    max: 180,
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    }"""
     
     times = [d['time'] for d in workout_data]
     hrs = [d['hr'] for d in workout_data]
