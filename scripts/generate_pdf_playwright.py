@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 使用 Playwright 生成无页脚的 PDF（支持 ARM Mac）
+增加渲染时间确保 Chart.js 图表完全加载
 """
 from playwright.sync_api import sync_playwright
 import sys
@@ -13,8 +14,12 @@ def generate_pdf(html_path, pdf_path):
         # 加载 HTML
         page.goto(f'file://{html_path}')
         
-        # 等待图表渲染完成
-        page.wait_for_timeout(10000)  # 10秒等待图表渲染
+        # 等待 Chart.js 从 CDN 加载并完成渲染
+        # 先等待网络空闲
+        page.wait_for_load_state('networkidle')
+        
+        # 再额外等待 15 秒确保图表渲染完成
+        page.wait_for_timeout(15000)
         
         # 生成 PDF，禁用页眉页脚
         page.pdf(
