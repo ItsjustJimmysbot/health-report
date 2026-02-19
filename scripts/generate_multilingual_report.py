@@ -791,12 +791,11 @@ def generate_recommendations(data, recovery_score, lang):
     return html
 
 def generate_diet_section(data, lang):
-    """生成饮食建议 HTML"""
+    """生成饮食建议 HTML - 包含三餐版和两餐版"""
     sleep_hours = data.get('sleep_hours', 0)
-    exercise_min = data.get('exercise_min', 0)
     
     if lang == 'zh':
-        # 中文版饮食建议
+        # 中文版 - 三餐 + 两餐
         html = '''
         <div class="diet-recommendations">
             <h4>🍽️ 明日饮食建议（一日三餐版）</h4>
@@ -824,13 +823,31 @@ def generate_diet_section(data, lang):
                 <div class="meal-foods">杂粮/薯类 100g + 鸡胸肉/鱼 100g + 大量蔬菜 + 菌菇类</div>
                 <div class="meal-notes">💡 晚餐摄入全天30%热量，睡前3小时完成进食</div>
             </div>
+            
+            <h4 style="margin-top: 25px; color: #166534;">🔄 两餐版建议（不吃早餐 / 16:8轻断食）</h4>
+            <div class="diet-meal" style="border-left-color: #f59e0b;">
+                <div class="meal-header">
+                    <span class="meal-name">🍽️ 第一餐（早午餐）</span>
+                    <span class="meal-time">11:00-12:00</span>
+                </div>
+                <div class="meal-foods">杂粮饭 200g + 瘦肉/蛋 150g + 混合蔬菜 + 坚果 20g</div>
+                <div class="meal-notes">💡 第一餐摄入全天50%热量，弥补早餐缺失，营养要丰富</div>
+            </div>
+            <div class="diet-meal" style="border-left-color: #f59e0b;">
+                <div class="meal-header">
+                    <span class="meal-name">🍽️ 第二餐（晚餐）</span>
+                    <span class="meal-time">17:00-19:00</span>
+                </div>
+                <div class="meal-foods">藜麦/红薯 150g + 鱼类/豆腐 150g + 深色蔬菜 + 酸奶</div>
+                <div class="meal-notes">💡 第二餐摄入全天50%热量，避免深夜饥饿，19:00前完成</div>
+            </div>
         </div>
         '''
     else:
-        # English version
+        # English version - Three meals + Two meals
         html = '''
         <div class="diet-recommendations">
-            <h4>🍽️ Tomorrow's Diet Suggestions (Three Meals)</h4>
+            <h4>🍽️ Tomorrow's Diet (Three Meals Version)</h4>
             <div class="diet-meal">
                 <div class="meal-header">
                     <span class="meal-name">🌅 Breakfast</span>
@@ -854,6 +871,24 @@ def generate_diet_section(data, lang):
                 </div>
                 <div class="meal-foods">Grains/potatoes 100g + chicken breast/fish 100g + vegetables + mushrooms</div>
                 <div class="meal-notes">💡 30% of daily calories, finish 3 hours before bed</div>
+            </div>
+            
+            <h4 style="margin-top: 25px; color: #166534;">🔄 Two Meals Version (No Breakfast / 16:8 Fasting)</h4>
+            <div class="diet-meal" style="border-left-color: #f59e0b;">
+                <div class="meal-header">
+                    <span class="meal-name">🍽️ First Meal (Brunch)</span>
+                    <span class="meal-time">11:00-12:00</span>
+                </div>
+                <div class="meal-foods">Grains 200g + lean meat/eggs 150g + mixed vegetables + nuts 20g</div>
+                <div class="meal-notes">💡 50% of daily calories, nutrient-rich to compensate for no breakfast</div>
+            </div>
+            <div class="diet-meal" style="border-left-color: #f59e0b;">
+                <div class="meal-header">
+                    <span class="meal-name">🍽️ Second Meal (Dinner)</span>
+                    <span class="meal-time">17:00-19:00</span>
+                </div>
+                <div class="meal-foods">Quinoa/sweet potato 150g + fish/tofu 150g + dark greens + yogurt</div>
+                <div class="meal-notes">💡 50% of daily calories, avoid late night hunger, finish by 19:00</div>
             </div>
         </div>
         '''
