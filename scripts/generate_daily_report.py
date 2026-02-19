@@ -107,8 +107,8 @@ def main():
         'notes_content': notes_content
     }
     
-    # 生成报告
-    from generate_simple_report import generate_simple_report
+    # 生成报告 (使用英文版避免字体问题)
+    from generate_simple_report_en import generate_simple_report
     
     output_dir = Path.home() / '.openclaw/workspace/shared/health-reports'
     output_dir.mkdir(parents=True, exist_ok=True)
