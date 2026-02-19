@@ -1,250 +1,152 @@
-# Health Auto Export 配置指南
+# Health Auto Export 配置教程
 
-> iPhone Health Auto Export App → Mac 本地 HTTP 服务器
-> 自动同步 Apple Health 数据（HRV、呼吸、血氧等）
+本教程将指导你如何在 iPhone 上配置 Health Auto Export，将 Apple Health 数据自动同步到 Google Drive。
 
----
+## 准备工作
 
-## ✅ 服务器状态
+1. iPhone（iOS 14+）
+2. Apple Watch（可选，但推荐）
+3. 已登录的 Google 账号
+4. 手机上已安装 Google Drive 应用
 
-**Mac 端服务器已启动！**
+## 步骤 1：下载应用
 
-```
-状态: ✅ 运行中
-端口: 8080
-本地地址: http://localhost:8080
-局域网地址: http://198.18.0.1:8080
+1. 打开 App Store
+2. 搜索 "Health Auto Export"
+3. 下载并安装应用（开发者：Tweaking Technologies）
 
-API 端点:
-  GET  http://198.18.0.1:8080/health          - 健康检查
-  POST http://198.18.0.1:8080/api/health      - 接收数据
-  POST http://198.18.0.1:8080/api/health-data - 接收数据（备用）
+![App Store 搜索](assets/tutorial/app-store-search.png)
 
-数据保存位置: ~/.openclaw/workspace-health/data/apple-health/
-日志文件: ~/.openclaw/workspace-health/logs/health-api.log
-```
+## 步骤 2：初始设置
 
----
+1. 打开 Health Auto Export 应用
+2. 首次启动时，点击 "Allow" 授权访问 Health 数据
+3. 授予所有请求的权限：
+   - 活动记录
+   - 身体测量
+   - 心率
+   - 睡眠
+   - 锻炼
 
-## 📱 iPhone 配置步骤
+![权限请求](assets/tutorial/permissions.png)
 
-### Step 1: 确认网络连接
-1. 确保 iPhone 和 Mac 连接到 **同一个 WiFi 网络**
-2. iPhone 关闭 VPN（避免局域网连接问题）
+## 步骤 3：配置导出设置
 
-### Step 2: Health Auto Export 设置
+### 3.1 进入设置
 
-打开 **Health Auto Export** App：
+1. 点击右上角的 **⚙️ 设置图标**
+2. 选择 **"Export Settings"**
 
-#### 1. 进入 Settings → API v2
+![设置菜单](assets/tutorial/settings-menu.png)
 
-```
-☑️ Enable REST API v2
-   └─ 开启
+### 3.2 选择导出格式
 
-☑️ Automatic Export
-   └─ 开启
+1. 找到 **"Export Format"** 选项
+2. 选择 **"JSON"**
+3. 确保 "Pretty Print" 选项为 **关闭**（节省空间）
 
-Export Format
-   └─ 选择: JSON v2
+![导出格式](assets/tutorial/export-format.png)
 
-Export Frequency
-   └─ 选择: Daily
+### 3.3 设置导出频率
 
-Export Time
-   └─ 设置: 08:00 (建议，在12:00分析前)
-```
+1. 找到 **"Export Frequency"** 选项
+2. 选择 **"Daily"**（每日）
+3. 设置导出时间（建议：凌晨 2:00）
 
-#### 2. 配置 API Endpoint
+![导出频率](assets/tutorial/export-frequency.png)
 
-```
-API Endpoint URL:
-http://198.18.0.1:8080/api/health
-
-HTTP Method:
-POST
-
-Content-Type:
-application/json
-```
-
-#### 3. 选择要导出的数据类型
-
-```
-☑ Heart Rate (心率)
-☑ Heart Rate Variability (心率变异性/HRV)
-☑ Resting Heart Rate (静息心率)
-☑ Respiratory Rate (呼吸频率)
-☑ Oxygen Saturation (血氧饱和度)
-☑ Sleep Analysis (睡眠分析)
-☑ Active Energy (活动能量)
-☑ Steps (步数)
-☑ Workouts (运动记录)
-```
-
-#### 4. 配置导出时间范围
-
-```
-Time Range:
-└─ 选择: Last 24 hours
-
-Data Aggregation:
-└─ 选择: Include summary statistics (包含统计摘要)
-```
-
-### Step 3: 测试连接
+### 3.4 选择导出数据
 
-1. 在 Health Auto Export 中点击 **"Test Connection"** 或 **"Send Test"**
-2. 等待测试完成
-3. 查看 Mac 端日志确认收到数据：
+1. 点击 **"Select Data to Export"**
+2. 勾选以下类别：
+   - ✅ Activity (活动)
+   - ✅ Body Measurements (身体测量)
+   - ✅ Heart Rate (心率)
+   - ✅ Sleep (睡眠)
+   - ✅ Workouts (锻炼)
 
-```bash
-# 在 Mac 终端运行
-tail -f ~/.openclaw/workspace-health/logs/health-api.log
-```
-
-### Step 4: 保存配置
-
-点击 **Save** 保存配置。
-
----
-
-## 🧪 手动测试方法
-
-如果你想先测试数据是否能正常接收，可以在 iPhone 上手动触发一次导出：
-
-1. Health Auto Export → 点击 **"Export Now"** 或 **"Manual Export"**
-2. 选择 **JSON v2** 格式
-3. 选择 **REST API** 目标
-4. 检查 Mac 是否收到数据
-
----
-
-## 📊 数据格式示例
-
-Health Auto Export JSON v2 格式：
-
-```json
-{
-  "metadata": {
-    "exportDate": "2026-02-19T08:00:00Z",
-    "device": "Apple Watch",
-    "source": "Health Auto Export",
-    "version": "2.0"
-  },
-  "metrics": {
-    "heartRateVariability": {
-      "avg": 45.2,
-      "min": 32.1,
-      "max": 68.5,
-      "samples": 24,
-      "unit": "ms"
-    },
-    "restingHeartRate": {
-      "value": 62,
-      "unit": "bpm"
-    },
-    "respiratoryRate": {
-      "avg": 14.5,
-      "min": 12.0,
-      "max": 16.5,
-      "unit": "breaths/min"
-    },
-    "oxygenSaturation": {
-      "avg": 98.5,
-      "min": 95.0,
-      "max": 100.0,
-      "unit": "%"
-    },
-    "sleep": {
-      "totalMinutes": 420,
-      "deepMinutes": 85,
-      "remMinutes": 95,
-      "lightMinutes": 240,
-      "efficiency": 85,
-      "wakeCount": 3
-    }
-  }
-}
-```
-
----
-
-## 🛠️ Mac 端管理命令
-
-```bash
-# 启动服务器
-cd ~/.openclaw/workspace-health
-bash scripts/health-api/control.sh start
-
-# 停止服务器
-bash scripts/health-api/control.sh stop
-
-# 重启服务器
-bash scripts/health-api/control.sh restart
-
-# 查看状态
-bash scripts/health-api/control.sh status
-
-# 测试连接
-bash scripts/health-api/control.sh test
-```
-
----
-
-## 📝 故障排查
-
-### 问题 1: iPhone 无法连接到 Mac
-
-**症状**: 导出失败，显示连接错误
-
-**检查**:
-1. iPhone 和 Mac 是否在同一 WiFi？
-2. Mac 防火墙是否允许 8080 端口？
-3. iPhone 是否开启了 VPN？
-
-**解决**:
-```bash
-# 检查 Mac 防火墙
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
-
-# 如果开启，添加允许规则
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add $(which python3)
-```
-
-### 问题 2: 数据格式不正确
-
-**症状**: 服务器返回 400 错误
-
-**检查**:
-1. Health Auto Export 是否选择了 **JSON v2** 格式？
-2. Content-Type 是否设置为 **application/json**？
-
-### 问题 3: 数据没有保存
-
-**症状**: 服务器返回 200 但找不到文件
-
-**检查**:
-```bash
-# 检查数据目录
-ls -la ~/.openclaw/workspace-health/data/apple-health/
-
-# 检查日志
-cat ~/.openclaw/workspace-health/logs/health-api.log
-```
-
----
-
-## ✅ 配置检查清单
-
-- [ ] iPhone 和 Mac 在同一 WiFi
-- [ ] Health Auto Export API v2 已开启
-- [ ] 导出格式选择 JSON v2
-- [ ] API Endpoint 设置为 http://198.18.0.1:8080/api/health
-- [ ] 选择了 HRV、呼吸频率、血氧等关键指标
-- [ ] 手动测试成功
-- [ ] Mac 端能看到接收到的数据文件
-
----
-
-**配置完成后，每天 8:00 数据会自动推送到 Mac，12:00 健康分析报告会包含这些指标！**
+![数据选择](assets/tutorial/data-selection.png)
+
+## 步骤 4：配置云同步
+
+### 4.1 启用云同步
+
+1. 返回设置主菜单
+2. 找到 **"Cloud Sync"** 选项
+3. 开启 **"Auto Sync to Cloud"**
+
+![云同步](assets/tutorial/cloud-sync.png)
+
+### 4.2 选择 Google Drive
+
+1. 点击 **"Cloud Provider"**
+2. 选择 **"Google Drive"**
+3. 点击 "Sign in with Google"
+4. 登录你的 Google 账号
+5. 授予应用访问 Google Drive 的权限
+
+![Google 登录](assets/tutorial/google-signin.png)
+
+### 4.3 设置同步路径
+
+1. 找到 **"Sync Folder"** 选项
+2. 输入路径：**`Health Auto Export/`**
+3. 确保勾选 "Create subfolders"（创建子文件夹）
+
+![同步路径](assets/tutorial/sync-path.png)
+
+## 步骤 5：验证配置
+
+### 5.1 手动测试导出
+
+1. 返回应用主界面
+2. 点击底部的 **"Export Now"** 按钮
+3. 等待导出完成（可能需要 1-2 分钟）
+4. 检查是否显示 "Export Successful"
+
+![导出成功](assets/tutorial/export-success.png)
+
+### 5.2 检查 Google Drive
+
+1. 打开 iPhone 上的 Google Drive 应用
+2. 进入 "Health Auto Export" 文件夹
+3. 确认看到以下子文件夹：
+   - `Health Data/` - 包含 HealthAutoExport-YYYY-MM-DD.json
+   - `Workout Data/` - 包含锻炼详细数据
+
+![Google Drive 文件](assets/tutorial/drive-files.png)
+
+### 5.3 检查 Mac 同步
+
+1. 在 Mac 上打开 Finder
+2. 进入 Google Drive 文件夹
+3. 确认路径存在：`~/Library/CloudStorage/GoogleDrive-*/Health Auto Export/`
+
+## 故障排除
+
+### 问题：导出失败
+
+**解决方法：**
+1. 检查网络连接
+2. 确保 Health 权限已授予
+3. 尝试重新登录 Google 账号
+4. 重启应用
+
+### 问题：Google Drive 中没有文件
+
+**解决方法：**
+1. 检查 Google Drive 应用是否已登录
+2. 确认云同步已启用
+3. 手动点击 "Export Now" 测试
+4. 检查 Google Drive 存储空间
+
+### 问题：Mac 上没有同步
+
+**解决方法：**
+1. 确保 Mac 上已安装 Google Drive 桌面版
+2. 检查 Google Drive 设置中的同步选项
+3. 等待同步完成（首次同步可能需要较长时间）
+
+## 下一步
+
+完成 Health Auto Export 配置后，请继续配置 [Google Fit API](google-fit-setup.md)。
