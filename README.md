@@ -1,108 +1,211 @@
-# 🏥 Health Agent Skill
+# 🏥 Health Agent Skill for OpenClaw
 
-AI-powered daily health report generator for OpenClaw.
-
-## Overview
-
-Automatically generates personalized health reports from your Apple Health data, analyzes trends with AI, and delivers PDF reports to your email daily.
+AI-powered daily health report generator that integrates with OpenClaw infrastructure.
 
 ## ✨ Features
 
-- 📊 **Automatic Data Collection** - Reads Apple Health from Google Drive sync
-- 🤖 **AI Analysis** - Personalized insights using LLM (default: Kimi K2.5)
-- 📄 **Bilingual Reports** - Chinese and English PDF reports
-- 📧 **Email Delivery** - Daily reports sent automatically
-- ⏰ **Scheduled** - Runs daily at 12:30 PM (configurable)
-- 🔒 **Privacy First** - All data processed locally
+- 📊 **Automated Data Collection** - Reads Apple Health data from Google Drive sync
+- 🤖 **AI Analysis via OpenClaw** - Uses `sessions_spawn` to call LLM (default: Kimi K2.5)
+- 📄 **Bilingual Reports** - Chinese and English PDF reports with Chart.js visualizations
+- 📧 **Email Delivery** - Sends reports via Mail.app
+- ⏰ **OpenClaw Scheduled Execution** - Daily runs via OpenClaw cron
+- 🔄 **Comparison Reports** - Day-over-day analysis with AI insights
 
-## 🚀 Quick Start
+## 🏗️ Architecture
 
-### 1. Prerequisites
-
-- macOS with Mail.app configured
-- Google Drive Desktop (syncing Health Auto Export)
-- Health Auto Export app on iOS
-- Google Fit account
-
-### 2. Install
-
-```bash
-git clone https://github.com/YOUR_USERNAME/health-agent-skill.git
-cd health-agent-skill
-bash install.sh
+```
+OpenClaw Cron (12:30 daily)
+    ↓
+Agent Task: generate_health_reports
+    ↓
+1. Parse Apple Health JSON from Google Drive
+2. Call Kimi AI via sessions_spawn
+3. Generate 4 PDFs (Playwright + Chart.js)
+4. Send Email via AppleScript
+5. Discord Notification
 ```
 
-Follow the interactive wizard to configure:
-- Data paths
-- Email recipient
-- AI model preferences
+## 📋 Prerequisites
 
-### 3. Test
+Before installing, ensure you have:
+
+1. **Google Drive Desktop** (syncing Health Auto Export folder)
+2. **Health Auto Export** iOS app (configured for daily JSON export)
+3. **Google Fit** (with sleep tracking enabled)
+4. **macOS Mail.app** (with configured email account)
+5. **OpenClaw** (installed and configured)
+
+## 🚀 Installation
+
+### Step 1: Clone Repository
 
 ```bash
-health-agent test
+cd ~/.openclaw/workspace
+git clone https://github.com/ItsjustJimmysbot/health-report.git health-agent
 ```
 
-### 4. Enable Daily Reports
+### Step 2: Configure Paths
+
+Copy and edit the configuration:
 
 ```bash
-health-agent setup-cron
+cd health-agent
+cp config/config.env.template config/config.env
+nano config/config.env  # or use your preferred editor
 ```
 
-## 📖 Documentation
+Required configuration:
+- `HEALTH_DATA_PATH`: Path to Health Auto Export JSON files
+- `OUTPUT_PATH`: Where to save generated PDFs
+- `RECIPIENT_EMAIL`: Email address to receive reports
 
-- [Installation Guide](docs/INSTALL.md)
-- [Configuration](docs/CONFIG.md)
-- [Customization](docs/CUSTOMIZE.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
+### Step 3: Setup OpenClaw Cron
 
-## 🔧 Customization
+The skill uses OpenClaw's cron system for scheduling. To enable:
 
-Edit templates in `~/.config/health-agent/templates/` to personalize:
-- Report layout
-- Color schemes
-- Additional sections
-- AI analysis prompts
+```bash
+# Via OpenClaw CLI
+openclaw cron add \
+  --name "daily-health-report" \
+  --schedule "30 12 * * *" \
+  --timezone "Asia/Shanghai" \
+  --agent "health" \
+  --task "Generate daily health reports"
+```
 
-## 📊 Data Sources
+Or edit OpenClaw configuration directly to add the cron job.
 
-| Source | Data | Frequency |
-|--------|------|-----------|
-| Apple Health | HRV, Heart Rate, Steps, Energy | Real-time |
-| Google Fit | Sleep, Activity | Daily sync |
-| AI Analysis | Insights, Recommendations | Daily |
+## 🔧 How It Works
 
-## 🤖 AI Models
+### Data Flow
 
-**Default: Kimi K2.5** (Recommended)
-- Excellent Chinese comprehension
-- Cost-effective
-- Sufficient for health analysis
+1. **Apple Health** (iPhone) → Health Auto Export app
+2. **Health Auto Export** → Google Drive sync
+3. **OpenClaw Agent** reads JSON from configured path
+4. **Kimi AI** analyzes via `sessions_spawn` subagent
+5. **Playwright** generates PDFs with Chart.js charts
+6. **Mail.app** sends emails via AppleScript
+7. **Discord** receives completion notification
 
-**Alternatives:**
-- GPT-4o - Best reasoning, higher cost
-- Claude 3.5 Sonnet - Balanced performance
+### AI Model
 
-## 🔒 Privacy
+**Default: Kimi K2.5** (`kimi-coding/k2p5`)
 
-- All health data stays on your machine
-- Only AI analysis uses external API
+Why Kimi K2.5?
+- ✅ Excellent Chinese language understanding
+- ✅ Cost-effective for health data analysis
+- ✅ Fast response times
+- ✅ Sufficient reasoning for pattern recognition
+
+To change model, modify the `AI_MODEL` in config or override in OpenClaw agent settings.
+
+## 📝 Usage
+
+### Automatic (Default)
+
+Reports are automatically generated and sent daily at 12:30 PM via OpenClaw cron.
+
+### Manual via OpenClaw
+
+```bash
+# Generate report for specific date
+openclaw agent health --task "Generate health report for 2024-02-20"
+
+# Or directly run the script
+python3 scripts/generate_multilingual_report.py --date 2024-02-20 --lang zh
+```
+
+### View Reports
+
+PDFs are saved to your configured `OUTPUT_PATH` and automatically emailed.
+
+## 🎨 Customization
+
+### Modifying Report Templates
+
+HTML templates are embedded in `scripts/generate_multilingual_report.py`. To customize:
+
+1. Copy the template section to a new file
+2. Modify CSS, layout, or add sections
+3. Update the script to use your template
+
+### Adding Custom Metrics
+
+Edit `scripts/ai_analyzer.py`:
+
+```python
+def calculate_custom_score(data):
+    # Your custom calculation
+    return score
+```
+
+### AI Analysis Prompts
+
+Modify prompts in `scripts/ai_analyzer.py` to change how AI analyzes data.
+
+## 📁 File Structure
+
+```
+~/.openclaw/workspace-health/
+├── scripts/
+│   ├── generate_multilingual_report.py  # Main report generator with Chart.js
+│   ├── ai_analyzer.py                   # AI analysis wrapper
+│   ├── i18n.py                          # Internationalization
+│   └── send_daily_email.sh              # Email sending via AppleScript
+├── config/
+│   └── config.env.template              # Configuration template
+├── docs/
+│   └── INSTALL.md                       # Installation guide
+└── SKILL.md                             # OpenClaw skill manifest
+```
+
+## 🐛 Troubleshooting
+
+### "Health data file not found"
+
+Check Google Drive sync:
+```bash
+ls -la "${HEALTH_DATA_PATH}/HealthAutoExport-$(date -v-1d '+%Y-%m-%d').json"
+```
+
+### "AI analysis failed"
+
+Verify OpenClaw can spawn subagents:
+```bash
+openclaw agent health --model kimi-coding/k2p5 --task "test"
+```
+
+### "PDF generation failed"
+
+Install Playwright browsers:
+```bash
+playwright install chromium
+```
+
+### "Email not sending"
+
+Check Mail.app configuration:
+```bash
+osascript -e 'tell application "Mail" to return name of first account'
+```
+
+## 🔒 Privacy & Security
+
+- All health data processed locally on your machine
+- AI analysis uses temporary OpenClaw subagents
 - No data retention by third parties
-- You control all your data
+- Email credentials stored in macOS Keychain
+- PDFs saved to user-controlled directory
 
-## 📝 License
+## 📄 License
 
-MIT License - See [LICENSE](LICENSE)
+MIT License - See LICENSE file
 
 ## 🤝 Contributing
 
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Contributions welcome! Please submit pull requests.
 
 ## 💬 Support
 
-- GitHub Issues: [Report Bug](https://github.com/YOUR_USERNAME/health-agent-skill/issues)
+- GitHub Issues: https://github.com/ItsjustJimmysbot/health-report/issues
 - OpenClaw Docs: https://docs.openclaw.ai
-
----
-
-**Disclaimer**: This tool is for personal health tracking only. Always consult healthcare professionals for medical advice.
