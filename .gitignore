@@ -1,0 +1,14 @@
+.DS_Store
+*.log
+*.pyc
+__pycache__/
+.env
+config.env
+*.pdf
+*.html
+!templates/*.html
+logs/
+.cache/
+node_modules/
+.vscode/
+.idea/
