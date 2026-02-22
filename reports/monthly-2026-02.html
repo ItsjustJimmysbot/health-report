@@ -103,11 +103,11 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
       <div style="font-size: 7pt; color: #64748b;">总步数</div>
     </div>
     <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
-      <div style="font-size: 14pt; font-weight: bold; color: #7c3aed;">{{TOTAL_ENERGY}}</div>
+      <div style="font-size: 14pt; font-weight: bold; color: #7c3aed;">289</div>
       <div style="font-size: 7pt; color: #64748b;">总消耗 (kcal)</div>
     </div>
     <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
-      <div style="font-size: 14pt; font-weight: bold; color: #7c3aed;">{{BEST_SLEEP_DAY}}</div>
+      <div style="font-size: 14pt; font-weight: bold; color: #7c3aed;">2026-02-21 (7.71h)</div>
       <div style="font-size: 7pt; color: #64748b;">最佳睡眠日</div>
     </div>
   </div>
@@ -115,9 +115,9 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
   <div class="ai-text" style="margin-top: 10px;">
     <strong>月度推算（基于4天数据）：</strong><br>
     如果保持当前水平，预计全月：<br>
-    • 总步数: <strong>{{PROJECTED_STEPS}} 步</strong>（目标24万步的{{PROJECTED_STEPS_PERCENT}}%）<br>
-    • 运动天数: <strong>约{{PROJECTED_WORKOUTS}} 天</strong>（目标12天的{{PROJECTED_WORKOUTS_PERCENT}}%）<br>
-    • 总活动消耗: <strong>约{{PROJECTED_ENERGY}} 千卡</strong>
+    • 总步数: <strong>133,238 步</strong>（目标24万步的55%）<br>
+    • 运动天数: <strong>约6 天</strong>（目标12天的50%）<br>
+    • 总活动消耗: <strong>约2,168 千卡</strong>
   </div>
 </div>
 
@@ -136,7 +136,46 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
       </tr>
     </thead>
     <tbody>
-      {{DAILY_ROWS}}
+      
+      <tr>
+        <td>2026-02-18</td>
+        <td>52.8</td>
+        <td>6,853</td>
+        <td>2.82h</td>
+        <td>0</td>
+        <td>✓</td>
+        <td>运动日</td>
+      </tr>
+
+      <tr>
+        <td>2026-02-19</td>
+        <td>46.4</td>
+        <td>1,994</td>
+        <td>6.13h</td>
+        <td>0</td>
+        <td>-</td>
+        <td>休息日</td>
+      </tr>
+
+      <tr>
+        <td>2026-02-20</td>
+        <td>53.4</td>
+        <td>6,230</td>
+        <td>7.59h</td>
+        <td>0</td>
+        <td>-</td>
+        <td>休息日</td>
+      </tr>
+
+      <tr>
+        <td>2026-02-21</td>
+        <td>45.7</td>
+        <td>2,688</td>
+        <td>7.71h</td>
+        <td>0</td>
+        <td>-</td>
+        <td>休息日</td>
+      </tr>
     </tbody>
   </table>
 </div>
@@ -148,19 +187,19 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
   <div class="section-title">📊 月度趋势分析</div>
   
   <div class="ai-text" style="margin-bottom: 10px;">
-    <strong>HRV长期趋势：</strong>{{HRV_TREND_ANALYSIS}}
+    <strong>HRV长期趋势：</strong>本月（截至2月21日）仅有4天健康数据，样本量有限（19%），趋势分析需谨慎解读。从现有数据看，健康状态呈现「睡眠质量显著改善但活动量不稳定」的特点。日均HRV 49.6ms处于正常范围，日均步数4,441步低于推荐标准，日均睡眠5.81小时虽低于理想值但呈改善趋势。运动频率仅25%（1/4天），是明显短板。
   </div>
   
   <div class="ai-text" style="margin-bottom: 10px;">
-    <strong>活动量模式分析：</strong>{{ACTIVITY_PATTERN_ANALYSIS}}
+    <strong>活动量模式分析：</strong>本月活动量呈现波动模式，有高强度训练日也有完全静止日。
   </div>
   
   <div class="ai-text" style="margin-bottom: 10px;">
-    <strong>睡眠质量评估：</strong>{{SLEEP_QUALITY_ANALYSIS}}
+    <strong>睡眠质量评估：</strong>睡眠质量在最后几天显著改善，从2.82小时提升至7.71小时。
   </div>
   
   <div class="ai-text">
-    <strong>运动与恢复平衡：</strong>{{WORKOUT_RECOVERY_BALANCE}}
+    <strong>运动与恢复平衡：</strong>运动与恢复平衡需要优化，连续3日无运动后应适当安排轻度活动而非完全静止。
   </div>
 </div>
 
@@ -178,12 +217,47 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
       </tr>
     </thead>
     <tbody>
-      {{GOAL_TRACKING_ROWS}}
+      
+      <tr>
+        <td>日均步数</td>
+        <td>8,000</td>
+        <td>4,441</td>
+        <td><span class='trend-stable'>55%</span></td>
+        <td>波动</td>
+        <td>需改善</td>
+      </tr>
+
+      <tr>
+        <td>运动频率</td>
+        <td>12天</td>
+        <td>1天</td>
+        <td><span class='trend-stable'>8%</span></td>
+        <td>低</td>
+        <td>严重不足</td>
+      </tr>
+
+      <tr>
+        <td>平均睡眠</td>
+        <td>7h</td>
+        <td>5.81h</td>
+        <td><span class='trend-stable'>83%</span></td>
+        <td>改善中</td>
+        <td>良好</td>
+      </tr>
+
+      <tr>
+        <td>平均HRV</td>
+        <td>50ms</td>
+        <td>49.6ms</td>
+        <td><span class='trend-stable'>99%</span></td>
+        <td>稳定</td>
+        <td>优秀</td>
+      </tr>
     </tbody>
   </table>  
   
   <div class="ai-text" style="margin-top: 10px;">
-    <strong>目标达成分析：</strong>{{GOAL_ANALYSIS}}
+    <strong>目标达成分析：</strong>基于4天数据推算，本月步数目标达成率预计55%，运动天数目标达成率50%。
   </div>
 </div>
 
@@ -196,43 +270,43 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
   <div class="ai-rec ai-rec-high">
     <div class="ai-rec-title">🔴 【最高优先级】优先完善数据记录</div>
     <div class="ai-rec-content">
-      <strong>问题识别：</strong>{{AI1_PROBLEM}}<br><br>
-      <strong>行动计划：</strong>{{AI1_ACTION}}<br><br>
-      <strong>预期效果：</strong>{{AI1_EXPECTATION}}
+      <strong>问题识别：</strong>当前仅19%的数据覆盖率严重限制了健康评估的准确性。<br><br>
+      <strong>行动计划：</strong>1）检查Apple Watch佩戴习惯，确保每日佩戴；2）开启睡眠模式追踪；3）每日同步Health数据；4）目标：下月数据覆盖率达到90%以上。<br><br>
+      <strong>预期效果：</strong>数据完整性提升后，可以更准确地评估健康趋势。
     </div>
   </div>
   
   <div class="ai-rec ai-rec-medium">
     <div class="ai-rec-title">🟡 【中等优先级】建立稳定的日常活动习惯</div>
     <div class="ai-rec-content">
-      <strong>问题分析：</strong>{{AI2_PROBLEM}}<br><br>
-      <strong>具体建议：</strong>{{AI2_ACTION}}<br><br>
-      <strong>调整周期：</strong>{{AI2_EXPECTATION}}
+      <strong>问题分析：</strong>基于现有4天数据，日均步数4,441步远低于推荐标准。<br><br>
+      <strong>具体建议：</strong>1）设定每日最低目标5,000步；2）每周3次结构化运动；3）每小时站立活动5分钟；4）逐步将日均步数提升至7,000步以上。<br><br>
+      <strong>调整周期：</strong>通过上述调整，预期2-3周内建立稳定的活动习惯。
     </div>
   </div>
   
   <div class="ai-rec ai-rec-low">
-    <div class="ai-rec-title">🟢 【日常优化】构建长期健康管理框架</div>
+    <div class="ai-rec-title">🟢 【日常优化】日常优化</div>
     <div class="ai-rec-content">
-      <strong>饮食建议：</strong>{{AI3_DIET}}<br><br>
-      <strong>作息建议：</strong>{{AI3_ROUTINE}}<br><br>
-      <strong>长期习惯：</strong>{{AI3_HABITS}}
+      <strong>饮食建议：</strong>运动后30分钟内补充蛋白质，晚餐增加复合碳水化合物，保持充足水分摄入。<br><br>
+      <strong>作息建议：</strong>固定运动时间（建议每周二、四、六），每次30-45分钟；运动后保证7-8小时睡眠。<br><br>
+      <strong>长期习惯：</strong>建立「运动-恢复」平衡模式，避免「高强度-完全静止」的极端循环。
     </div>
   </div>
   
   <div class="ai-rec">
-    <div class="ai-rec-title">📊 【数据洞察】{{AI4_TITLE}}</div>
+    <div class="ai-rec-title">📊 【数据洞察】综合健康评估</div>
     <div class="ai-rec-content">
-      <strong>本月优势：</strong>{{AI4_ADVANTAGES}}<br><br>
-      <strong>需关注风险：</strong>{{AI4_RISKS}}<br><br>
-      <strong>整体评估：</strong>{{AI4_CONCLUSION}}<br><br>
-      <strong>下月目标：</strong>{{AI4_NEXT_MONTH_GOALS}}
+      <strong>本月优势：</strong>睡眠显著改善至6-7小时；HRV维持正常；血氧正常；有1次高强度训练记录。<br><br>
+      <strong>需关注风险：</strong>数据完整性严重不足（仅19%）；活动量不稳定；运动频率过低（25%）。<br><br>
+      <strong>整体评估：</strong>健康状况呈现「睡眠改善但活动骤降」的特点，需要恢复适度活动，建立平衡模式。<br><br>
+      <strong>下月目标：</strong>数据覆盖率90%以上；日均步数7,000步；运动频率60%；睡眠7小时+天数>20天。
     </div>
   </div>
 </div>
 
 <div class="footer">
-  数据收集进度: 4/30 天 | 报告生成时间: {{GENERATED_AT}} | UTC+8
+  数据收集进度: 4/30 天 | 报告生成时间: 2026-02-22 22:24 | UTC+8
 </div>
 
 </div>
