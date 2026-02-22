@@ -14,10 +14,38 @@
   "workout_days": 1,
   "workout_frequency": "1/4 天",
   "daily_data": [
-    {"date": "2026-02-18", "hrv": 52.8, "steps": 6853, "sleep": 2.82, "has_workout": true},
-    {"date": "2026-02-19", "hrv": 46.4, "steps": 1994, "sleep": 6.13, "has_workout": false},
-    {"date": "2026-02-20", "hrv": 53.4, "steps": 6230, "sleep": 7.59, "has_workout": false},
-    {"date": "2026-02-21", "hrv": 45.7, "steps": 2688, "sleep": 7.71, "has_workout": false}
+    {
+      "date": "2026-02-18",
+      "hrv": 52.8,
+      "steps": 6853,
+      "sleep": 2.82,
+      "has_workout": true,
+      "active_energy": 289
+    },
+    {
+      "date": "2026-02-19",
+      "hrv": 46.4,
+      "steps": 1994,
+      "sleep": 6.13,
+      "has_workout": false,
+      "active_energy": 0
+    },
+    {
+      "date": "2026-02-20",
+      "hrv": 53.4,
+      "steps": 6230,
+      "sleep": 7.59,
+      "has_workout": false,
+      "active_energy": 0
+    },
+    {
+      "date": "2026-02-21",
+      "hrv": 45.7,
+      "steps": 2688,
+      "sleep": 7.71,
+      "has_workout": false,
+      "active_energy": 0
+    }
   ],
   "statistics": {
     "hrv_max": 53.4,
