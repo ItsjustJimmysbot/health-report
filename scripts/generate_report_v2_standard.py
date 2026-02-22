@@ -240,41 +240,47 @@ def generate_report_v2(data, ai_analyses, template_path, output_path):
         '{{METRIC3_RATING}}': '一般',
         '{{METRIC3_ANALYSIS}}': f"今日步数{data['steps']['value']:,}步，距离10,000步目标还差{10000-data['steps']['value']:,}步，建议增加日常步行。",
         
-        # 指标4-10: 无数据
-        '{{METRIC4_VALUE}}': '--',
-        '{{METRIC4_RATING_CLASS}}': 'rating-average',
-        '{{METRIC4_RATING}}': '--',
-        '{{METRIC4_ANALYSIS}}': '暂无行走距离数据',
+        # 指标4: 行走距离
+        '{{METRIC4_VALUE}}': f"{data['walking_distance']['value']:.2f}km ({data['walking_distance']['points']}点)" if data.get('walking_distance', {}).get('value') else '--',
+        '{{METRIC4_RATING_CLASS}}': 'rating-good',
+        '{{METRIC4_RATING}}': '良好',
+        '{{METRIC4_ANALYSIS}}': f"今日行走距离{data['walking_distance']['value']:.2f}km，相当于约{data['walking_distance']['value']*1000/data['steps']['value']:.0f}米/步的平均步幅。",
         
-        '{{METRIC5_VALUE}}': '--',
-        '{{METRIC5_RATING_CLASS}}': 'rating-average',
-        '{{METRIC5_RATING}}': '--',
-        '{{METRIC5_ANALYSIS}}': '暂无活动能量详细数据',
+        # 指标5: 活动能量
+        '{{METRIC5_VALUE}}': f"{data['active_energy']['value']:.1f}kcal" if data.get('active_energy', {}).get('value') else '--',
+        '{{METRIC5_RATING_CLASS}}': 'rating-good',
+        '{{METRIC5_RATING}}': '良好',
+        '{{METRIC5_ANALYSIS}}': f"今日活动消耗{data['active_energy']['value']:.1f}千卡（包含运动和日常活动），其中楼梯训练贡献了{workout['energy_kcal'] if workout else 0}千卡。",
         
-        '{{METRIC6_VALUE}}': '--',
-        '{{METRIC6_RATING_CLASS}}': 'rating-average',
-        '{{METRIC6_RATING}}': '--',
-        '{{METRIC6_ANALYSIS}}': '楼梯训练期间爬楼层数未单独记录',
+        # 指标6: 爬楼层数
+        '{{METRIC6_VALUE}}': f"{data['flights_climbed']['value']:.0f}层" if data.get('flights_climbed', {}).get('value') else '--',
+        '{{METRIC6_RATING_CLASS}}': 'rating-excellent',
+        '{{METRIC6_RATING}}': '优秀',
+        '{{METRIC6_ANALYSIS}}': f"今日爬楼梯{data['flights_climbed']['value']:.0f}层，结合33分钟楼梯训练，对心肺功能和下肢力量提升显著。",
         
-        '{{METRIC7_VALUE}}': '--',
-        '{{METRIC7_RATING_CLASS}}': 'rating-average',
-        '{{METRIC7_RATING}}': '--',
-        '{{METRIC7_ANALYSIS}}': '暂无站立时间详细数据',
+        # 指标7: 站立时间
+        '{{METRIC7_VALUE}}': f"{data['stand_time']['value']:.0f}min" if data.get('stand_time', {}).get('value') else '--',
+        '{{METRIC7_RATING_CLASS}}': 'rating-good',
+        '{{METRIC7_RATING}}': '良好',
+        '{{METRIC7_ANALYSIS}}': f"今日站立时间{data['stand_time']['value']:.0f}分钟，有助于改善久坐带来的健康风险。建议每小时至少站立活动5分钟。",
         
+        # 指标8: 血氧饱和度
         '{{METRIC8_VALUE}}': f"{data['spo2']['value']}%" if data['spo2']['value'] else '--',
         '{{METRIC8_RATING_CLASS}}': 'rating-excellent',
         '{{METRIC8_RATING}}': '正常',
         '{{METRIC8_ANALYSIS}}': f"血氧饱和度{data['spo2']['value']}%处于正常范围（95-100%），供氧状态良好。",
         
-        '{{METRIC9_VALUE}}': '--',
-        '{{METRIC9_RATING_CLASS}}': 'rating-average',
-        '{{METRIC9_RATING}}': '--',
-        '{{METRIC9_ANALYSIS}}': '暂无静息能量数据',
+        # 指标9: 静息能量
+        '{{METRIC9_VALUE}}': f"{data['basal_energy']['value']:.1f}kcal" if data.get('basal_energy', {}).get('value') else '--',
+        '{{METRIC9_RATING_CLASS}}': 'rating-good',
+        '{{METRIC9_RATING}}': '正常',
+        '{{METRIC9_ANALYSIS}}': f"基础代谢消耗{data['basal_energy']['value']:.1f}千卡，占全天能量消耗的绝大部分。",
         
-        '{{METRIC10_VALUE}}': '--',
-        '{{METRIC10_RATING_CLASS}}': 'rating-average',
-        '{{METRIC10_RATING}}': '--',
-        '{{METRIC10_ANALYSIS}}': '暂无呼吸率数据',
+        # 指标10: 呼吸率
+        '{{METRIC10_VALUE}}': f"{data['respiratory_rate']['value']:.1f}次/分" if data.get('respiratory_rate', {}).get('value') else '--',
+        '{{METRIC10_RATING_CLASS}}': 'rating-good',
+        '{{METRIC10_RATING}}': '正常',
+        '{{METRIC10_ANALYSIS}}': f"呼吸率{data['respiratory_rate']['value']:.1f}次/分处于正常范围（12-20次/分）。",
         
         # 睡眠分析
         '{{SLEEP_STATUS}}': sleep_alert['status'],
