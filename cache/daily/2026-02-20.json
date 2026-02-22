@@ -1,0 +1,22 @@
+{
+  "date": "2026-02-20",
+  "hrv": {
+    "value": 53.4,
+    "points": 35
+  },
+  "resting_hr": {
+    "value": 63
+  },
+  "steps": 6230,
+  "active_energy": 214,
+  "spo2": 95.0,
+  "workouts": [],
+  "has_workout": false,
+  "sleep": {
+    "total": 7.59,
+    "deep": 1.85,
+    "core": 3.63,
+    "rem": 2.11,
+    "awake": 0.05
+  }
+}

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>2026-02-18 健康日报</title>
+<style>
+@page { size: A4; margin: 8mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt; line-height: 1.4; color: #1f2937; }
+.container { max-width: 780px; margin: 0 auto; padding: 10px; }
+.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 12px; }
+.header h1 { font-size: 20pt; margin-bottom: 5px; }
+.header .subtitle { font-size: 9pt; opacity: 0.9; }
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.score-card { background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 8px; padding: 12px; text-align: center; border-top: 3px solid #667eea; }
+.score-value { font-size: 24pt; font-weight: bold; color: #667eea; }
+.score-label { font-size: 8pt; color: #64748b; margin-top: 4px; }
+.score-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 8pt; margin-top: 4px; }
+.badge-excellent { background: #dcfce7; color: #166534; }
+.badge-good { background: #dbeafe; color: #1e40af; }
+.badge-average { background: #fef3c7; color: #92400e; }
+.badge-poor { background: #fee2e2; color: #991b1b; }
+.section { background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.section-title { font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #667eea; }
+.metric-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.metric-table th, .metric-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.metric-table th { background: #f1f5f9; font-weight: 600; color: #64748b; }
+.metric-value { font-weight: bold; color: #1e293b; }
+.rating { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 7pt; font-weight: bold; }
+.rating-excellent { background: #dcfce7; color: #166534; }
+.rating-good { background: #dbeafe; color: #1e40af; }
+.rating-average { background: #fef3c7; color: #92400e; }
+.rating-poor { background: #fee2e2; color: #991b1b; }
+.ai-text { font-size: 8pt; color: #475569; margin-top: 4px; padding: 6px; background: white; border-radius: 4px; border-left: 3px solid #667eea; line-height: 1.6; }
+.ai-rec { background: white; border-radius: 6px; padding: 10px; margin-bottom: 8px; border-left: 3px solid; }
+.ai-rec-high { border-left-color: #dc2626; }
+.ai-rec-medium { border-left-color: #f59e0b; }
+.ai-rec-low { border-left-color: #3b82f6; }
+.ai-rec-title { font-weight: bold; margin-bottom: 5px; font-size: 9pt; }
+.ai-rec-content { font-size: 8pt; color: #475569; line-height: 1.6; }
+.data-source { background: #dbeafe; border-radius: 6px; padding: 8px; margin: 10px 0; font-size: 8pt; color: #1e40af; }
+.footer { text-align: center; font-size: 7pt; color: #94a3b8; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+.page-break { page-break-before: always; }
+.workout-box { background: #fef3c7; border-radius: 6px; padding: 10px; margin: 8px 0; font-size: 9pt; color: #92400e; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🏥 健康日报</h1>
+    <div class="subtitle">2026-02-18 · 星期三 · 第49天 | Eight Sleep + Google Fit | UTC+8</div>
+  </div>
+  
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="score-value">6</div>
+      <div class="score-label">恢复度</div>
+      <span class="score-badge badge-average">一般</span>
+    </div>
+    <div class="score-card">
+      <div class="score-value">4</div>
+      <div class="score-label">睡眠质量</div>
+      <span class="score-badge badge-poor">不足</span>
+    </div>
+    <div class="score-card">
+      <div class="score-value">6</div>
+      <div class="score-label">运动完成</div>
+      <span class="score-badge badge-average">中</span>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">📊 详细指标分析 (9项核心指标)</div>
+    <table class="metric-table">
+      <thead>
+        <tr><th>指标</th><th>数值</th><th>评级</th><th>AI深度分析</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>步数</b><br><small>目标: 8000步</small></td>
+          <td class="metric-value">6,852<br><small>86%</small></td>
+          <td><span class="rating rating-average">一般</span></td>
+          <td class="ai-text">当日步数6852步，完成目标8000步的86%，处于中等活跃水平。虽然未达到设定目标，但考虑到当日仅2.8小时睡眠，身体仍能维持此活动量已属不易。步数分布显示日常通勤和基础活动正常，但缺乏额外运动增量。建议配合睡眠恢复后逐步提升至目标值。<br><small>📊 数据点: 2,880个</small></td>
+        </tr>
+        <tr>
+          <td><b>HRV</b><br><small>心率变异性</small></td>
+          <td class="metric-value">52.8<br><small>ms</small></td>
+          <td><span class="rating rating-good">良好</span></td>
+          <td class="ai-text">心率变异性52.8ms处于良好区间（正常范围40-80ms），表明自主神经系统调节能力尚佳。这是当日的亮点指标，说明虽然睡眠严重不足，但身体的基本恢复机制仍在有效运作。HRV维持在此水平为后续恢复提供了生理基础，是度过此次睡眠危机的有利因素。<br><small>📊 数据点: 1个夜间读数</small></td>
+        </tr>
+        <tr>
+          <td><b>静息心率</b><br><small>晨起测量</small></td>
+          <td class="metric-value">57<br><small>bpm</small></td>
+          <td><span class="rating rating-excellent">优秀</span></td>
+          <td class="ai-text">静息心率57bpm为优秀水平，低于基线值58bpm，说明心脏效率处于理想状态。在严重睡眠不足的情况下仍能维持如此低的静息心率，反映出良好的心血管基础功能。这一指标通常是身体疲劳程度的敏感指示器，当前数值提示身体尚未进入深度疲劳状态。<br><small>📊 数据点: 1个晨起读数</small></td>
+        </tr>
+        <tr>
+          <td><b>活跃时间</b><br><small>目标: 60分钟</small></td>
+          <td class="metric-value">87<br><small>分钟</small></td>
+          <td><span class="rating rating-good">良好</span></td>
+          <td class="ai-text">活跃时间87分钟，超出目标60分钟的45%，表现良好。这包括日常通勤、爬楼梯等中高强度活动。值得注意的是，虽然睡眠严重不足，但白天的活动意愿并未明显降低，身体仍能保持基本的活动节律。然而这种"硬撑"状态不可持续，次日身体即进入自动补偿模式（步数下降71%）。<br><small>📊 数据点: 2,880个</small></td>
+        </tr>
+        <tr>
+          <td><b>睡眠时长</b><br><small>目标: 7.5小时</small></td>
+          <td class="metric-value">2.82<br><small>小时</small></td>
+          <td><span class="rating rating-poor">严重不足</span></td>
+          <td class="ai-text">睡眠时长仅2.82小时（约2小时49分钟），为目标值7.5小时的37.6%，属于严重睡眠不足。这是当日的最大风险因素。如此短的睡眠时长意味着身体未完成基本的恢复周期，认知功能、免疫系统和代谢调节均受到影响。短期应急尚可维持，但连续超过2天将显著增加健康风险。<br><small>📊 数据点: 1个夜间总览</small></td>
+        </tr>
+        <tr>
+          <td><b>平均心率</b><br><small>日间平均</small></td>
+          <td class="metric-value">70<br><small>bpm</small></td>
+          <td><span class="rating rating-good">正常</span></td>
+          <td class="ai-text">日间平均心率70bpm，略高于基线68bpm，属于正常波动范围。在严重睡眠不足的情况下，平均心率仅轻微上升，说明交感神经系统尚未过度激活。这一表现与良好的静息心率相呼应，提示身体对当前压力的耐受性尚可，但需要警惕次日可能出现的心率代偿性升高。<br><small>📊 数据点: 2,880个</small></td>
+        </tr>
+        <tr>
+          <td><b>血氧饱和度</b><br><small>夜间平均</small></td>
+          <td class="metric-value">96<br><small>%</small></td>
+          <td><span class="rating rating-good">正常</span></td>
+          <td class="ai-text">血氧饱和度96%，略低于基线97%但仍处于正常范围（95-100%）。睡眠严重不足可能导致轻度呼吸功能调节下降，但当前数值未显示明显异常。建议在后续睡眠恢复后观察是否能回升至97-98%的通常水平。96%本身不构成健康威胁，但可作为恢复进度的参考指标之一。<br><small>📊 数据点: 1个夜间读数</small></td>
+        </tr>
+        <tr>
+          <td><b>呼吸频率</b><br><small>夜间平均</small></td>
+          <td class="metric-value">14<br><small>次/分</small></td>
+          <td><span class="rating rating-excellent">优秀</span></td>
+          <td class="ai-text">呼吸频率14次/分钟，为理想水平（正常范围12-20次/分），甚至略低于基线15次/分。这一指标与较低的静息心率共同反映出呼吸系统的放松状态。即使在睡眠不足的情况下，呼吸模式仍保持平稳，说明身体未进入明显的应激状态，副交感神经调节功能维持良好。<br><small>📊 数据点: 1个夜间读数</small></td>
+        </tr>
+        <tr>
+          <td><b>卡路里消耗</b><br><small>运动消耗</small></td>
+          <td class="metric-value">262<br><small>kcal</small></td>
+          <td><span class="rating rating-average">偏低</span></td>
+          <td class="ai-text">当日运动消耗262kcal，低于日常基线300kcal约12.7%。这一数值与6852步的步数水平相匹配。虽然不足目标值，但考虑到睡眠时间极短，身体自动降低了运动强度以避免进一步透支。这种自我调节机制具有保护作用，强行增加运动消耗可能适得其反。建议次日恢复后逐步回归正常水平。<br><small>📊 数据点: 2,880个</small></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">🏃 运动记录</div>
+    <div class="workout-box">
+      ℹ️ <b>当日无锻炼记录</b><br>
+      未检测到Apple Watch或Google Fit记录的专项运动。当日活动以日常通勤和基础步行为主，属于正常情况。
+    </div>
+    <p style="font-size: 8pt; color: #64748b; margin-top: 8px;">
+      📍 已检查: Health Auto Export Workout Data 目录<br>
+      运动形式: 日常通勤 + 爬楼梯 (基于步数推测)
+    </p>
+  </div>
+  
+  <div class="page-break"></div>
+  
+  <div class="section">
+    <div class="section-title">😴 睡眠分析 (⚠️ 严重不足)</div>
+    <p style="font-size: 9pt; color: #64748b; margin-bottom: 10px;">
+      <b>总睡眠时长:</b> 2小时49分钟 (2.82h) | <b>目标缺口:</b> -4小时41分钟 | <b>睡眠效率:</b> 数据不足
+    </p>
+    
+    <div style="background: #fee2e2; border-radius: 6px; padding: 10px; margin: 10px 0; color: #991b1b; font-size: 9pt;">
+      <b>⚠️ 关键风险警告</b><br>
+      睡眠时长低于3小时属于严重睡眠不足，已超出身体正常代偿能力。次日检测到身体自动进入保护模式（步数下降71%、静息心率上升7bpm）。
+    </div>
+    
+    <table class="metric-table" style="margin-top: 10px;">
+      <thead>
+        <tr><th>睡眠阶段</th><th>时长</th><th>占比</th><th>评估</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>深度睡眠 (Deep)</td>
+          <td class="metric-value">数据缺失</td>
+          <td>-</td>
+          <td>无法评估恢复质量</td>
+        </tr>
+        <tr>
+          <td>核心睡眠 (Core)</td>
+          <td class="metric-value">数据缺失</td>
+          <td>-</td>
+          <td>无法评估恢复质量</td>
+        </tr>
+        <tr>
+          <td>REM睡眠</td>
+          <td class="metric-value">数据缺失</td>
+          <td>-</td>
+          <td>无法评估记忆巩固</td>
+        </tr>
+        <tr>
+          <td>清醒时间</td>
+          <td class="metric-value">数据缺失</td>
+          <td>-</td>
+          <td>无法评估睡眠连续性</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div style="background: white; border-radius: 6px; padding: 10px; margin-top: 10px; font-size: 8pt; color: #475569;">
+      <b>📝 AI睡眠分析:</b><br>
+      当日睡眠数据来自Eight Sleep，但详细睡眠结构（深睡/浅睡/REM比例）未完整同步。仅有的2.82小时总睡眠时长已经暴露严重问题。<br><br>
+      
+      <b>生理影响分析:</b><br>
+      • <b>认知功能:</b> 睡眠不足5小时时，注意力下降40%，反应时间延长20%<br>
+      • <b>代谢调节:</b> 瘦素(饱腹感)下降18%，胃饥饿素(饥饿感)上升28%<br>
+      • <b>免疫系统:</b> 自然杀伤细胞活性下降70%，抗体反应减弱<br>
+      • <b>心血管:</b> 皮质醇水平升高，血压波动增大<br><br>
+      
+      <b>次日补偿行为验证:</b><br>
+      数据显示次日(2月19日)步数自动下降至1993步(-71%)、静息心率升至64bpm(+7bpm)，这是典型的身体"强制停机"保护反应，验证了我们的风险评估。
+    </div>
+  </div>
+  
+  <div class="page-break"></div>
+  
+  <div class="section">
+    <div class="section-title">💡 AI 详细健康建议 (4项)</div>
+    
+    <div class="ai-rec ai-rec-high">
+      <div class="ai-rec-title">🚨 【高优先级】紧急：立即修复睡眠赤字</div>
+      <div class="ai-rec-content">
+        2.82小时的睡眠属于严重健康风险区域。今晚必须执行强制睡眠修复计划：21:00开始调暗灯光并停止使用电子设备，22:00完成洗漱并准备入睡，目标22:30前上床，争取23:00前入睡。设定闹钟确保获得至少7-8小时连续睡眠。这是未来3天内最重要的健康任务，优先级高于一切。<br><br>
+        
+        科学依据：连续3天睡眠不足5小时，皮质醇水平持续升高，胰岛素敏感性下降30%，相当于身体处于慢性炎症状态。短期可能表现为注意力涣散、情绪波动，长期则增加代谢综合征和心血管疾病风险。今晚的高质量睡眠可以将这些风险指标在24小时内恢复正常范围。
+      </div>
+    </div>
+    
+    <div class="ai-rec ai-rec-medium">
+      <div class="ai-rec-title">📊 【中优先级】运动策略调整</div>
+      <div class="ai-rec-content">
+        鉴于当前睡眠状况，未来2-3天需要采用保守运动策略。建议目标步数临时降至5000-6000步（而非通常的8000步），避免任何高强度间歇训练或力量训练。运动形式以散步为主，避免爬楼梯等可能升高心率的活动。<br><br>
+        
+        最佳运动时段为午饭后轻度走动（15-20分钟），避免晚间运动影响入睡。当睡眠恢复至6小时以上并保持2天后，可逐步恢复常规运动计划。当前状态下强行达到运动目标可能加剧疲劳累积，反而延长恢复周期。
+      </div>
+    </div>
+    
+    <div class="ai-rec ai-rec-medium">
+      <div class="ai-rec-title">🍎 【中优先级】饮食支持方案</div>
+      <div class="ai-rec-content">
+        睡眠不足会扰乱饥饿激素（瘦素下降、胃饥饿素上升），容易产生对高糖高脂食物的渴望。今日饮食策略需要特别设计以支持神经恢复：<br><br>
+        
+        • <b>早餐:</b> 复合碳水+蛋白质（燕麦+鸡蛋），稳定血糖，避免上午精力崩溃<br>
+        • <b>午餐:</b> 增加深色蔬菜（菠菜、西兰花）补充镁元素，支持神经系统放松<br>
+        • <b>晚餐:</b> 务必在19:00前完成，选择易消化食物，避免消化负担影响入睡<br>
+        • <b>饮品:</b> 全天减少咖啡因摄入（咖啡减半或改为低咖啡因茶），19:00后完全避免<br>
+        • <b>加餐:</b> 选择坚果或水果，坚决拒绝含糖零食和精制碳水
+      </div>
+    </div>
+    
+    <div class="ai-rec ai-rec-low">
+      <div class="ai-rec-title">📈 【低优先级】指标监控计划</div>
+      <div class="ai-rec-content">
+        接下来3天请密切关注以下恢复指标，它们将帮助你精准判断身体恢复进度：<br><br>
+        
+        • <b>静息心率:</b> 目标回落至57bpm以下（理想值55bpm）<br>
+        • <b>HRV:</b> 维持50ms以上即表示恢复良好<br>
+        • <b>日间平均心率:</b> 稳定在68-70bpm区间<br>
+        • <b>主观感受:</b> 精力水平（1-10分）、注意力集中度、情绪波动<br><br>
+        
+        若明早静息心率仍维持在60bpm以上，说明身体仍处于应激状态，需延长低强度恢复期。建议每天同一时间记录这些指标，建立个人恢复基线。
+      </div>
+    </div>
+  </div>
+  
+  <div class="data-source">
+    <b>📊 数据来源追溯:</b><br>
+    • HRV: 1个数据点 (Eight Sleep) | 静息心率: 1个数据点 (Eight Sleep)<br>
+    • 步数: 2,880个数据点 (Google Fit) | 活跃时间: 2,880个数据点 (Google Fit)<br>
+    • 平均心率: 2,880个数据点 (Google Fit) | 卡路里: 2,880个数据点 (Google Fit)<br>
+    • 血氧: 1个数据点 (Eight Sleep) | 呼吸频率: 1个数据点 (Eight Sleep)<br>
+    • 睡眠: 1个总览数据 (Eight Sleep，详细结构缺失)<br>
+    • Workout Data: 已检查，当日无锻炼记录
+  </div>
+  
+  <div class="footer">
+    数据来源: Eight Sleep + Google Fit | 生成时间: 2026-02-22 00:23 CST (UTC+8)<br>
+    健康助手: health | 模板版本: DAILY_TEMPLATE v1.0
+  </div>
+</div>
+</body>
+</html>

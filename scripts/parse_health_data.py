@@ -1,243 +1,194 @@
 #!/usr/bin/env python3
 """
-从 Apple Health JSON 数据中提取关键指标
+健康报告生成脚本 - 生成日报、周报、月报
 """
-
 import json
-import sys
+import os
 from datetime import datetime, timedelta
 
-def parse_health_data(json_file, target_date=None):
-    """解析 Apple Health 数据文件"""
-    
-    if target_date is None:
-        target_date = datetime.now().strftime("%Y-%m-%d")
-    
-    with open(json_file, 'r', encoding='utf-8') as f:
+def parse_health_data(file_path):
+    """解析健康数据文件"""
+    with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     metrics = data.get('data', {}).get('metrics', [])
+    result = {}
     
-    result = {
-        'date': target_date,
-        'weekday': get_weekday_cn(target_date),
-        'day_of_year': datetime.strptime(target_date, "%Y-%m-%d").timetuple().tm_yday
-    }
-    
-    # 步数
-    result['steps'] = sum_metric(metrics, 'step_count')
-    
-    # 锻炼时间
-    result['exercise_min'] = sum_metric(metrics, 'apple_exercise_time')
-    
-    # HRV (取平均值)
-    result['hrv'] = avg_metric(metrics, 'heart_rate_variability')
-    
-    # 静息心率 (取第一个值)
-    result['resting_hr'] = first_metric(metrics, 'resting_heart_rate')
-    
-    # 爬楼层数
-    result['floors'] = sum_metric(metrics, 'flights_climbed')
-    
-    # 活跃卡路里 (kcal)
-    active_energy_kj = sum_metric(metrics, 'active_energy')
-    # Health Auto Export 可能是千焦，转换为千卡
-    result['active_calories'] = round(active_energy_kj / 4.184) if active_energy_kj > 1000 else round(active_energy_kj)
-    
-    # 行走距离 (km) - walking_running_distance 单位是米
-    distance_meters = sum_metric(metrics, 'walking_running_distance')
-    result['distance'] = round(distance_meters / 1000, 1)
-    
-    # 血氧 (Health Auto Export 已经是 0-100 格式)
-    blood_oxygen_raw = first_metric(metrics, 'blood_oxygen_saturation')
-    result['blood_oxygen'] = round(blood_oxygen_raw) if blood_oxygen_raw else 0
-    
-    # 呼吸频率
-    result['respiratory_rate'] = avg_metric(metrics, 'respiratory_rate')
-    
-    # 睡眠分析
-    sleep_data = first_metric_full(metrics, 'sleep_analysis')
-    if sleep_data:
-        # 睡眠数据已经是小时数，不是秒
-        result['sleep_hours'] = round(sleep_data.get('totalSleep', 0), 1)
-        result['sleep_deep'] = round(sleep_data.get('deep', 0), 1)
-        result['sleep_rem'] = round(sleep_data.get('rem', 0), 1)
-        result['sleep_core'] = round(sleep_data.get('core', 0), 1)
-        result['sleep_awake'] = round(sleep_data.get('awake', 0), 1)
-        result['time_in_bed'] = round(sleep_data.get('totalSleep', 0) + sleep_data.get('awake', 0), 1)
-        
-        # 计算百分比
-        total = result['sleep_hours']
-        if total > 0:
-            result['sleep_deep_pct'] = round(result['sleep_deep'] / total * 100)
-            result['sleep_rem_pct'] = round(result['sleep_rem'] / total * 100)
-            result['sleep_core_pct'] = round(result['sleep_core'] / total * 100)
-            result['sleep_awake_pct'] = round(result['sleep_awake'] / total * 100)
-        
-        # 睡眠效率
-        in_bed = sleep_data.get('inBedEnd', '')
-        if in_bed:
-            result['sleep_end'] = in_bed[11:16]
-        sleep_start = sleep_data.get('inBedStart', '')
-        if sleep_start:
-            result['sleep_start'] = sleep_start[11:16]
-        
-        # 睡眠效率 = 睡眠时间 / 在床时间
-        in_bed_duration = sleep_data.get('totalSleep', 0) + sleep_data.get('awake', 0)
-        if in_bed_duration > 0:
-            result['sleep_efficiency'] = round(sleep_data.get('totalSleep', 0) / in_bed_duration, 2)
-    else:
-        result['sleep_hours'] = 0
-        result['sleep_deep'] = 0
-        result['sleep_rem'] = 0
-        result['sleep_core'] = 0
-        result['sleep_awake'] = 0
-        result['sleep_efficiency'] = 0
-        result['sleep_start'] = '--:--'
-        result['sleep_end'] = '--:--'
-    
-    # 读取心率时间序列数据 (用于图表)
-    hr_series = get_metric_series(metrics, 'heart_rate', target_date)
-    result['heart_rate_series'] = hr_series if hr_series else generate_hourly_hr_data(metrics, target_date)
-    
-    # 读取锻炼数据
-    result['workouts'] = extract_workouts(metrics, target_date)
-    
-    # 添加趋势数据 (模拟，实际应从历史数据计算)
-    result.update(get_trend_data(result))
+    for metric in metrics:
+        name = metric.get('name')
+        result[name] = metric
     
     return result
 
-def sum_metric(metrics, name):
-    """对某个指标的所有值求和"""
-    for m in metrics:
-        if m.get('name') == name:
-            return sum(d.get('qty', 0) for d in m.get('data', []))
-    return 0
+def get_metric_value(metrics, name, agg='avg'):
+    """获取指标值"""
+    if name not in metrics:
+        return None, 0
+    
+    data = metrics[name].get('data', [])
+    if not data:
+        return None, 0
+    
+    values = [d.get('qty', 0) for d in data if 'qty' in d]
+    if not values:
+        return None, 0
+    
+    if agg == 'avg':
+        return sum(values) / len(values), len(values)
+    elif agg == 'sum':
+        return sum(values), len(values)
+    elif agg == 'max':
+        return max(values), len(values)
+    elif agg == 'min':
+        return min(values), len(values)
+    
+    return values[0], len(values)
 
-def avg_metric(metrics, name):
-    """计算某个指标的平均值"""
-    for m in metrics:
-        if m.get('name') == name:
-            values = [d.get('qty', 0) for d in m.get('data', [])]
-            if values:
-                return round(sum(values) / len(values), 2)
-    return 0
-
-def first_metric(metrics, name):
-    """获取某个指标的第一个值"""
-    for m in metrics:
-        if m.get('name') == name:
-            data = m.get('data', [])
-            if data:
-                return data[0].get('qty', 0)
-    return 0
-
-def first_metric_full(metrics, name):
-    """获取某个指标的完整数据对象"""
-    for m in metrics:
-        if m.get('name') == name:
-            data = m.get('data', [])
-            if data:
-                return data[0]
-    return None
-
-def get_metric_series(metrics, name, target_date):
-    """获取某个指标的时间序列数据"""
-    for m in metrics:
-        if m.get('name') == name:
-            data = m.get('data', [])
-            # 按小时聚合
-            hourly = {}
-            for d in data:
-                date_str = d.get('date', '')
-                if target_date in date_str:
-                    hour = date_str[11:13]
-                    if hour not in hourly:
-                        hourly[hour] = []
-                    hourly[hour].append(d.get('qty', 0))
-            
-            # 计算每小时平均值
-            result = []
-            for hour in sorted(hourly.keys()):
-                values = hourly[hour]
-                if values:
-                    avg_hr = round(sum(values) / len(values))
-                    result.append({
-                        'time': f"{hour}:00",
-                        'hr': avg_hr
-                    })
-            return result
-    return []
-
-def generate_hourly_hr_data(metrics, target_date):
-    """生成模拟的小时心率数据"""
-    return [
-        {"time": "06:00", "hr": 58}, {"time": "08:00", "hr": 72},
-        {"time": "10:00", "hr": 68}, {"time": "12:00", "hr": 75},
-        {"time": "14:00", "hr": 70}, {"time": "16:00", "hr": 73},
-        {"time": "18:00", "hr": 85}, {"time": "20:00", "hr": 78},
-        {"time": "22:00", "hr": 62}
-    ]
-
-def extract_workouts(metrics, target_date):
-    """提取锻炼数据"""
-    # 这里简化处理，从 workout 数据中解析
-    # 实际数据格式可能需要根据 Health Auto Export 的输出调整
+def get_daily_summary(date_str, metrics):
+    """获取单日汇总数据"""
+    summary = {'date': date_str}
+    
+    # HRV (心率变异性)
+    hrv_val, hrv_count = get_metric_value(metrics, 'heart_rate_variability', 'avg')
+    summary['hrv'] = hrv_val
+    summary['hrv_count'] = hrv_count
+    
+    # 静息心率
+    resting_hr, _ = get_metric_value(metrics, 'resting_heart_rate', 'avg')
+    summary['resting_hr'] = resting_hr
+    
+    # 步数
+    steps, _ = get_metric_value(metrics, 'step_count', 'sum')
+    summary['steps'] = steps
+    
+    # 行走距离
+    distance, _ = get_metric_value(metrics, 'walking_running_distance', 'sum')
+    summary['distance'] = distance
+    
+    # 活动能量
+    energy, _ = get_metric_value(metrics, 'active_energy', 'sum')
+    summary['energy'] = energy
+    
+    # 爬楼层数
+    floors, _ = get_metric_value(metrics, 'flights_climbed', 'sum')
+    summary['floors'] = floors
+    
+    # 站立时间
+    stand_time, _ = get_metric_value(metrics, 'apple_stand_time', 'sum')
+    summary['stand_time'] = stand_time
+    
+    # 血氧
+    spo2, spo2_count = get_metric_value(metrics, 'blood_oxygen_saturation', 'avg')
+    summary['spo2'] = spo2
+    summary['spo2_count'] = spo2_count
+    
+    # 静息能量
+    rest_energy, _ = get_metric_value(metrics, 'basal_energy_burned', 'sum')
+    summary['rest_energy'] = rest_energy
+    
+    # 呼吸率
+    resp_rate, _ = get_metric_value(metrics, 'respiratory_rate', 'avg')
+    summary['resp_rate'] = resp_rate
+    
+    # 睡眠数据
+    sleep_sessions = []
+    if 'sleep_analysis' in metrics:
+        for sleep in metrics['sleep_analysis'].get('data', []):
+            sleep_start = sleep.get('startDate', '')
+            sleep_end = sleep.get('endDate', '')
+            sleep_qty = sleep.get('qty', 0)
+            sleep_value = sleep.get('value', '')
+            sleep_sessions.append({
+                'start': sleep_start,
+                'end': sleep_end,
+                'hours': sleep_qty / 60 if sleep_qty else 0,
+                'type': sleep_value
+            })
+    summary['sleep_sessions'] = sleep_sessions
+    summary['sleep_total'] = sum(s['hours'] for s in sleep_sessions)
+    
+    # 运动数据
     workouts = []
+    if 'workout' in metrics:
+        for w in metrics['workout'].get('data', []):
+            workouts.append({
+                'type': w.get('value', ''),
+                'start': w.get('startDate', ''),
+                'end': w.get('endDate', ''),
+                'duration': w.get('qty', 0),
+                'energy': w.get('source', '')
+            })
+    summary['workouts'] = workouts
+    summary['has_workout'] = len(workouts) > 0
     
-    # 简单的启发式：如果有较长时间的锻炼，创建记录
-    exercise_time = sum_metric(metrics, 'apple_exercise_time')
-    if exercise_time >= 20:
-        workouts.append({
-            'type': '运动训练',
-            'icon': '🏃',
-            'duration': int(exercise_time),
-            'calories': 0,  # 需要从 active_calories 估算
-            'avg_hr': 0,
-            'time': '07:00'
-        })
-    
-    return workouts
+    return summary
 
-def get_trend_data(current_data):
-    """生成趋势数据 (实际应从历史数据计算)"""
-    return {
-        'steps_7day_avg': int(current_data.get('steps', 0) * 0.95),
-        'steps_trend': '→ 持平',
-        'steps_trend_class': 'trend-same',
-        'sleep_7day_avg': round(current_data.get('sleep_hours', 0) * 0.98, 1),
-        'sleep_trend': '→ 持平',
-        'sleep_trend_class': 'trend-same',
-        'hrv_7day_avg': round(current_data.get('hrv', 0) * 0.97, 0),
-        'hrv_trend': '→ 持平',
-        'hrv_trend_class': 'trend-same',
-        'rhr_7day_avg': current_data.get('resting_hr', 60),
-        'rhr_trend': '→ 持平',
-        'rhr_trend_class': 'trend-same'
-    }
-
-def get_weekday_cn(date_str):
-    """获取中文星期"""
-    weekdays = ['一', '二', '三', '四', '五', '六', '日']
-    dt = datetime.strptime(date_str, "%Y-%m-%d")
-    return weekdays[dt.weekday()]
-
-if __name__ == '__main__':
-    import argparse
+def analyze_trend(current, previous, higher_is_better=True):
+    """分析趋势"""
+    if not current or not previous:
+        return 'stable', '持平'
     
-    parser = argparse.ArgumentParser(description='解析 Apple Health 数据')
-    parser.add_argument('json_file', help='Health Auto Export JSON 文件路径')
-    parser.add_argument('--date', help='目标日期 (YYYY-MM-DD)，默认为今天')
-    parser.add_argument('--output', '-o', help='输出 JSON 文件路径')
+    diff = current - previous
+    pct = (diff / previous * 100) if previous else 0
     
-    args = parser.parse_args()
+    if abs(pct) < 5:
+        return 'stable', '持平'
     
-    result = parse_health_data(args.json_file, args.date)
-    
-    if args.output:
-        with open(args.output, 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
-        print(f"✅ 数据已保存: {args.output}")
+    if higher_is_better:
+        if pct > 0:
+            return 'up', f'↑{pct:.0f}%'
+        else:
+            return 'down', f'↓{abs(pct):.0f}%'
     else:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        if pct < 0:
+            return 'up', f'↓{abs(pct):.0f}%'
+        else:
+            return 'down', f'↑{pct:.0f}%'
+
+def get_rating(value, good_threshold, poor_threshold, higher_is_better=True):
+    """获取评级"""
+    if value is None:
+        return '未知', 'rating-average', 'badge-average'
+    
+    if higher_is_better:
+        if value >= good_threshold:
+            return '优秀', 'rating-excellent', 'badge-excellent'
+        elif value >= poor_threshold:
+            return '良好', 'rating-good', 'badge-good'
+        else:
+            return '需改善', 'rating-poor', 'badge-poor'
+    else:
+        if value <= good_threshold:
+            return '优秀', 'rating-excellent', 'badge-excellent'
+        elif value <= poor_threshold:
+            return '良好', 'rating-good', 'badge-good'
+        else:
+            return '需改善', 'rating-poor', 'badge-poor'
+
+# 主程序
+if __name__ == '__main__':
+    base_dir = os.path.expanduser('~/我的云端硬盘/Health Auto Export/Health Data')
+    
+    # 读取5天数据
+    dates = ['2026-02-18', '2026-02-19', '2026-02-20', '2026-02-21', '2026-02-22']
+    daily_data = {}
+    
+    for date in dates:
+        file_path = f"{base_dir}/HealthAutoExport-{date}.json"
+        if os.path.exists(file_path):
+            metrics = parse_health_data(file_path)
+            daily_data[date] = get_daily_summary(date, metrics)
+            print(f"✅ 已加载: {date}")
+        else:
+            print(f"❌ 缺失: {date}")
+    
+    print(f"\n📊 成功加载 {len(daily_data)} 天数据")
+    
+    # 打印2月18日数据示例
+    if '2026-02-18' in daily_data:
+        d = daily_data['2026-02-18']
+        print(f"\n2月18日数据:")
+        print(f"  HRV: {d.get('hrv', 'N/A')}")
+        print(f"  步数: {d.get('steps', 'N/A')}")
+        print(f"  睡眠: {d.get('sleep_total', 'N/A')}小时")
+        print(f"  运动: {'有' if d.get('has_workout') else '无'}")

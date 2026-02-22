@@ -1,0 +1,326 @@
+<!-- 
+  统一日报告模板 V2 - 带完整内容结构
+  所有内容区域都有占位符，确保内容完整且UI统一
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{DATE}} 健康日报</title>
+<style>
+/* 统一样式 - 不允许修改 */
+@page { size: A4; margin: 8mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt; line-height: 1.4; color: #1f2937; }
+.container { max-width: 780px; margin: 0 auto; padding: 10px; }
+
+/* 头部 - 紫色渐变 - 固定 */
+.header { 
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+  color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 12px; 
+}
+.header h1 { font-size: 20pt; margin-bottom: 5px; }
+.header .subtitle { font-size: 9pt; opacity: 0.9; }
+
+/* 评分卡 - 3列 - 固定 */
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.score-card { 
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0); 
+  border-radius: 8px; padding: 12px; text-align: center; border-top: 3px solid #667eea; 
+}
+.score-value { font-size: 24pt; font-weight: bold; color: #667eea; }
+.score-label { font-size: 8pt; color: #64748b; margin-top: 4px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 8pt; margin-top: 4px; }
+.badge-excellent { background: #dcfce7; color: #166534; }
+.badge-good { background: #dbeafe; color: #1e40af; }
+.badge-average { background: #fef3c7; color: #92400e; }
+.badge-poor { background: #fee2e2; color: #991b1b; }
+
+/* 内容区块 */
+.section { background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.section-title { font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #667eea; }
+
+/* 指标表 */
+.metric-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.metric-table th, .metric-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.metric-table th { background: #f1f5f9; font-weight: 600; color: #64748b; }
+.metric-value { font-weight: bold; color: #1e293b; }
+.rating { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 7pt; font-weight: bold; }
+.rating-excellent { background: #dcfce7; color: #166534; }
+.rating-good { background: #dbeafe; color: #1e40af; }
+.rating-average { background: #fef3c7; color: #92400e; }
+.rating-poor { background: #fee2e2; color: #991b1b; }
+.ai-text { font-size: 8pt; color: #475569; margin-top: 4px; padding: 6px; background: white; border-radius: 4px; border-left: 3px solid #667eea; line-height: 1.6; }
+
+/* 睡眠结构 */
+.sleep-structure { display: flex; height: 28px; border-radius: 4px; overflow: hidden; margin: 8px 0; font-size: 7pt; color: white; font-weight: bold; }
+.sleep-bar { display: flex; align-items: center; justify-content: center; }
+.sleep-deep { background: #1e40af; }
+.sleep-core { background: #3b82f6; }
+.sleep-rem { background: #60a5fa; }
+.sleep-awake { background: #f59e0b; }
+
+/* AI建议卡片 */
+.ai-rec { background: white; border-radius: 6px; padding: 10px; margin-bottom: 8px; border-left: 3px solid; }
+.ai-rec-high { border-left-color: #dc2626; }
+.ai-rec-medium { border-left-color: #f59e0b; }
+.ai-rec-low { border-left-color: #3b82f6; }
+.ai-rec-title { font-weight: bold; margin-bottom: 5px; font-size: 9pt; color: #1e293b; }
+.ai-rec-content { font-size: 8pt; color: #475569; line-height: 1.6; }
+
+/* 分页 */
+.page-break { page-break-before: always; }
+
+/* 页脚 */
+.footer { text-align: center; font-size: 7pt; color: #94a3b8; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- 第1页：头部 + 评分卡 + 指标表 -->
+<div class="header">
+  <h1>🏥 健康日报</h1>
+  <div class="subtitle">{{HEADER_SUBTITLE}}</div>
+</div>
+
+<div class="score-grid">
+  <div class="score-card">
+    <div class="score-value">{{SCORE_RECOVERY}}</div>
+    <div class="score-label">恢复度</div>
+    <span class="badge {{BADGE_RECOVERY_CLASS}}">{{BADGE_RECOVERY_TEXT}}</span>
+  </div>
+  <div class="score-card">
+    <div class="score-value">{{SCORE_SLEEP}}</div>
+    <div class="score-label">睡眠质量</div>
+    <span class="badge {{BADGE_SLEEP_CLASS}}">{{BADGE_SLEEP_TEXT}}</span>
+  </div>
+  <div class="score-card">
+    <div class="score-value">{{SCORE_EXERCISE}}</div>
+    <div class="score-label">运动完成</div>
+    <span class="badge {{BADGE_EXERCISE_CLASS}}">{{BADGE_EXERCISE_TEXT}}</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📊 详细指标分析（11项完整版）</div>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>指标</th>
+        <th>数值</th>
+        <th>评级</th>
+        <th>AI分析（100-150字）</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- 指标1: HRV -->
+      <tr>
+        <td><b>HRV</b></td>
+        <td class="metric-value">{{METRIC1_VALUE}}</td>
+        <td><span class="rating {{METRIC1_RATING_CLASS}}">{{METRIC1_RATING}}</span></td>
+        <td class="ai-text">{{METRIC1_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标2: 静息心率 -->
+      <tr>
+        <td>静息心率</td>
+        <td class="metric-value">{{METRIC2_VALUE}}</td>
+        <td><span class="rating {{METRIC2_RATING_CLASS}}">{{METRIC2_RATING}}</span></td>
+        <td class="ai-text">{{METRIC2_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标3: 步数 -->
+      <tr>
+        <td>步数</td>
+        <td class="metric-value">{{METRIC3_VALUE}}</td>
+        <td><span class="rating {{METRIC3_RATING_CLASS}}">{{METRIC3_RATING}}</span></td>
+        <td class="ai-text">{{METRIC3_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标4: 行走距离 -->
+      <tr>
+        <td><b>行走距离</b></td>
+        <td class="metric-value">{{METRIC4_VALUE}}</td>
+        <td><span class="rating {{METRIC4_RATING_CLASS}}">{{METRIC4_RATING}}</span></td>
+        <td class="ai-text">{{METRIC4_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标5: 活动能量 -->
+      <tr>
+        <td>活动能量</td>
+        <td class="metric-value">{{METRIC5_VALUE}}</td>
+        <td><span class="rating {{METRIC5_RATING_CLASS}}">{{METRIC5_RATING}}</span></td>
+        <td class="ai-text">{{METRIC5_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标6: 爬楼层数 -->
+      <tr>
+        <td>爬楼层数</td>
+        <td class="metric-value">{{METRIC6_VALUE}}</td>
+        <td><span class="rating {{METRIC6_RATING_CLASS}}">{{METRIC6_RATING}}</span></td>
+        <td class="ai-text">{{METRIC6_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标7: 站立时间 -->
+      <tr>
+        <td>站立时间</td>
+        <td class="metric-value">{{METRIC7_VALUE}}</td>
+        <td><span class="rating {{METRIC7_RATING_CLASS}}">{{METRIC7_RATING}}</span></td>
+        <td class="ai-text">{{METRIC7_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标8: 血氧饱和度 -->
+      <tr>
+        <td>血氧饱和度</td>
+        <td class="metric-value">{{METRIC8_VALUE}}</td>
+        <td><span class="rating {{METRIC8_RATING_CLASS}}">{{METRIC8_RATING}}</span></td>
+        <td class="ai-text">{{METRIC8_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标9: 静息能量 -->
+      <tr>
+        <td><b>静息能量</b></td>
+        <td class="metric-value">{{METRIC9_VALUE}}</td>
+        <td><span class="rating {{METRIC9_RATING_CLASS}}">{{METRIC9_RATING}}</span></td>
+        <td class="ai-text">{{METRIC9_ANALYSIS}}</td>
+      </tr>
+      <!-- 指标10: 呼吸率 -->
+      <tr>
+        <td>呼吸率</td>
+        <td class="metric-value">{{METRIC10_VALUE}}</td>
+        <td><span class="rating {{METRIC10_RATING_CLASS}}">{{METRIC10_RATING}}</span></td>
+        <td class="ai-text">{{METRIC10_ANALYSIS}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 第2页：睡眠分析 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">😴 睡眠分析 ({{SLEEP_STATUS}})</div>
+  
+  <div style="background: {{SLEEP_ALERT_BG}}; border: 1px solid {{SLEEP_ALERT_BORDER}}; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+    <div style="font-weight: bold; color: {{SLEEP_ALERT_COLOR}}; margin-bottom: 5px;">{{SLEEP_ALERT_TITLE}}</div>
+    <div style="font-size: 8pt; color: {{SLEEP_ALERT_SUBCOLOR}};">{{SLEEP_ALERT_DETAIL}}</div>
+  </div>
+  
+  <div style="font-size: 9pt; font-weight: bold; margin-bottom: 5px;">睡眠结构分布 ({{SLEEP_TOTAL}}h 总计)</div>
+  
+  <div class="sleep-structure">
+    <div class="sleep-bar sleep-deep" style="width: {{SLEEP_DEEP_PCT}}%">深睡 {{SLEEP_DEEP}}h</div>
+    <div class="sleep-bar sleep-core" style="width: {{SLEEP_CORE_PCT}}%">核心 {{SLEEP_CORE}}h</div>
+    <div class="sleep-bar sleep-rem" style="width: {{SLEEP_REM_PCT}}%">REM {{SLEEP_REM}}h</div>
+    <div class="sleep-bar sleep-awake" style="width: {{SLEEP_AWAKE_PCT}}%">清醒 {{SLEEP_AWAKE}}h</div>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; font-size: 8pt; text-align: center;">
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #1e40af; font-weight: bold; font-size: 10pt;">{{SLEEP_DEEP}}h ({{SLEEP_DEEP_PCT}}%)</div>
+      <div style="color: #64748b;">深睡期<br>身体修复</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #3b82f6; font-weight: bold; font-size: 10pt;">{{SLEEP_CORE}}h ({{SLEEP_CORE_PCT}}%)</div>
+      <div style="color: #64748b;">核心睡眠<br>记忆巩固</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #60a5fa; font-weight: bold; font-size: 10pt;">{{SLEEP_REM}}h ({{SLEEP_REM_PCT}}%)</div>
+      <div style="color: #64748b;">REM期<br>情绪调节</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #f59e0b; font-weight: bold; font-size: 10pt;">{{SLEEP_AWAKE}}h ({{SLEEP_AWAKE_PCT}}%)</div>
+      <div style="color: #64748b;">清醒时间<br>睡眠中断</div>
+    </div>
+  </div>
+  
+  <div class="ai-text" style="border-left-color: {{SLEEP_ANALYSIS_BORDER}};">
+    <strong>AI深度分析：</strong>{{SLEEP_ANALYSIS_TEXT}}
+  </div>
+</div>
+
+<!-- Workout记录 -->
+<div class="section">
+  <div class="section-title">🏃 运动记录 - {{WORKOUT_NAME}}</div>
+  
+  <div style="background: white; border-radius: 8px; padding: 12px; border-left: 3px solid #667eea; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <span style="font-size: 12pt; font-weight: bold; color: #667eea;">{{WORKOUT_NAME}}</span>
+      <span style="font-size: 8pt; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px;">{{WORKOUT_TIME}}</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 8pt; text-align: center; margin-bottom: 10px;">
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">{{WORKOUT_DURATION}}</div>
+        <div style="color: #64748b;">分钟</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">{{WORKOUT_ENERGY}}</div>
+        <div style="color: #64748b;">千卡</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">{{WORKOUT_AVG_HR}}</div>
+        <div style="color: #64748b;">平均心率</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">{{WORKOUT_MAX_HR}}</div>
+        <div style="color: #64748b;">最高心率</div>
+      </div>
+    </div>
+    <!-- 心率曲线图 -->
+    <div style="margin: 15px 0; padding: 10px; background: #f8fafc; border-radius: 6px;">
+      <div style="font-size: 9pt; font-weight: bold; color: #1e293b; margin-bottom: 8px;">📈 心率变化曲线</div>
+      {{WORKOUT_HR_CHART}}
+    </div>
+    <div class="ai-text">
+      <strong>运动AI详细分析：</strong>{{WORKOUT_ANALYSIS}}
+    </div>
+  </div>
+</div>
+
+<!-- 第3页：AI建议 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">💡 AI 详细健康建议（4部分完整版）</div>
+  
+  <!-- AI建议1 -->
+  <div class="ai-rec ai-rec-high">
+    <div class="ai-rec-title">🔴 【最高优先级】{{AI1_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>问题识别（紧急）：</strong>{{AI1_PROBLEM}}<br><br>
+      <strong>行动计划（分步骤）：</strong>{{AI1_ACTION}}<br><br>
+      <strong>预期效果：</strong>{{AI1_EXPECTATION}}
+    </div>
+  </div>
+  
+  <!-- AI建议2 -->
+  <div class="ai-rec ai-rec-medium">
+    <div class="ai-rec-title">🟡 【中等优先级】{{AI2_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>问题分析：</strong>{{AI2_PROBLEM}}<br><br>
+      <strong>具体建议：</strong>{{AI2_ACTION}}<br><br>
+      <strong>恢复周期：</strong>{{AI2_EXPECTATION}}
+    </div>
+  </div>
+  
+  <!-- AI建议3 -->
+  <div class="ai-rec ai-rec-low">
+    <div class="ai-rec-title">🟢 【日常优化】{{AI3_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>饮食建议：</strong>{{AI3_DIET}}<br><br>
+      <strong>作息建议：</strong>{{AI3_ROUTINE}}
+    </div>
+  </div>
+  
+  <!-- AI建议4 -->
+  <div class="ai-rec">
+    <div class="ai-rec-title">📊 【数据洞察】{{AI4_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>优势总结：</strong>{{AI4_ADVANTAGES}}<br><br>
+      <strong>风险提醒：</strong>{{AI4_RISKS}}<br><br>
+      <strong>整体评估结论：</strong>{{AI4_CONCLUSION}}<br><br>
+      <strong>1-2周优先级计划：</strong>{{AI4_PLAN}}
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  {{FOOTER_DATA_SOURCES}} | 生成: {{FOOTER_DATE}} | UTC+8
+</div>
+
+</div>
+</body>
+</html>

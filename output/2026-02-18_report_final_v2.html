@@ -1,0 +1,405 @@
+<!-- 
+  统一日报告模板 V2 - 带完整内容结构
+  所有内容区域都有占位符，确保内容完整且UI统一
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>2026-02-18 健康日报</title>
+<style>
+/* 统一样式 - 不允许修改 */
+@page { size: A4; margin: 8mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt; line-height: 1.4; color: #1f2937; }
+.container { max-width: 780px; margin: 0 auto; padding: 10px; }
+
+/* 头部 - 紫色渐变 - 固定 */
+.header { 
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+  color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 12px; 
+}
+.header h1 { font-size: 20pt; margin-bottom: 5px; }
+.header .subtitle { font-size: 9pt; opacity: 0.9; }
+
+/* 评分卡 - 3列 - 固定 */
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.score-card { 
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0); 
+  border-radius: 8px; padding: 12px; text-align: center; border-top: 3px solid #667eea; 
+}
+.score-value { font-size: 24pt; font-weight: bold; color: #667eea; }
+.score-label { font-size: 8pt; color: #64748b; margin-top: 4px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 8pt; margin-top: 4px; }
+.badge-excellent { background: #dcfce7; color: #166534; }
+.badge-good { background: #dbeafe; color: #1e40af; }
+.badge-average { background: #fef3c7; color: #92400e; }
+.badge-poor { background: #fee2e2; color: #991b1b; }
+
+/* 内容区块 */
+.section { background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.section-title { font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #667eea; }
+
+/* 指标表 */
+.metric-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.metric-table th, .metric-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.metric-table th { background: #f1f5f9; font-weight: 600; color: #64748b; }
+.metric-value { font-weight: bold; color: #1e293b; }
+.rating { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 7pt; font-weight: bold; }
+.rating-excellent { background: #dcfce7; color: #166534; }
+.rating-good { background: #dbeafe; color: #1e40af; }
+.rating-average { background: #fef3c7; color: #92400e; }
+.rating-poor { background: #fee2e2; color: #991b1b; }
+.ai-text { font-size: 8pt; color: #475569; margin-top: 4px; padding: 6px; background: white; border-radius: 4px; border-left: 3px solid #667eea; line-height: 1.6; }
+
+/* 睡眠结构 */
+.sleep-structure { display: flex; height: 28px; border-radius: 4px; overflow: hidden; margin: 8px 0; font-size: 7pt; color: white; font-weight: bold; }
+.sleep-bar { display: flex; align-items: center; justify-content: center; }
+.sleep-deep { background: #1e40af; }
+.sleep-core { background: #3b82f6; }
+.sleep-rem { background: #60a5fa; }
+.sleep-awake { background: #f59e0b; }
+
+/* AI建议卡片 */
+.ai-rec { background: white; border-radius: 6px; padding: 10px; margin-bottom: 8px; border-left: 3px solid; }
+.ai-rec-high { border-left-color: #dc2626; }
+.ai-rec-medium { border-left-color: #f59e0b; }
+.ai-rec-low { border-left-color: #3b82f6; }
+.ai-rec-title { font-weight: bold; margin-bottom: 5px; font-size: 9pt; color: #1e293b; }
+.ai-rec-content { font-size: 8pt; color: #475569; line-height: 1.6; }
+
+/* 分页 */
+.page-break { page-break-before: always; }
+
+/* 页脚 */
+.footer { text-align: center; font-size: 7pt; color: #94a3b8; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- 第1页：头部 + 评分卡 + 指标表 -->
+<div class="header">
+  <h1>🏥 健康日报</h1>
+  <div class="subtitle">2026-02-18 · Apple Health | UTC+8</div>
+</div>
+
+<div class="score-grid">
+  <div class="score-card">
+    <div class="score-value">84</div>
+    <div class="score-label">恢复度</div>
+    <span class="badge badge-excellent">优秀</span>
+  </div>
+  <div class="score-card">
+    <div class="score-value">35</div>
+    <div class="score-label">睡眠质量</div>
+    <span class="badge badge-poor">需改善</span>
+  </div>
+  <div class="score-card">
+    <div class="score-value">68</div>
+    <div class="score-label">运动完成</div>
+    <span class="badge badge-good">良好</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📊 详细指标分析（11项完整版）</div>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>指标</th>
+        <th>数值</th>
+        <th>评级</th>
+        <th>AI分析（100-150字）</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- 指标1: HRV -->
+      <tr>
+        <td><b>HRV</b></td>
+        <td class="metric-value">52.8 ms<br><small>51个数据点</small></td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">今日HRV均值为52.8ms（基于51次夜间测量），处于正常范围（40-60ms），表明自主神经系统功能良好，身体恢复能力正常。建议继续保持规律作息和适度运动。</td>
+      </tr>
+      <!-- 指标2: 静息心率 -->
+      <tr>
+        <td>静息心率</td>
+        <td class="metric-value">57 bpm</td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">静息心率57bpm，处于健康成人正常范围（50-70bpm），表明心脏泵血效率良好。结合您的运动习惯，这一数值反映出较好的心血管健康状况。建议每天早晨起床前测量以追踪长期趋势。</td>
+      </tr>
+      <!-- 指标3: 步数 -->
+      <tr>
+        <td>步数</td>
+        <td class="metric-value">6,852 步<br><small>276个记录</small></td>
+        <td><span class="rating rating-average">偏低</span></td>
+        <td class="ai-text">今日步行6,852步（基于276条记录），距离建议的8000步目标还有1,148步差距。建议增加日常活动，如午休散步、步行通勤或晚饭后散步20-30分钟。</td>
+      </tr>
+      <!-- 指标4: 行走距离 -->
+      <tr>
+        <td><b>行走距离</b></td>
+        <td class="metric-value">5.09 km</td>
+        <td><span class="rating rating-good">良好</span></td>
+        <td class="ai-text">行走距离5.09公里，活动量充足，相当于约{int(distance/5*100)}%的每日推荐量。规律步行有助于维持下肢肌肉力量、关节灵活性和心肺功能。</td>
+      </tr>
+      <!-- 指标5: 活动能量 -->
+      <tr>
+        <td>活动能量</td>
+        <td class="metric-value">564 kcal</td>
+        <td><span class="rating rating-good">活跃</span></td>
+        <td class="ai-text">活动能量消耗564千卡，达到活跃水平，表明今日身体活动较为充分，有助于热量平衡、代谢健康和体重管理。</td>
+      </tr>
+      <!-- 指标6: 爬楼层数 -->
+      <tr>
+        <td>爬楼层数</td>
+        <td class="metric-value">108 层</td>
+        <td><span class="rating rating-good">良好</span></td>
+        <td class="ai-text">今日爬楼108层，垂直活动充足，相当于约{int(floors/10*100)}%的每日推荐量。爬楼梯是很好的下肢力量训练和心肺锻炼方式。</td>
+      </tr>
+      <!-- 指标7: 站立时间 -->
+      <tr>
+        <td>站立时间</td>
+        <td class="metric-value">2.0 h</td>
+        <td><span class="rating rating-average">不足</span></td>
+        <td class="ai-text">站立时间2.0小时，站立时间不足（目标8小时），仅占目标的24%。建议每小时起身活动5-10分钟，使用站立办公桌，或在接打电话时站立走动。</td>
+      </tr>
+      <!-- 指标8: 血氧饱和度 -->
+      <tr>
+        <td>血氧饱和度</td>
+        <td class="metric-value">96.1%<br><small>16次测量</small></td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">血氧饱和度96.1%（基于16次测量），处于正常范围（95-100%），表明肺部气体交换功能良好，血液携氧能力正常。</td>
+      </tr>
+      <!-- 指标9: 静息能量 -->
+      <tr>
+        <td><b>静息能量</b></td>
+        <td class="metric-value">1702 kcal</td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">静息能量消耗约1702千卡，这是维持生命体征（心跳、呼吸、体温等）所需的最低能量消耗，反映基础代谢水平正常。约占每日总能量消耗的60-70%。</td>
+      </tr>
+      <!-- 指标10: 呼吸率 -->
+      <tr>
+        <td>呼吸率</td>
+        <td class="metric-value">14.8 次/分<br><small>40次测量</small></td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">呼吸率14.8次/分钟（基于40次夜间测量），处于正常成人范围（12-20次/分），表明呼吸功能良好。睡眠期间呼吸率略低于清醒时是正常生理现象。</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 第2页：睡眠分析 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">😴 睡眠分析 (数据完整)</div>
+  
+  <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+    <div style="font-weight: bold; color: #166534; margin-bottom: 5px;">✅ 睡眠记录完整</div>
+    <div style="font-size: 8pt; color: #15803d;">入睡 06:28 | 醒来 09:17 | 总时长 2.8小时 | 来源: Apple Health</div>
+  </div>
+  
+  <div style="font-size: 9pt; font-weight: bold; margin-bottom: 5px;">睡眠结构分布 (2.8h 总计)</div>
+  
+  <div class="sleep-structure">
+    <div class="sleep-bar sleep-deep" style="width: 0%">深睡 0.0h</div>
+    <div class="sleep-bar sleep-core" style="width: 0%">核心 0.0h</div>
+    <div class="sleep-bar sleep-rem" style="width: 0%">REM 0.0h</div>
+    <div class="sleep-bar sleep-awake" style="width: 0%">清醒 0.0h</div>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; font-size: 8pt; text-align: center;">
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #1e40af; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">深睡期<br>身体修复</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #3b82f6; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">核心睡眠<br>记忆巩固</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #60a5fa; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">REM期<br>情绪调节</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #f59e0b; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">清醒时间<br>睡眠中断</div>
+    </div>
+  </div>
+  
+  <div class="ai-text" style="border-left-color: #667eea;">
+    <strong>AI深度分析：</strong>昨晚入睡时间06:28，醒来时间09:17，总睡眠时长2.8小时。睡眠时长偏短，但睡眠结构数据未分类（深睡/核心/REM均显示为0），可能是Apple Watch睡眠追踪设置问题。建议检查 watchOS 睡眠设置中的「通过Apple Watch追踪睡眠」选项。
+  </div>
+</div>
+
+<!-- Workout记录 -->
+<div class="section">
+  <div class="section-title">🏃 运动记录 - 楼梯</div>
+  
+  <div style="background: white; border-radius: 8px; padding: 12px; border-left: 3px solid #667eea; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <span style="font-size: 12pt; font-weight: bold; color: #667eea;">楼梯</span>
+      <span style="font-size: 8pt; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px;">2026-02-18 20:25</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 8pt; text-align: center; margin-bottom: 10px;">
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">33</div>
+        <div style="color: #64748b;">分钟</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">299</div>
+        <div style="color: #64748b;">千卡</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">150</div>
+        <div style="color: #64748b;">平均心率</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">168</div>
+        <div style="color: #64748b;">最高心率</div>
+      </div>
+    </div>
+    <div class="ai-text">
+      <strong>运动AI详细分析：</strong>今日进行了<strong>楼梯</strong>锻炼，时长<strong>33分钟</strong>。消耗能量约<strong>299千卡</strong>。平均心率<strong>150bpm</strong>，最高心率<strong>168bpm</strong>。<br><br><strong>🎯 运动强度评估：</strong>本次运动平均心率150+bpm，属于高强度训练。心率维持在高水平表明心肺负荷较大，适合提升心肺耐力。<br><br><strong>📈 心率曲线分析：</strong>运动过程中共记录27个心率数据点。心率范围126-168bpm（波动42bpm），心率波动较大，表明运动强度有明显的起伏变化。<br><br><strong>💪 训练效果评估：</strong>高强度楼梯运动有效刺激了心肺功能和下肢肌肉力量。持续的爬楼动作对股四头肌、臀大肌和小腿肌肉有很好的锻炼效果。建议每周进行2-3次类似强度的训练。<br><br><strong>⚠️ 注意事项：</strong>注意：昨日睡眠仅2.8小时，在高强度运动后应优先保证充足睡眠以促进恢复。建议今晚早点休息，并考虑明日降低训练强度。
+    </div>
+  
+    <div style="margin: 15px 0;">
+        <div style="font-size: 9pt; font-weight: bold; margin-bottom: 8px;">❤️ 运动心率变化曲线</div>
+        <div style="background: white; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0;">
+            <canvas id="hrChart" width="700" height="180"></canvas>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; font-size: 8pt;">
+            <div style="background: #fef2f2; padding: 8px; border-radius: 4px; text-align: center;">
+                <div style="color: #dc2626; font-weight: bold; font-size: 12pt;">165 bpm</div>
+                <div style="color: #64748b;">最高平均心率</div>
+            </div>
+            <div style="background: #f0fdf4; padding: 8px; border-radius: 4px; text-align: center;">
+                <div style="color: #16a34a; font-weight: bold; font-size: 12pt;">150 bpm</div>
+                <div style="color: #64748b;">平均心率</div>
+            </div>
+            <div style="background: #eff6ff; padding: 8px; border-radius: 4px; text-align: center;">
+                <div style="color: #2563eb; font-weight: bold; font-size: 12pt;">130 bpm</div>
+                <div style="color: #64748b;">最低平均心率</div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const ctx = document.getElementById('hrChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['20:33', '20:34', '20:35', '20:38', '20:43', '20:44', '20:45', '20:46', '20:47', '20:49', '20:50', '20:51', '20:52', '20:53', '20:54', '20:55', '20:56', '20:57', '20:58', '20:59', '21:00', '21:01', '21:02', '21:03', '21:04', '21:05', '21:06'],
+                datasets: [
+                    {
+                        label: '平均心率',
+                        data: [147, 133, 134, 165, 157, 141, 133, 150, 161, 163, 160, 159, 158, 160, 157, 139, 130, 146, 160, 159, 160, 161, 150, 131, 138, 155, 156],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3
+                    },
+                    {
+                        label: '最高心率',
+                        data: [155, 136, 138, 165, 166, 148, 137, 159, 162, 164, 163, 164, 160, 161, 168, 145, 134, 155, 163, 161, 161, 162, 162, 137, 147, 155, 157],
+                        borderColor: '#dc2626',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 2
+                    },
+                    {
+                        label: '最低心率',
+                        data: [140, 129, 131, 165, 150, 135, 127, 137, 161, 161, 157, 156, 156, 159, 148, 134, 126, 136, 157, 156, 158, 158, 140, 126, 130, 154, 155],
+                        borderColor: '#2563eb',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1,
+                        borderDash: [3, 3],
+                        pointRadius: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: false,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { font: { size: 10 } }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        min: 100,
+                        title: { display: true, text: '心率 (bpm)', font: { size: 9 } }
+                    },
+                    x: {
+                        title: { display: true, text: '时间', font: { size: 9 } },
+                        ticks: { maxTicksLimit: 8, font: { size: 8 } }
+                    }
+                }
+            }
+        });
+    </script>
+    
+</div>
+</div>
+
+<!-- 第3页：AI建议 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">💡 AI 详细健康建议（4部分完整版）</div>
+  
+  <!-- AI建议1 -->
+  <div class="ai-rec ai-rec-high">
+    <div class="ai-rec-title">🔴 【最高优先级】睡眠严重不足 - 最高优先级</div>
+    <div class="ai-rec-content">
+      <strong>问题识别（紧急）：</strong>昨晚睡眠仅<strong>2.8小时</strong>（入睡06:28，醒来09:17），远低于成年人每日7-9小时的推荐睡眠时长。睡眠不足会严重影响身体恢复、认知功能和免疫系统。结合今日HRV 52.8ms（正常），身体虽有一定恢复能力，但长期睡眠不足将累积疲劳。<br><br>
+      <strong>行动计划（分步骤）：</strong><strong>立即行动计划：</strong><br>1. <strong>今晚提前90分钟入睡</strong>：如果平时23:30睡，今晚22:00前上床<br>2. <strong>睡前准备（21:00开始）</strong>：调暗灯光，停止工作，避免蓝光（手机/电脑）<br>3. <strong>助眠措施</strong>：可尝试478呼吸法（吸气4秒、屏息7秒、呼气8秒），或播放白噪音/轻音乐<br>4. <strong>明日安排</strong>：如条件允许，明日午休20-30分钟，但不超过30分钟以免影响夜间睡眠<br>5. <strong>恢复训练计划</strong>：明日降低运动强度，改为轻度活动（散步30分钟），避免高强度训练直至睡眠恢复7小时以上<br><br>
+      <strong>预期效果：</strong>通过今晚的充足睡眠，明日HRV应有所提升，日间精力和精神状态将明显改善。连续3天保证7小时以上睡眠后，身体恢复度评分应从当前的50分提升至70分以上。建议设置固定的睡眠时间提醒，逐步建立规律的生物钟。
+    </div>
+  </div>
+  
+  <!-- AI建议2 -->
+  <div class="ai-rec ai-rec-medium">
+    <div class="ai-rec-title">🟡 【中等优先级】运动恢复与补水</div>
+    <div class="ai-rec-content">
+      <strong>问题分析：</strong>今日进行了33分钟楼梯锻炼，消耗299千卡，平均心率150bpm。高强度运动后身体需要充分恢复，但睡眠不足2.8小时会影响肌肉修复和糖原补充。<br><br>
+      <strong>具体建议：</strong><strong>恢复方案：</strong><br>1. <strong>水分补充</strong>：运动后已过去数小时，但仍需确保全天饮水2.5-3升。观察尿液颜色，应保持淡黄色<br>2. <strong>营养摄入</strong>：晚餐包含优质蛋白质（鸡胸肉/鱼/豆腐 150-200g）和复合碳水（糙米/全麦面包/红薯），促进肌肉修复<br>3. <strong>拉伸放松</strong>：睡前进行10-15分钟下肢拉伸，重点放松股四头肌、腘绳肌和小腿肌肉，每个动作保持30秒<br>4. <strong>明日活动</strong>：改为低强度活动，如快走30分钟或瑜伽，心率控制在120bpm以下<br>5. <strong>疲劳监测</strong>：明日晨起测量静息心率，如比平常高5bpm以上，说明恢复不足，应继续休息<br><br>
+      <strong>恢复周期：</strong>通过充分的水分和营养补充，配合优质睡眠，24-48小时内应感到肌肉酸痛明显减轻。建议明日晨起HRV如低于今日，则延长恢复期至72小时后再进行高强度训练。
+    </div>
+  </div>
+  
+  <!-- AI建议3 -->
+  <div class="ai-rec ai-rec-low">
+    <div class="ai-rec-title">🟢 【日常优化】健康生活方式优化</div>
+    <div class="ai-rec-content">
+      <strong>饮食建议：</strong><strong>今日饮食建议：</strong><br>• <strong>晚餐（18:00-19:00）</strong>：清蒸鱼/鸡胸肉150g + 糙米饭1碗 + 绿叶蔬菜200g + 豆腐汤<br>• <strong>睡前（如饿）</strong>：温牛奶200ml 或 香蕉1根 + 少量坚果（避免高糖高脂）<br>• <strong>明日早餐（7:00-8:00）</strong>：全麦面包2片 + 鸡蛋1-2个 + 牛奶/豆浆 + 水果1份<br>• <strong>营养素补充</strong>：确保摄入镁（深绿叶菜、坚果）和维生素B族（全谷物），有助于睡眠和能量代谢<br><br>
+      <strong>作息建议：</strong><strong>作息调整方案：</strong><br>• <strong>固定作息</strong>：设定每日22:30上床、23:00入睡的固定时间，周末偏差不超过30分钟<br>• <strong>午休优化</strong>：如日间疲劳，午休20-30分钟（设置闹钟），避免进入深睡眠<br>• <strong>环境优化</strong>：卧室温度保持18-22°C，使用遮光窗帘，睡前1小时调暗灯光<br>• <strong>睡前习惯</strong>：建立睡前仪式（洗漱→拉伸→阅读/冥想），避免在床上使用手机
+    </div>
+  </div>
+  
+  <!-- AI建议4 -->
+  <div class="ai-rec">
+    <div class="ai-rec-title">📊 【数据洞察】整体健康评估与趋势分析</div>
+    <div class="ai-rec-content">
+      <strong>优势总结：</strong><strong>健康优势：</strong><br>1. <strong>HRV表现良好</strong>：52.8ms处于正常范围，自主神经系统功能稳定，身体适应能力强<br>2. <strong>心肺功能优秀</strong>：静息心率57bpm较低，表明心脏泵血效率高；运动时心率响应良好，心血管健康<br>3. <strong>血氧正常</strong>：96.1%处于理想范围，呼吸系统功能良好<br>4. <strong>日常活动达标</strong>：步数6,852步、爬楼108层，说明日常活动习惯良好<br>5. <strong>运动习惯稳定</strong>：坚持进行楼梯等有氧运动，有助于长期心血管健康<br><br>
+      <strong>风险提醒：</strong><strong>需关注的风险：</strong><br>1. <strong>睡眠严重不足</strong>：2.8小时远低于推荐值，长期将导致免疫力下降、认知功能减退、心血管风险增加<br>2. <strong>恢复度评分偏低</strong>：50分表明身体处于轻度疲劳状态，若持续可能累积成过度训练<br>3. <strong>睡眠结构缺失</strong>：深睡/核心/REM均显示为0，可能是设备设置问题，需检查Apple Watch睡眠追踪功能<br><br>
+      <strong>整体评估结论：</strong>整体评估：<strong>健康状况中等，睡眠质量是主要短板</strong>。虽然日常活动和心肺功能表现良好（HRV 52.8ms、静息心率57bpm），但睡眠严重不足（2.8小时）严重影响了身体恢复。建议未来1-2周将<strong>改善睡眠作为首要目标</strong>，待睡眠稳定在7小时以上后再考虑提升运动强度。<br><br>
+      <strong>1-2周优先级计划：</strong><strong>未来1-2周行动计划：</strong><br><strong>Week 1（睡眠恢复周）：</strong><br>• 目标：每日睡眠达到7小时以上<br>• 运动：降低强度，改为快走30分钟/天，心率<130bpm<br>• 监测：每日记录入睡/醒来时间，晨起测量静息心率和HRV<br><strong>Week 2（评估周）：</strong><br>• 如睡眠改善，可逐步恢复中等强度运动<br>• 如睡眠仍不足6小时，需考虑就医检查是否存在睡眠障碍<br><strong>核心原则：</strong>睡眠 > 营养 > 运动，恢复是训练的前提
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Apple Health • HRV:51次 • 血氧:16次 • 步数:276条 • 生成: 2026-02-22 01:43 | UTC+8 | 生成: 2026-02-22 01:43 | UTC+8
+</div>
+
+</div>
+</body>
+</html>
