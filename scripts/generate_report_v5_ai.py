@@ -322,6 +322,24 @@ def build_data_from_source(date_str: str, ai: dict):
     if not all([ai.get('breakfast'), ai.get('lunch'), ai.get('dinner')]):
         errors.append("diet plan incomplete (need breakfast, lunch, dinner)")
     
+    # CRITICAL: Verify no "data missing" claims when data exists (or vice versa)
+    # Map AI JSON keys to data keys
+    missing_data_checks = [
+        ('flights', 'flights_climbed', '爬楼层数'),
+        ('stand', 'stand_time', '站立时间'),
+        ('basal', 'basal_energy', '静息能量'),
+    ]
+    for ai_key, data_key, chinese_name in missing_data_checks:
+        value = data[data_key]['value']
+        analysis = str(ai.get(ai_key, ''))
+        has_data = value is not None and value > 0
+        claims_missing = '缺失' in analysis or ('无' in analysis and '无爬楼' not in analysis and '无运动' not in analysis) or '没有' in analysis or '不存在' in analysis
+        
+        if has_data and claims_missing:
+            errors.append(f"CRITICAL: {chinese_name}分析说'数据缺失'，但实际有数据: {value}")
+        if not has_data and not claims_missing and analysis and len(analysis) > 10 and '无' not in analysis:
+            errors.append(f"CRITICAL: {chinese_name}实际无数据，但分析未说明缺失")
+    
     if errors:
         print("VALIDATION FAILED:", file=sys.stderr)
         for e in errors:
