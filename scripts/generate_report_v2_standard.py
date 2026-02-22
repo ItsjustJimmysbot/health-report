@@ -96,7 +96,7 @@ def generate_hr_chart(workout):
 '''
 
 def get_sleep_alert(sleep_hours):
-    """获取睡眠状态提示"""
+    """获取睡眠状态提示 - V5.0: 不编造百分比数据"""
     if sleep_hours == 0:
         return {
             'status': '数据缺失',
@@ -106,11 +106,8 @@ def get_sleep_alert(sleep_hours):
             'subcolor': '#7f1d1d',
             'title': '⚠️ 未检测到睡眠数据',
             'detail': '请检查Apple Watch睡眠追踪设置，确保就寝时正确佩戴设备',
-            'analysis_border': '#ef4444',
-            'deep_pct': 0,
-            'core_pct': 0,
-            'rem_pct': 0,
-            'awake_pct': 100
+            'analysis_border': '#ef4444'
+            # V5.0: 不编造百分比
         }
     elif sleep_hours < 6:
         return {
@@ -121,11 +118,8 @@ def get_sleep_alert(sleep_hours):
             'subcolor': '#7f1d1d',
             'title': '⚠️ 睡眠时长严重不足',
             'detail': f'实际睡眠{sleep_hours:.1f}小时，远低于7-9小时推荐标准',
-            'analysis_border': '#ef4444',
-            'deep_pct': 20,
-            'core_pct': 50,
-            'rem_pct': 20,
-            'awake_pct': 10
+            'analysis_border': '#ef4444'
+            # V5.0: 不编造百分比
         }
     elif sleep_hours < 7:
         return {
@@ -136,11 +130,8 @@ def get_sleep_alert(sleep_hours):
             'subcolor': '#78350f',
             'title': '⚡ 睡眠时长偏少',
             'detail': f'实际睡眠{sleep_hours:.1f}小时，建议增加至7-8小时',
-            'analysis_border': '#f59e0b',
-            'deep_pct': 20,
-            'core_pct': 50,
-            'rem_pct': 22,
-            'awake_pct': 8
+            'analysis_border': '#f59e0b'
+            # V5.0: 不编造百分比
         }
     else:
         return {
@@ -151,11 +142,8 @@ def get_sleep_alert(sleep_hours):
             'subcolor': '#14532d',
             'title': '✅ 睡眠时长正常',
             'detail': f'实际睡眠{sleep_hours:.1f}小时，处于推荐范围内',
-            'analysis_border': '#22c55e',
-            'deep_pct': 20,
-            'core_pct': 50,
-            'rem_pct': 22,
-            'awake_pct': 8
+            'analysis_border': '#22c55e'
+            # V5.0: 不编造百分比
         }
 
 def generate_report_v2(data, ai_analyses, template_path, output_path):
@@ -187,18 +175,13 @@ def generate_report_v2(data, ai_analyses, template_path, output_path):
     # 睡眠状态
     sleep_alert = get_sleep_alert(sleep_hours)
     
-    # 睡眠各阶段（估算，因为实际数据中没有详细阶段）
-    sleep_deep = data['sleep']['deep_hours'] if data['sleep'] else 0
-    sleep_core = data['sleep']['core_hours'] if data['sleep'] else 0
-    sleep_rem = data['sleep']['rem_hours'] if data['sleep'] else 0
-    sleep_awake = data['sleep']['awake_hours'] if data['sleep'] else 0
+    # 睡眠各阶段 - 只使用真实数据，不编造
+    sleep_deep = data['sleep'].get('deep_hours', 0) if data['sleep'] else 0
+    sleep_core = data['sleep'].get('core_hours', 0) if data['sleep'] else 0
+    sleep_rem = data['sleep'].get('rem_hours', 0) if data['sleep'] else 0
+    sleep_awake = data['sleep'].get('awake_hours', 0) if data['sleep'] else 0
     
-    # 如果各阶段都是0但总长不为0，按比例分配
-    if sleep_hours > 0 and sleep_deep == 0 and sleep_core == 0 and sleep_rem == 0:
-        sleep_deep = sleep_hours * 0.20
-        sleep_core = sleep_hours * 0.50
-        sleep_rem = sleep_hours * 0.22
-        sleep_awake = sleep_hours * 0.08
+    # V5.0: 不编造睡眠结构数据，没有就是"--"
     
     # 运动数据
     workout = data['workouts'][0] if data['workouts'] else None
@@ -282,7 +265,7 @@ def generate_report_v2(data, ai_analyses, template_path, output_path):
         '{{METRIC10_RATING}}': '正常',
         '{{METRIC10_ANALYSIS}}': f"呼吸率{data['respiratory_rate']['value']:.1f}次/分处于正常范围（12-20次/分）。",
         
-        # 睡眠分析
+        # 睡眠分析 - V5.0: 只使用真实数据，不编造百分比
         '{{SLEEP_STATUS}}': sleep_alert['status'],
         '{{SLEEP_ALERT_BG}}': sleep_alert['bg'],
         '{{SLEEP_ALERT_BORDER}}': sleep_alert['border'],
@@ -291,14 +274,16 @@ def generate_report_v2(data, ai_analyses, template_path, output_path):
         '{{SLEEP_ALERT_TITLE}}': sleep_alert['title'],
         '{{SLEEP_ALERT_DETAIL}}': sleep_alert['detail'],
         '{{SLEEP_TOTAL}}': f"{sleep_hours:.1f}",
-        '{{SLEEP_DEEP}}': f"{sleep_deep:.1f}",
-        '{{SLEEP_CORE}}': f"{sleep_core:.1f}",
-        '{{SLEEP_REM}}': f"{sleep_rem:.1f}",
-        '{{SLEEP_AWAKE}}': f"{sleep_awake:.1f}",
-        '{{SLEEP_DEEP_PCT}}': str(sleep_alert['deep_pct']),
-        '{{SLEEP_CORE_PCT}}': str(sleep_alert['core_pct']),
-        '{{SLEEP_REM_PCT}}': str(sleep_alert['rem_pct']),
-        '{{SLEEP_AWAKE_PCT}}': str(sleep_alert['awake_pct']),
+        # V5.0: 睡眠结构只显示真实数据，没有则显示"--"
+        '{{SLEEP_DEEP}}': f"{sleep_deep:.1f}" if sleep_deep > 0 else '--',
+        '{{SLEEP_CORE}}': f"{sleep_core:.1f}" if sleep_core > 0 else '--',
+        '{{SLEEP_REM}}': f"{sleep_rem:.1f}" if sleep_rem > 0 else '--',
+        '{{SLEEP_AWAKE}}': f"{sleep_awake:.1f}" if sleep_awake > 0 else '--',
+        # 百分比只计算真实数据的比例，没有则显示"--"
+        '{{SLEEP_DEEP_PCT}}': str(round(sleep_deep / sleep_hours * 100)) if sleep_deep > 0 and sleep_hours > 0 else '--',
+        '{{SLEEP_CORE_PCT}}': str(round(sleep_core / sleep_hours * 100)) if sleep_core > 0 and sleep_hours > 0 else '--',
+        '{{SLEEP_REM_PCT}}': str(round(sleep_rem / sleep_hours * 100)) if sleep_rem > 0 and sleep_hours > 0 else '--',
+        '{{SLEEP_AWAKE_PCT}}': str(round(sleep_awake / sleep_hours * 100)) if sleep_awake > 0 and sleep_hours > 0 else '--',
         '{{SLEEP_ANALYSIS_BORDER}}': sleep_alert['analysis_border'],
         '{{SLEEP_ANALYSIS_TEXT}}': ai_analyses['sleep'],
         
