@@ -139,11 +139,41 @@ def generate_weekly_report(data, template_path, output_path):
     return output_path
 
 def generate_monthly_report(data, template_path, output_path):
-    """生成月报"""
+    """生成月报 - 完整变量替换"""
     with open(template_path, 'r', encoding='utf-8') as f:
         html = f.read()
     
     ai = data.get('ai_analysis', {})
+    recs = ai.get('monthly_recommendations', {})
+    
+    # 生成目标追踪行
+    goal_rows = []
+    for goal in data.get('goal_tracking', []):
+        row = f"""
+      <tr>
+        <td>{goal.get('metric', '')}</td>
+        <td>{goal.get('target', '')}</td>
+        <td>{goal.get('actual', '')}</td>
+        <td><span class='trend-stable'>{goal.get('rate', '')}</span></td>
+        <td>{goal.get('trend', '')}</td>
+        <td>{goal.get('rating', '')}</td>
+      </tr>"""
+        goal_rows.append(row)
+    
+    # 生成每日明细行
+    daily_rows = []
+    for day in data.get('available_daily_data', []):
+        row = f"""
+      <tr>
+        <td>{day.get('date', '')}</td>
+        <td>{day.get('hrv', '--')}</td>
+        <td>{day.get('steps', '--'):,}</td>
+        <td>{day.get('sleep', '--')}h</td>
+        <td>{day.get('active_energy', 0)}</td>
+        <td>{'✓' if day.get('has_workout') else '-'}</td>
+        <td>{'运动日' if day.get('has_workout') else '休息日'}</td>
+      </tr>"""
+        daily_rows.append(row)
     
     replacements = {
         '{{YEAR}}': str(data.get('year', '')),
@@ -154,6 +184,7 @@ def generate_monthly_report(data, template_path, output_path):
         '{{DATA_NOTICE}}': data.get('data_notice', ''),
         '{{GENERATED_AT}}': datetime.now().strftime('%Y-%m-%d %H:%M'),
         
+        # 统计概览
         '{{AVG_HRV}}': str(data.get('avg_hrv', '--')),
         '{{AVG_STEPS}}': str(data.get('avg_steps', '--')),
         '{{AVG_SLEEP}}': str(data.get('avg_sleep', '--')),
@@ -161,16 +192,58 @@ def generate_monthly_report(data, template_path, output_path):
         '{{DATA_COUNT}}': str(data.get('data_days', 0)),
         
         '{{TOTAL_STEPS}}': f"{data.get('total_steps', 0):,}",
-        '{{ACTIVE_ENERGY_TOTAL}}': str(data.get('total_active_energy', 0)),
+        '{{TOTAL_ENERGY}}': str(data.get('total_energy', data.get('total_active_energy', 0))),
+        '{{BEST_SLEEP_DAY}}': data.get('best_sleep_day', '--'),
         
-        # AI内容
-        '{{SUMMARY}}': ai.get('summary', '本月健康数据待补充'),
-        '{{ACHIEVEMENTS}}': ai.get('achievements', '暂无'),
-        '{{CHALLENGES}}': ai.get('challenges', '暂无'),
+        # 月度推算
+        '{{PROJECTED_STEPS}}': data.get('projected_steps', '--'),
+        '{{PROJECTED_STEPS_PERCENT}}': data.get('projected_steps_percent', '--'),
+        '{{PROJECTED_WORKOUTS}}': data.get('projected_workouts', '--'),
+        '{{PROJECTED_WORKOUTS_PERCENT}}': data.get('projected_workouts_percent', '--'),
+        '{{PROJECTED_ENERGY}}': data.get('projected_energy', '--'),
+        
+        # AI分析
+        '{{HRV_TREND_ANALYSIS}}': ai.get('hrv_trend_analysis', ai.get('summary', '暂无分析')),
+        '{{ACTIVITY_PATTERN_ANALYSIS}}': ai.get('activity_pattern_analysis', '暂无分析'),
+        '{{SLEEP_QUALITY_ANALYSIS}}': ai.get('sleep_quality_analysis', '暂无分析'),
+        '{{WORKOUT_RECOVERY_BALANCE}}': ai.get('workout_recovery_balance', '暂无分析'),
+        '{{GOAL_ANALYSIS}}': ai.get('goal_analysis', '暂无分析'),
+        
+        # 表格行
+        '{{GOAL_TRACKING_ROWS}}': '\n'.join(goal_rows) if goal_rows else '<tr><td colspan="6" style="text-align:center;">暂无数据</td></tr>',
+        '{{DAILY_ROWS}}': '\n'.join(daily_rows) if daily_rows else '<tr><td colspan="7" style="text-align:center;">暂无数据</td></tr>',
+        
+        # AI建议
+        '{{AI1_TITLE}}': recs.get('immediate', {}).get('title', '暂无'),
+        '{{AI1_PROBLEM}}': recs.get('immediate', {}).get('problem', recs.get('immediate', {}).get('content', '暂无')),
+        '{{AI1_ACTION}}': recs.get('immediate', {}).get('action', '暂无'),
+        '{{AI1_EXPECTATION}}': recs.get('immediate', {}).get('expected', '暂无'),
+        
+        '{{AI2_TITLE}}': recs.get('short_term', {}).get('title', '暂无'),
+        '{{AI2_PROBLEM}}': recs.get('short_term', {}).get('problem', recs.get('short_term', {}).get('content', '暂无')),
+        '{{AI2_ACTION}}': recs.get('short_term', {}).get('action', '暂无'),
+        '{{AI2_EXPECTATION}}': recs.get('short_term', {}).get('expected', '暂无'),
+        
+        '{{AI3_TITLE}}': recs.get('routine', {}).get('title', '暂无'),
+        '{{AI3_DIET}}': recs.get('routine', {}).get('diet', '暂无'),
+        '{{AI3_ROUTINE}}': recs.get('routine', {}).get('schedule', '暂无'),
+        '{{AI3_HABITS}}': recs.get('routine', {}).get('habits', '暂无'),
+        
+        '{{AI4_TITLE}}': recs.get('summary', {}).get('title', '综合健康评估'),
+        '{{AI4_ADVANTAGES}}': recs.get('summary', {}).get('advantages', '暂无'),
+        '{{AI4_RISKS}}': recs.get('summary', {}).get('risks', '暂无'),
+        '{{AI4_CONCLUSION}}': recs.get('summary', {}).get('conclusion', '暂无'),
+        '{{AI4_NEXT_MONTH_GOALS}}': recs.get('summary', {}).get('next_month_goals', recs.get('summary', {}).get('plan', '暂无')),
     }
     
     for key, value in replacements.items():
         html = html.replace(key, str(value))
+    
+    # 检查未替换变量
+    import re
+    unreplaced = re.findall(r'\{\{[^}]+\}\}', html)
+    if unreplaced:
+        print(f"⚠️ 未替换变量: {unreplaced}")
     
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html)
