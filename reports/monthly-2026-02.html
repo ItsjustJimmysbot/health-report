@@ -1,0 +1,240 @@
+<!-- 
+  统一月报告模板 V2 增强版 - 详细内容结构
+  版本: 2026-02-21 V2.0
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>2026年2月 月度健康报告</title>
+<style>
+@page { size: A4; margin: 8mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt; line-height: 1.4; color: #1f2937; }
+.container { max-width: 780px; margin: 0 auto; padding: 10px; }
+
+/* 头部 - 紫红色渐变 */
+.header { 
+  background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); 
+  color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 12px; 
+}
+.header h1 { font-size: 20pt; margin-bottom: 5px; }
+.header .subtitle { font-size: 9pt; opacity: 0.9; }
+
+/* 数据进度警告 */
+.alert { 
+  background: #fee2e2; border-left: 4px solid #dc2626; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 8pt; color: #991b1b; 
+}
+.alert.complete { background: #dcfce7; border-color: #22c55e; color: #166534; }
+
+/* 评分卡 */
+.score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.score-card { 
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0); 
+  border-radius: 8px; padding: 10px; text-align: center; border-top: 3px solid #7c3aed; 
+}
+.score-value { font-size: 16pt; font-weight: bold; color: #7c3aed; }
+.score-label { font-size: 7pt; color: #64748b; margin-top: 4px; }
+
+/* 内容区块 */
+.section { background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.section-title { font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #7c3aed; }
+
+/* 统计表 */
+.metric-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.metric-table th, .metric-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+.metric-table th { background: #f1f5f9; font-weight: 600; color: #64748b; }
+.metric-value { font-weight: bold; color: #1e293b; }
+
+/* AI建议卡片 */
+.ai-rec { background: white; border-radius: 6px; padding: 10px; margin-bottom: 8px; border-left: 3px solid; }
+.ai-rec-high { border-left-color: #dc2626; }
+.ai-rec-medium { border-left-color: #f59e0b; }
+.ai-rec-low { border-left-color: #3b82f6; }
+.ai-rec-title { font-weight: bold; margin-bottom: 5px; font-size: 9pt; color: #1e293b; }
+.ai-rec-content { font-size: 8pt; color: #475569; line-height: 1.6; }
+.ai-text { font-size: 8pt; color: #475569; margin-top: 4px; padding: 6px; background: white; border-radius: 4px; border-left: 3px solid #7c3aed; line-height: 1.6; }
+
+/* 分页 */
+.page-break { page-break-before: always; }
+
+/* 页脚 */
+.footer { text-align: center; font-size: 7pt; color: #94a3b8; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- 第1页：头部 + 统计概览 -->
+<div class="header">
+  <h1>📊 月度健康报告</h1>
+  <div class="subtitle">2026年2月 | 部分数据 | UTC+8</div>
+</div>
+
+<div class="alert ">
+  <strong>4/21 天 (19%)</strong><br>
+  本月仅包含2月18-21日数据，报告基于有限样本生成，趋势分析可能不够全面。建议完善整月数据后重新生成。
+</div>
+
+<div class="section">
+  <div class="section-title">📈 月度统计概览</div>
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="score-value">49.6</div>
+      <div class="score-label">日均HRV (ms)</div>
+    </div>
+    <div class="score-card">
+      <div class="score-value">4441</div>
+      <div class="score-label">日均步数</div>
+    </div>
+    <div class="score-card">
+      <div class="score-value">5.81</div>
+      <div class="score-label">日均睡眠 (h)</div>
+    </div>
+    <div class="score-card">
+      <div class="score-value">1/4</div>
+      <div class="score-label">运动频率</div>
+    </div>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px;">
+    <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: bold; color: #7c3aed;">17,765</div>
+      <div style="font-size: 7pt; color: #64748b;">总步数</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: bold; color: #7c3aed;">{{TOTAL_ENERGY}}</div>
+      <div style="font-size: 7pt; color: #64748b;">总消耗 (kcal)</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: bold; color: #7c3aed;">{{BEST_SLEEP_DAY}}</div>
+      <div style="font-size: 7pt; color: #64748b;">最佳睡眠日</div>
+    </div>
+  </div>
+  
+  <div class="ai-text" style="margin-top: 10px;">
+    <strong>月度推算（基于4天数据）：</strong><br>
+    如果保持当前水平，预计全月：<br>
+    • 总步数: <strong>{{PROJECTED_STEPS}} 步</strong>（目标24万步的{{PROJECTED_STEPS_PERCENT}}%）<br>
+    • 运动天数: <strong>约{{PROJECTED_WORKOUTS}} 天</strong>（目标12天的{{PROJECTED_WORKOUTS_PERCENT}}%）<br>
+    • 总活动消耗: <strong>约{{PROJECTED_ENERGY}} 千卡</strong>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📅 每日数据明细</div>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>日期</th>
+        <th>HRV</th>
+        <th>步数</th>
+        <th>睡眠</th>
+        <th>活动能量</th>
+        <th>运动</th>
+        <th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{DAILY_ROWS}}
+    </tbody>
+  </table>
+</div>
+
+<!-- 第2页：趋势分析 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">📊 月度趋势分析</div>
+  
+  <div class="ai-text" style="margin-bottom: 10px;">
+    <strong>HRV长期趋势：</strong>{{HRV_TREND_ANALYSIS}}
+  </div>
+  
+  <div class="ai-text" style="margin-bottom: 10px;">
+    <strong>活动量模式分析：</strong>{{ACTIVITY_PATTERN_ANALYSIS}}
+  </div>
+  
+  <div class="ai-text" style="margin-bottom: 10px;">
+    <strong>睡眠质量评估：</strong>{{SLEEP_QUALITY_ANALYSIS}}
+  </div>
+  
+  <div class="ai-text">
+    <strong>运动与恢复平衡：</strong>{{WORKOUT_RECOVERY_BALANCE}}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">🎯 关键指标达成情况</div>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>指标</th>
+        <th>目标值</th>
+        <th>实际平均</th>
+        <th>达成率</th>
+        <th>趋势</th>
+        <th>评级</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{GOAL_TRACKING_ROWS}}
+    </tbody>
+  </table>  
+  
+  <div class="ai-text" style="margin-top: 10px;">
+    <strong>目标达成分析：</strong>{{GOAL_ANALYSIS}}
+  </div>
+</div>
+
+<!-- 第3页：AI建议 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">💡 AI 月度健康建议（4部分完整版）</div>
+  
+  <div class="ai-rec ai-rec-high">
+    <div class="ai-rec-title">🔴 【最高优先级】优先完善数据记录</div>
+    <div class="ai-rec-content">
+      <strong>问题识别：</strong>{{AI1_PROBLEM}}<br><br>
+      <strong>行动计划：</strong>{{AI1_ACTION}}<br><br>
+      <strong>预期效果：</strong>{{AI1_EXPECTATION}}
+    </div>
+  </div>
+  
+  <div class="ai-rec ai-rec-medium">
+    <div class="ai-rec-title">🟡 【中等优先级】建立稳定的日常活动习惯</div>
+    <div class="ai-rec-content">
+      <strong>问题分析：</strong>{{AI2_PROBLEM}}<br><br>
+      <strong>具体建议：</strong>{{AI2_ACTION}}<br><br>
+      <strong>调整周期：</strong>{{AI2_EXPECTATION}}
+    </div>
+  </div>
+  
+  <div class="ai-rec ai-rec-low">
+    <div class="ai-rec-title">🟢 【日常优化】构建长期健康管理框架</div>
+    <div class="ai-rec-content">
+      <strong>饮食建议：</strong>{{AI3_DIET}}<br><br>
+      <strong>作息建议：</strong>{{AI3_ROUTINE}}<br><br>
+      <strong>长期习惯：</strong>{{AI3_HABITS}}
+    </div>
+  </div>
+  
+  <div class="ai-rec">
+    <div class="ai-rec-title">📊 【数据洞察】{{AI4_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>本月优势：</strong>{{AI4_ADVANTAGES}}<br><br>
+      <strong>需关注风险：</strong>{{AI4_RISKS}}<br><br>
+      <strong>整体评估：</strong>{{AI4_CONCLUSION}}<br><br>
+      <strong>下月目标：</strong>{{AI4_NEXT_MONTH_GOALS}}
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  数据收集进度: 4/30 天 | 报告生成时间: {{GENERATED_AT}} | UTC+8
+</div>
+
+</div>
+</body>
+</html>
