@@ -74,6 +74,77 @@ def parse_sleep_data(date_str, health_dir):
     
     return sleep_records
 
+def parse_google_fit_data(date_str, google_fit_dir):
+    """V5.0: 解析Google Fit数据作为备用数据源"""
+    google_fit_path = Path(google_fit_dir) / f'google_fit_{date_str}.json'
+    
+    if not google_fit_path.exists():
+        return None
+    
+    try:
+        with open(google_fit_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        result = {}
+        
+        # 解析睡眠数据
+        sleep_sessions = data.get('sleep', [])
+        if sleep_sessions:
+            total_sleep = sum(s.get('duration_hours', 0) for s in sleep_sessions)
+            result['sleep'] = {
+                'total_hours': round(total_sleep, 2),
+                'deep_hours': 0,
+                'core_hours': 0,
+                'rem_hours': 0,
+                'awake_hours': 0,
+                'records': len(sleep_sessions),
+                'source': 'Google Fit'
+            }
+        
+        # 解析步数
+        steps_data = data.get('steps', [])
+        if steps_data:
+            total_steps = sum(s.get('count', 0) for s in steps_data)
+            result['steps'] = {
+                'value': total_steps,
+                'source': 'Google Fit'
+            }
+        
+        # 解析活动能量
+        calories_data = data.get('calories', [])
+        if calories_data:
+            total_calories = sum(c.get('kcal', 0) for c in calories_data)
+            result['active_energy'] = {
+                'value': round(total_calories, 1),
+                'source': 'Google Fit'
+            }
+        
+        return result if result else None
+        
+    except Exception as e:
+        print(f"⚠️ Google Fit数据解析错误: {e}", file=sys.stderr)
+        return None
+
+def merge_data_with_fallback(apple_data, google_data):
+    """V5.0: 合并Apple Health和Google Fit数据，Apple优先"""
+    if not google_data:
+        return apple_data, 'Apple Health'
+    
+    # 如果Apple数据缺失，使用Google Fit
+    if not apple_data.get('sleep') and google_data.get('sleep'):
+        apple_data['sleep'] = google_data['sleep']
+        apple_data['sleep']['data_source'] = 'Google Fit (fallback)'
+    elif apple_data.get('sleep'):
+        apple_data['sleep']['data_source'] = 'Apple Health'
+    
+    if not apple_data.get('steps', {}).get('value') and google_data.get('steps'):
+        apple_data['steps'] = google_data['steps']
+        apple_data['steps']['data_source'] = 'Google Fit (fallback)'
+    elif apple_data.get('steps'):
+        apple_data['steps']['data_source'] = 'Apple Health'
+    
+    return apple_data, 'Mixed' if google_data else 'Apple Health'
+
 def extract_workout_data(date_str, workout_dir):
     """提取运动数据"""
     filepath = Path(workout_dir) / f'HealthAutoExport-{date_str}.json'
@@ -128,6 +199,7 @@ def main():
     
     health_dir = Path.home() / '我的云端硬盘/Health Auto Export/Health Data'
     workout_dir = Path.home() / '我的云端硬盘/Health Auto Export/Workout Data'
+    google_fit_dir = Path.home() / '我的云端硬盘/Google Fit Export'
     
     # 读取健康数据
     filepath = health_dir / f'HealthAutoExport-{date_str}.json'
@@ -160,11 +232,33 @@ def main():
             'records': len(sleep_records)
         }
     
+    # V5.0: 尝试Google Fit作为备用数据源
+    print(f"📊 Apple Health - 睡眠: {sleep_data['total_hours'] if sleep_data else 0}h, 步数: {steps_val or 0}", file=sys.stderr)
+    
+    google_data = parse_google_fit_data(date_str, google_fit_dir)
+    data_source = 'Apple Health'
+    
+    if google_data:
+        print(f"📊 Google Fit数据可用", file=sys.stderr)
+        # 如果Apple Health睡眠缺失，使用Google Fit
+        if not sleep_data and google_data.get('sleep'):
+            sleep_data = google_data['sleep']
+            data_source = 'Google Fit'
+            print(f"✅ 使用Google Fit睡眠数据: {sleep_data['total_hours']}h", file=sys.stderr)
+        # 如果Apple Health步数缺失，使用Google Fit
+        if not steps_val and google_data.get('steps'):
+            steps_val = google_data['steps']['value']
+            steps_points = len(google_data.get('steps', {}).get('sessions', []))
+            print(f"✅ 使用Google Fit步数数据: {steps_val}步", file=sys.stderr)
+    else:
+        print(f"⚠️ Google Fit数据不可用", file=sys.stderr)
+    
     # 提取运动数据
     workouts = extract_workout_data(date_str, workout_dir)
     
     result = {
         'date': date_str,
+        'data_source': data_source,
         'hrv': {
             'value': round(hrv_val, 1) if hrv_val else None,
             'points': hrv_points
