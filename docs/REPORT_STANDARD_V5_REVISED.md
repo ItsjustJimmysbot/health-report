@@ -111,12 +111,24 @@ def extract_spo2(metrics):
 
 ### 1.3 睡眠数据读取（预防逻辑错误）
 
-**旧版错误**: 使用`startDate`字段，未按时间窗口筛选
+**旧版错误**: 使用`startDate`字段，未按时间窗口筛选；**数据单位理解错误（重要！）**
+
+**⚠️ 关键注意点**: `sleep_analysis`指标的`units`是`hr`（小时），`asleep`值**已经是小时**，不需要除以3600！
+
+**验证方法**:
+```python
+# 读取指标元数据
+sleep_metric = metrics.get('sleep_analysis', {})
+print(f"单位: {sleep_metric.get('units')}")  # 应该输出 'hr'
+
+# 原始数据示例
+# asleep: 2.8169228286213346  # 这已经是小时！
+```
 
 **V5.0强制逻辑**:
 ```python
 def parse_sleep_data_v5(date_str: str) -> dict:
-    """V5.0: 使用sleepStart字段，严格时间窗口筛选"""
+    """V5.0: 使用sleepStart字段，严格时间窗口筛选，正确处理小时单位"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     next_date = (date + timedelta(days=1)).strftime('%Y-%m-%d')
     
@@ -129,6 +141,11 @@ def parse_sleep_data_v5(date_str: str) -> dict:
     
     metrics = {m['name']: m for m in data.get('data', {}).get('metrics', [])}
     sleep_metric = metrics.get('sleep_analysis', {})
+    
+    # ⚠️ V5.0: 验证单位是小时(hr)，不是秒！
+    units = sleep_metric.get('units', '')
+    if units != 'hr':
+        print(f"⚠️ 警告: 睡眠数据单位是 {units}，不是预期的 hr")
     
     # 时间窗口：当日20:00至次日12:00
     window_start = date.replace(hour=20, minute=0)
@@ -146,17 +163,27 @@ def parse_sleep_data_v5(date_str: str) -> dict:
             
             # V5.0: 严格检查是否在时间窗口内
             if window_start <= sleep_start <= window_end:
+                # ⚠️ V5.0: asleep值已经是小时(hr)，不需要 /3600！
                 sleep_records.append({
-                    'total': sleep.get('asleep', 0) or sleep.get('totalSleep', 0),
-                    'deep': sleep.get('deep', 0),
-                    'core': sleep.get('core', 0),
-                    'rem': sleep.get('rem', 0),
-                    'awake': sleep.get('awake', 0),
+                    'total': sleep.get('asleep', 0) or sleep.get('totalSleep', 0),  # 单位: 小时
+                    'deep': sleep.get('deep', 0),      # 单位: 小时
+                    'core': sleep.get('core', 0),      # 单位: 小时
+                    'rem': sleep.get('rem', 0),        # 单位: 小时
+                    'awake': sleep.get('awake', 0),    # 单位: 小时
                 })
         except:
             continue
     
     return sleep_records
+```
+
+**常见错误警示**:
+```python
+# ❌ 错误：误以为单位是秒，除以3600
+'total': sleep.get('asleep', 0) / 3600  # 结果会变成 0.00078 小时！
+
+# ✅ 正确：直接使用，单位已经是小时
+'total': sleep.get('asleep', 0)  # 2.82 小时
 ```
 
 ### 1.4 心率数据计算（预防数值0错误）
@@ -433,8 +460,9 @@ def before_send_check(pdf_path: str) -> bool:
 **每次生成报告前确认**:
 - [ ] 在当前AI对话中进行分析（非Subagent）
 - [ ] 使用正确的指标名称（`heart_rate_variability`）
+- [ ] **验证数据单位**（睡眠是hr不是秒，距离是km不是m）
 - [ ] 血氧单位判断正确（>1则不乘100）
-- [ ] 睡眠数据使用`sleepStart`字段
+- [ ] 睡眠数据使用`sleepStart`字段，**不除以3600**
 - [ ] AI分析字数达标（150-200/250-300字）
 - [ ] 无模糊词汇（"良好""注意"等）
 - [ ] 有具体数据引用（"HRV 52.8ms"）
