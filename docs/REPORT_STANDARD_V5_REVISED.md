@@ -336,6 +336,100 @@ result = {
 数据来源: Apple Health | 生成: 2026-02-22 20:30
 ```
 
+### 1.7 数据字段完整性检查（V5.0新增）
+
+**问题**: 在复制/转换数据文件时，容易遗漏关键字段（如`hr_data`），导致图表缺失
+
+**根本原因**:
+```python
+# ❌ 错误：创建新数据文件时只复制部分字段
+new_data = {
+    'date': old_data['date'],
+    'hrv': old_data['hrv'],
+    'workouts': [{
+        'name': w['name'],
+        'duration': w['duration'],
+        # 遗漏了 hr_data！
+    }]
+}
+```
+
+**解决方案**:
+
+**方案1: 使用数据验证函数**
+```python
+REQUIRED_WORKOUT_FIELDS = ['name', 'duration_min', 'avg_hr', 'max_hr', 'energy_kcal', 'hr_data']
+REQUIRED_METRIC_FIELDS = ['value', 'points', 'analysis']
+
+def validate_data_integrity(data: dict) -> bool:
+    """验证数据字段完整性"""
+    errors = []
+    
+    # 检查workouts
+    for i, w in enumerate(data.get('workouts', [])):
+        for field in REQUIRED_WORKOUT_FIELDS:
+            if field not in w:
+                errors.append(f"Workout {i} 缺失字段: {field}")
+    
+    # 检查metrics
+    for metric_name in ['hrv', 'resting_hr', 'steps']:
+        metric = data.get(metric_name, {})
+        if not metric.get('analysis'):
+            errors.append(f"{metric_name} 缺失 analysis")
+    
+    if errors:
+        print("❌ 数据完整性检查失败:")
+        for e in errors:
+            print(f"  - {e}")
+        return False
+    
+    return True
+
+# 生成报告前必须调用
+if not validate_data_integrity(data):
+    raise ValueError("数据不完整，请检查")
+```
+
+**方案2: 使用数据迁移而非复制**
+```python
+# ✅ 正确：在原数据基础上添加新字段，不删除旧字段
+def add_ai_analysis_to_data(raw_data: dict, ai_analyses: dict) -> dict:
+    """在原始数据基础上添加AI分析，保留所有原始字段"""
+    data = raw_data.copy()  # 复制原始数据，保留所有字段
+    
+    # 添加AI分析到各指标
+    for metric_name, analysis in ai_analyses.items():
+        if metric_name in data and isinstance(data[metric_name], dict):
+            data[metric_name]['analysis'] = analysis
+    
+    # 添加AI建议
+    data['ai_recommendations'] = ai_analyses.get('recommendations', {})
+    
+    return data  # 原始字段（包括hr_data）都被保留
+```
+
+**方案3: 生成前验证关键图表数据**
+```python
+def verify_charts_will_render(data: dict) -> bool:
+    """验证图表是否能正常渲染"""
+    
+    # 检查心率图
+    for i, w in enumerate(data.get('workouts', [])):
+        hr_data = w.get('hr_data', [])
+        if not hr_data:
+            print(f"⚠️ Workout {i} 缺少 hr_data，心率图将无法显示")
+            return False
+        if len(hr_data) < 3:
+            print(f"⚠️ Workout {i} hr_data点数不足({len(hr_data)})，图表可能异常")
+            return False
+    
+    return True
+```
+
+**新增检查清单项**:
+- [ ] **数据字段完整性** - 验证所有必需字段（特别是`hr_data`）存在
+- [ ] **图表数据验证** - 生成前确认图表有足够数据点
+
 ---
 
 ## 第二步：AI分析（核心改进）
