@@ -36,6 +36,43 @@ sessions_spawn(task="生成健康报告...")
 
 ---
 
+### 2. 禁止编造或估算数据（V5.0新增）
+
+**红线规定**: **没有真实数据的地方必须显示"--"，严禁任何形式的编造**
+
+**禁止行为**:
+```python
+# ❌ 严禁 - 按比例估算睡眠阶段
+if sleep_hours > 0 and sleep_deep == 0:
+    sleep_deep = sleep_hours * 0.20  # 严禁编造！
+
+# ❌ 严禁 - 使用固定比例填充
+'deep_pct': 20,  # 严禁固定比例！
+'core_pct': 50,
+
+# ❌ 严禁 - 编造历史对比数据
+"较上周平均上升3.2ms"  # 除非真的有历史数据文件
+
+# ❌ 严禁 - 估算睡眠阶段分布
+"深睡占20%，核心睡眠占50%"  # 没有真实数据时严禁！
+```
+
+**正确做法**:
+```python
+# ✅ 正确 - 没有数据就显示"--"
+if sleep_deep > 0:
+    display = f"{sleep_deep:.1f}h ({sleep_deep/sleep_hours*100:.0f}%)"
+else:
+    display = "--"  # 没有真实数据
+
+# ✅ 正确 - 在AI分析中说明数据缺失
+"睡眠阶段数据（深睡/核心/REM）缺失，无法评估睡眠质量结构。"
+```
+
+**违规后果**: 数据信任度归零，必须重新生成报告
+
+---
+
 ## 📊 V4.3 → V5.0 问题修正对照表
 
 | 旧版问题 | 原因 | V5.0预防措施 | 验证方式 |
@@ -219,6 +256,86 @@ def extract_workout_hr(workout: dict) -> dict:
     }
 ```
 
+### 1.5 完整数据提取指标清单（V5.0新增）
+
+**必须提取的11项指标**:
+
+| 指标名称 | 指标Key | 单位 | 提取方法 | 备注 |
+|---------|--------|------|---------|------|
+| **HRV** | `heart_rate_variability` | ms | 平均值 | 优先指标 |
+| **静息心率** | `resting_heart_rate` | bpm | 平均值 | |
+| **步数** | `step_count` | 步 | 累加 | |
+| **行走距离** | `walking_running_distance` | km | 累加 | V5.0新增 |
+| **活动能量** | `active_energy_burned` + Workout能量 | kcal | 累加并合并 | 注意双数据源 |
+| **爬楼层数** | `flights_climbed` | 层 | 累加 | V5.0新增 |
+| **站立时间** | `apple_stand_time` | min | 累加 | V5.0新增 |
+| **血氧饱和度** | `blood_oxygen_saturation` | % | 平均值 | 智能单位判断 |
+| **静息能量** | `basal_energy_burned` | kcal | 累加 | kJ转kcal |
+| **呼吸率** | `respiratory_rate` | 次/分 | 平均值 | V5.0新增 |
+| **睡眠分析** | `sleep_analysis` | hr | 时间窗口筛选 | 单位是小时！|
+
+**数据来源优先级**:
+1. **Health Data文件** (`HealthAutoExport-YYYY-MM-DD.json`): 日常活动数据
+2. **Workout Data文件** (`HealthAutoExport-YYYY-MM-DD.json`): 运动详细数据
+3. **Google Fit** (备用): 当Apple Health缺失时使用
+
+**活动能量合并规则**:
+```python
+# V5.0: 活动能量 = 日常活动 + 运动消耗
+health_energy = extract_metric_sum(metrics, 'active_energy_burned')  # 日常活动
+workout_energy = sum(w.get('activeEnergyBurned', 0) for w in workouts)  # 运动
+
+total_kJ = (health_energy or 0) + workout_energy
+total_kcal = total_kJ / 4.184
+```
+
+**数据缺失处理**:
+```python
+# ✅ 正确: 没有数据就显示None或0，不编造
+if not data:
+    return {'value': None, 'points': 0}  # 或 {'value': 0, 'points': 0}
+
+# ❌ 错误: 使用固定值或估算值填充
+if not data:
+    return {'value': 100, 'points': 1}  # 严禁编造！
+```
+
+### 1.6 数据来源追踪（V5.0新增）
+
+**必须在输出中注明数据来源**:
+
+```python
+result = {
+    'date': date_str,
+    'data_source': 'Apple Health',  # 或 'Google Fit' 或 'Mixed'
+    'hrv': {...},
+    'sleep': {
+        'total_hours': 2.82,
+        'data_source': 'Apple Health',  # 每项可单独标注
+        # 如果没有阶段数据，不编造，显示0或None
+        'deep_hours': 0,  # 真实数据为0，不是编造
+        'core_hours': 0,
+        'rem_hours': 0,
+    }
+}
+```
+
+**AI分析时说明数据局限性**:
+
+```
+✅ 正确示例:
+"睡眠时长2.82小时（Apple Health记录）。睡眠阶段数据（深睡/核心/REM）
+缺失，无法评估睡眠质量结构。建议检查Apple Watch睡眠追踪设置。"
+
+❌ 错误示例:
+"睡眠2.82小时，其中深睡占20%，核心睡眠占50%，REM占20%..."  # 编造！
+```
+
+**报告页脚标注**:
+```
+数据来源: Apple Health | 生成: 2026-02-22 20:30
+```
+
 ---
 
 ## 第二步：AI分析（核心改进）
@@ -237,11 +354,12 @@ def extract_workout_hr(workout: dict) -> dict:
 
 ### 2.2 标准化提示词（预防字数不足/笼统）
 
-**V5.0强制要求**:
+**V5.0强制要求 - AI分析必须基于真实数据**：
+
 ```python
 # 每项分析后必须验证
-def verify_ai_analysis(text: str, min_len: int, max_len: int) -> bool:
-    """验证AI分析字数"""
+def verify_ai_analysis(text: str, min_len: int, max_len: int, data: dict) -> bool:
+    """验证AI分析字数和数据真实性"""
     if len(text) < min_len:
         print(f"⚠️ 字数不足: {len(text)}字 < {min_len}字")
         return False
@@ -249,10 +367,22 @@ def verify_ai_analysis(text: str, min_len: int, max_len: int) -> bool:
         print(f"⚠️ 字数超限: {len(text)}字 > {max_len}字")
         return False
     
-    # 检查具体数据引用
-    if 'ms' not in text and 'bpm' not in text:
-        print("⚠️ 缺少具体数值引用")
+    # 检查具体数据引用 - 必须引用真实数据
+    has_real_data = False
+    if data.get('hrv', {}).get('value') and str(data['hrv']['value']) in text:
+        has_real_data = True
+    if data.get('steps', {}).get('value') and str(data['steps']['value']) in text:
+        has_real_data = True
+    if not has_real_data:
+        print("⚠️ AI分析未引用具体数据点")
         return False
+    
+    # 检查编造数据 - 严禁！
+    # 如果没有睡眠阶段数据，分析中不能出现具体比例
+    if not data.get('sleep', {}).get('deep_hours'):
+        if '深睡' in text and '%' in text:
+            print("❌ AI分析编造了睡眠阶段比例！")
+            return False
     
     # 检查禁止词汇
     forbidden_words = ['良好', '注意', '适当', '一般']
@@ -262,6 +392,30 @@ def verify_ai_analysis(text: str, min_len: int, max_len: int) -> bool:
             return False
     
     return True
+```
+
+**AI分析约束规则**：
+
+| 数据情况 | 正确做法 | 错误做法 |
+|---------|---------|---------|
+| 有完整睡眠数据 | "深睡2.1小时(30%)..." | 无需特别说明 |
+| 无睡眠阶段数据 | "睡眠阶段数据缺失，无法评估..." | "深睡占20%，核心占50%..." |
+| 无历史数据 | "今日HRV 52.8ms..." | "较上周上升3.2ms..." |
+| 数据来源不同 | "(数据来源: Google Fit)" | 混合数据不注明来源 |
+
+**AI分析模板（基于真实数据）**：
+
+```
+【HRV分析】（有真实数据）
+心率变异性今日为{hrv_value}ms（基于{hrv_points}个数据点测量）...
+
+【睡眠分析】（无阶段数据时）
+今日睡眠{sleep_hours}小时（{data_source}记录）。
+⚠️ 睡眠阶段数据（深睡/核心/REM）缺失，无法评估睡眠质量结构。
+可能原因：Apple Watch未正确佩戴或睡眠模式未开启...
+
+【运动分析】（有真实数据）
+今日完成{workout_name}，时长{duration}分钟，平均心率{avg_hr}bpm...
 ```
 
 ### 2.3 饮食建议格式（预防可读性差）
@@ -405,6 +559,15 @@ def verify_report_v5(pdf_path: str) -> bool:
     numbers = re.findall(r'\d+\.?\d*\s*(ms|bpm|步|小时|千卡)', text)
     assert len(numbers) > 10, "缺少具体数值引用"
     
+    # V5.0 ADD: 6. 检查无编造数据
+    # 如果没有睡眠阶段数据，报告中不能出现具体百分比
+    if '深睡' in text and ('20%' in text or '50%' in text):
+        # 需要结合数据文件检查，这里只是简单示例
+        pass
+    
+    # V5.0 ADD: 7. 检查数据来源标注
+    assert '数据来源' in text or 'Apple Health' in text, "缺少数据来源标注"
+    
     return True
 ```
 
@@ -461,18 +624,27 @@ def before_send_check(pdf_path: str) -> bool:
 - [ ] 在当前AI对话中进行分析（非Subagent）
 - [ ] 使用正确的指标名称（`heart_rate_variability`）
 - [ ] **验证数据单位**（睡眠是hr不是秒，距离是km不是m）
+- [ ] **不编造数据** - 没有真实数据的地方显示"--"
+- [ ] **不估算比例** - 睡眠阶段没有数据时不编造百分比
 - [ ] 血氧单位判断正确（>1则不乘100）
 - [ ] 睡眠数据使用`sleepStart`字段，**不除以3600**
+- [ ] **标注数据来源** - Apple Health / Google Fit
 - [ ] AI分析字数达标（150-200/250-300字）
+- [ ] AI分析**基于真实数据** - 不编造历史对比
 - [ ] 无模糊词汇（"良好""注意"等）
 - [ ] 有具体数据引用（"HRV 52.8ms"）
 - [ ] 饮食建议使用HTML格式
 - [ ] 图表使用`responsive: false`
 - [ ] 所有模板变量已替换
+- [ ] **无编造数据** - 检查睡眠阶段等数据是否真实
 - [ ] 质量验证通过
 
 ---
 
-**版本**: V5.0-REVISED  
+**版本**: V5.0-REVISED-FINAL  
 **修订日期**: 2026-02-22  
-**修订内容**: 全面预防V4.3所有已知问题
+**修订内容**: 
+- 新增：禁止编造数据规则
+- 新增：完整11项指标提取清单
+- 新增：数据来源追踪要求
+- 新增：AI分析真实数据约束
