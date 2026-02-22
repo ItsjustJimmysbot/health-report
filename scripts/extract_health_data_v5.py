@@ -146,15 +146,17 @@ def merge_data_with_fallback(apple_data, google_data):
     return apple_data, 'Mixed' if google_data else 'Apple Health'
 
 def extract_workout_data(date_str, workout_dir):
-    """提取运动数据"""
+    """提取运动数据，同时返回运动能量用于合并"""
     filepath = Path(workout_dir) / f'HealthAutoExport-{date_str}.json'
     if not filepath.exists():
-        return []
+        return [], 0
     
     with open(filepath, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     workouts = []
+    total_workout_energy_kj = 0  # V5.0 FIX: 累加运动能量
+    
     for w in data.get('data', {}).get('workouts', []):
         hr_field = w.get('heartRate', {})
         avg_hr = hr_field.get('avg', {}).get('qty') if isinstance(hr_field, dict) else None
@@ -174,6 +176,8 @@ def extract_workout_data(date_str, workout_dir):
         
         # 计算能量（kJ转kcal）
         energy_kj = w.get('activeEnergyBurned', {}).get('qty', 0)
+        if energy_kj:
+            total_workout_energy_kj += energy_kj
         energy_kcal = energy_kj / 4.184 if energy_kj else 0
         
         # 计算步数
@@ -192,7 +196,7 @@ def extract_workout_data(date_str, workout_dir):
             'hr_data': w.get('heartRateData', [])
         })
     
-    return workouts
+    return workouts, total_workout_energy_kj
 
 def main():
     date_str = sys.argv[1] if len(sys.argv) > 1 else '2026-02-18'
@@ -208,15 +212,32 @@ def main():
     
     metrics = {m['name']: m for m in data.get('data', {}).get('metrics', [])}
     
-    # 提取各项指标
+    # 提取各项指标 - V5.0完整版
     hrv_val, hrv_points = extract_metric_avg(metrics, 'heart_rate_variability')
     resting_hr_val, resting_points = extract_metric_avg(metrics, 'resting_heart_rate')
     steps_val, steps_points = extract_metric_sum(metrics, 'step_count')
     active_energy_val, energy_points = extract_metric_sum(metrics, 'active_energy_burned')
     spo2_data = extract_spo2(metrics)
     
-    # 转换单位
+    # V5.0 FIX: 新增缺失的指标
+    # 1. 行走距离 (km)
+    distance_val, distance_points = extract_metric_sum(metrics, 'walking_running_distance')
+    
+    # 2. 爬楼层数
+    flights_val, flights_points = extract_metric_sum(metrics, 'flights_climbed')
+    
+    # 3. 站立时间 (min)
+    stand_time_val, stand_points = extract_metric_sum(metrics, 'apple_stand_time')
+    
+    # 4. 呼吸率 (次/分)
+    respiratory_val, respiratory_points = extract_metric_avg(metrics, 'respiratory_rate')
+    
+    # 5. 静息能量 (kJ转kcal)
+    basal_energy_val, basal_points = extract_metric_sum(metrics, 'basal_energy_burned')
+    
+    # 单位转换
     active_energy_kcal = active_energy_val / 4.184 if active_energy_val else 0
+    basal_energy_kcal = basal_energy_val / 4.184 if basal_energy_val else 0
     
     # 提取睡眠数据
     sleep_records = parse_sleep_data(date_str, health_dir)
@@ -253,8 +274,13 @@ def main():
     else:
         print(f"⚠️ Google Fit数据不可用", file=sys.stderr)
     
-    # 提取运动数据
-    workouts = extract_workout_data(date_str, workout_dir)
+    # V5.0 FIX: 提取运动数据，同时获取运动能量用于合并
+    workouts, workout_energy_kj = extract_workout_data(date_str, workout_dir)
+    
+    # V5.0 FIX: 合并日常活动能量和运动能量
+    # active_energy_burned (Health文件) + activeEnergyBurned (Workout文件)
+    total_active_energy_kj = (active_energy_val or 0) + workout_energy_kj
+    total_active_energy_kcal = total_active_energy_kj / 4.184 if total_active_energy_kj else 0
     
     result = {
         'date': date_str,
@@ -271,10 +297,37 @@ def main():
             'value': round(steps_val) if steps_val else 0,
             'points': steps_points
         },
+        # V5.0 FIX: 新增指标
+        'walking_distance': {
+            'value': round(distance_val, 2) if distance_val else 0,
+            'unit': 'km',
+            'points': distance_points
+        },
+        'flights_climbed': {
+            'value': round(flights_val) if flights_val else 0,
+            'unit': '层',
+            'points': flights_points
+        },
+        'stand_time': {
+            'value': round(stand_time_val) if stand_time_val else 0,
+            'unit': 'min',
+            'points': stand_points
+        },
+        'respiratory_rate': {
+            'value': round(respiratory_val, 1) if respiratory_val else None,
+            'unit': '次/分',
+            'points': respiratory_points
+        },
+        'basal_energy': {
+            'value': round(basal_energy_kcal, 1) if basal_energy_kcal else 0,
+            'kJ': round(basal_energy_val, 1) if basal_energy_val else 0,
+            'unit': 'kcal',
+            'points': basal_points
+        },
         'active_energy': {
-            'value': round(active_energy_kcal, 1) if active_energy_kcal else 0,
-            'kJ': round(active_energy_val, 1) if active_energy_val else 0,
-            'points': energy_points
+            'value': round(total_active_energy_kcal, 1),
+            'kJ': round(total_active_energy_kj, 1),
+            'points': energy_points + len(workouts)  # V5.0: 包含运动数据点数
         },
         'spo2': spo2_data,
         'sleep': sleep_data,
