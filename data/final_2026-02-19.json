@@ -1,0 +1,19 @@
+{
+  "date": "2026-02-19",
+  "hrv": 46.4,
+  "resting_hr": 64.0,
+  "steps": 1993,
+  "active_energy": 531.5,
+  "exercise_min": 1,
+  "sleep_hours": 6.54,
+  "sleep_start": "2026-02-20 03:02",
+  "sleep_end": "2026-02-20 09:34",
+  "data_sources": {
+    "hrv": "Apple Health",
+    "resting_hr": "Apple Health",
+    "steps": "Apple Health",
+    "active_energy": "Apple Health",
+    "exercise_min": "Apple Health",
+    "sleep": "Google Fit"
+  }
+}

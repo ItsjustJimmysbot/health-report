@@ -1,0 +1,24 @@
+{
+  "date": "2026-02-18",
+  "hrv": 52.8,
+  "resting_hr": 57.0,
+  "steps": 6852,
+  "active_energy_kj": 2358.7,
+  "active_energy": 563.7,
+  "active_energy_unit": "kcal",
+  "basal_energy_kj": 7122.0,
+  "basal_energy": 1702.2,
+  "exercise_min": 40,
+  "sleep_hours": 2.82,
+  "sleep_start": "2026-02-19 06:28",
+  "sleep_end": "2026-02-19 09:17",
+  "data_sources": {
+    "hrv": "Apple Health",
+    "resting_hr": "Apple Health",
+    "steps": "Apple Health",
+    "active_energy": "Apple Health (kJ→kcal 转换)",
+    "exercise_min": "Apple Health",
+    "sleep": "Google Fit"
+  },
+  "note": "活动能量已从 kJ 转换为 kcal (÷4.184)"
+}

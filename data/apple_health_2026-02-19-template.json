@@ -1,0 +1,9 @@
+{
+  "date": "2026-02-19",
+  "source": "Apple Health (待用户确认)",
+  "hrv_ms": 52,
+  "resting_hr_bpm": 46,
+  "active_energy_kcal": 380,
+  "needs_verification": true,
+  "note": "请修改此文件中的数值为 Apple Health 实际数据"
+}

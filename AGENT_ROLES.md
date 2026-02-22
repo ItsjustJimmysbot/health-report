@@ -82,6 +82,209 @@
 - 记录趋势（体重、睡眠、运动量等）并给出可执行建议
 - 提供风险提示与就医建议边界
 
+**【2026-02-22 新增】新Session强制初始化流程**
+
+**每个新Session必须执行（禁止跳过）**：
+
+```python
+# 强制初始化清单 - 无论任务多紧急都必须执行
+def session_initialization():
+    # 1. 读取标准化文档
+    docs = [
+        '~/.openclaw/workspace-health/docs/REPORT_STANDARD.md',
+        '~/.openclaw/workspace-health/AGENT_ROLES.md', 
+        '~/.openclaw/workspace-health/QUICK_START.md',
+    ]
+    for doc in docs:
+        with open(doc, 'r') as f:
+            content = f.read()
+        print(f"✅ 已读取: {doc}")
+    
+    # 2. 验证模板存在
+    template = '~/.openclaw/workspace-health/templates/DAILY_TEMPLATE_V2.html'
+    assert os.path.exists(template), f"模板缺失: {template}"
+    
+    # 3. 验证模板关键特征
+    with open(template, 'r') as f:
+        tpl_content = f.read()
+    assert '667eea' in tpl_content, "模板错误：必须是紫色V2模板"
+    assert 'PingFang SC' in tpl_content or 'Microsoft YaHei' in tpl_content, "模板错误：缺少中文字体"
+    
+    print("✅ 新Session初始化完成")
+    return True
+```
+
+**🚫 禁止行为**：
+- 禁止说"我知道流程"就跳过文档读取
+- 禁止凭记忆执行而不读取最新文档
+- 禁止直接生成而不验证模板存在
+
+---
+
+**【强制约束 - 健康报告生成】**
+⚠️ **任何情况下必须生成完整详细报告，禁止简化版**
+
+**报告必须包含：**
+1. **详细指标表**：8-12项健康指标，每项100-150字AI分析
+2. **睡眠分析**：详细版，含睡眠结构分布、入睡/醒来时间、各阶段时长
+3. **【新增】运动记录尝试读取**：必须尝试读取 Workout Data，无法预先知道用户当天有无锻炼
+   - 如有运动：显示运动类型、时长、消耗、心率曲线、4点详细分析
+   - 如无运动：显示"今日无锻炼记录"（正常情况，不是错误）
+4. **AI建议**：3-4部分，每部分200-300字（优先级分级）
+5. **数据来源追溯**：所有指标必须标注数据点数量
+6. **页脚**：完整的数据来源和生成时间
+
+**【2026-02-21 新增】必须尝试读取 Workout Data：**
+```python
+# 必须尝试读取，无法预先知道用户当天有没有锻炼
+workout_file = f"~/Health Auto Export/Workout Data/HealthAutoExport-{date_str}.json"
+if os.path.exists(workout_file):
+    # 读取并显示运动记录
+    print(f"  ✅ 当日有运动记录")
+else:
+    # 正常情况，显示"今日无锻炼记录"
+    print(f"  ℹ️  当日无锻炼记录")
+```
+
+**【2026-02-22 新增】中文字体强制保障：**
+
+**必须在HTML中包含以下字体声明**：
+```css
+body {
+  font-family:
+    'PingFang SC',           /* macOS首选 */
+    'Microsoft YaHei',       /* Windows首选 */
+    'Noto Sans SC',          /* Linux/通用 */
+    'Source Han Sans SC',    /* Adobe开源 */
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+```
+
+**生成PDF后必须验证中文显示**：
+```python
+def verify_chinese_in_pdf(pdf_path):
+    """验证PDF中中文是否正常显示"""
+    import fitz  # PyMuPDF
+    doc = fitz.open(pdf_path)
+    page = doc[0]
+    text = page.get_text()
+
+    # 检查是否包含中文字符
+    chinese_chars = [c for c in text if '\u4e00' <= c <= '\u9fff']
+    if len(chinese_chars) < 10:
+        raise ValueError("PDF中文显示异常，可能字体缺失")
+
+    print(f"✅ PDF中文验证通过: 检测到{len(chinese_chars)}个中文字符")
+    return True
+```
+
+**【2026-02-22 新增】必须使用V2统一UI模板（强制执行）：**
+
+```python
+# 绝对禁止：每次重新编写HTML/CSS
+# ❌❌❌ 禁止
+html = f"""
+<style>
+  /* 自定义样式 - 禁止！ */
+  .header {{ background: xxx }}  # 禁止自定义颜色
+</style>
+"""
+
+# ✅ 正确：使用V2统一模板
+template_path = '~/.openclaw/workspace-health/templates/DAILY_TEMPLATE_V2.html'
+with open(template_path, 'r', encoding='utf-8') as f:
+    template = f.read()
+
+# 验证模板关键特征
+assert '667eea' in template, "模板错误：必须是紫色V2模板"
+assert 'PingFang SC' in template or 'Microsoft YaHei' in template, "模板错误：缺少中文字体"
+
+# 仅替换内容变量，不改变结构
+html = template.replace('{{DATE}}', date_str)
+html = html.replace('{{HRV_VALUE}}', str(hrv))
+# ...
+```
+
+**模板使用规范（强制执行）：**
+1. **必须使用V2模板文件**，禁止现场编写HTML/CSS
+2. **仅替换`{{VARIABLE}}`变量**，不修改模板结构
+3. **禁止修改颜色、字体、布局** - 这是红线！
+4. **日/周/月报告使用对应模板**（颜色主题不同）
+
+**模板文件路径（必须使用这些文件）：**
+- 日报告：`templates/DAILY_TEMPLATE_V2.html`（紫色`#667eea → #764ba2`）
+- 周报告：`templates/WEEKLY_TEMPLATE_V2.html`（蓝色`#3b82f6 → #1d4ed8`）
+- 月报告：`templates/MONTHLY_TEMPLATE_V2.html`（紫红色`#7c3aed → #db2777`）
+
+**验证模板正确的检查点：**
+```python
+def verify_template_v2(template_content):
+    """验证是V2模板而非自定义样式"""
+    checks = {
+        '紫色主题': '667eea' in template_content,
+        '占位符格式': '{{DATE}}' in template_content,
+        '中文字体': 'PingFang SC' in template_content or 'Microsoft YaHei' in template_content,
+        '亮色背景': '#f8fafc' in template_content,
+        '统一徽章样式': 'badge-excellent' in template_content,
+    }
+
+    for name, result in checks.items():
+        assert result, f"模板验证失败: {name}"
+
+    return True
+```
+
+**禁止行为（红线）：**
+- 🚫 绝不用简化版（30-50字分析）替代详细版
+- 🚫 绝不用占位符或"would be generated"代替实际PDF生成
+- 🚫 绝不编造数据（找不到数据时标注"数据缺失"）
+- 🚫 绝不跳过质量检查
+- 🚫 **绝不跳过 Workout Data 读取**（必须尝试，有无都要处理）
+- 🚫 **绝不自行编写HTML/CSS**（必须使用统一模板）
+
+**触发条件：**
+- 用户要求"生成报告"、"重新生成"、"每日报告"
+- cron定时任务（每天12:30）
+- 任何测试或调试场景
+
+**【2026-02-21 新增】每日数据缓存（用于周/月报告）：**
+
+每日生成报告后，必须保存简洁的缓存文件：
+```python
+# 每日缓存流程
+def generate_daily_report(date_str):
+    # 1. 读取所有原始数据
+    raw_data = extract_all_data(date_str)
+    
+    # 2. 生成当日详细报告（使用原始数据）
+    generate_pdf(raw_data)
+    
+    # 3. 【必须】保存缓存文件（用于周/月报告）
+    cache_data = {
+        'date': date_str,
+        'hrv': {'value': raw_data['hrv'], 'points': raw_data['hrv_n']},
+        'steps': {'value': raw_data['steps'], 'points': raw_data['steps_n']},
+        'distance': {'value': raw_data['distance'], 'points': raw_data['dist_n']},
+        'sleep': extract_sleep_summary(raw_data),
+        'has_workout': raw_data['has_workout'],
+    }
+    save_cache(cache_data, date_str)  # 保存到 cache/daily/{date}.json
+    
+    return cache_data
+```
+
+**缓存文件用途：**
+- 生成周报告/月报告时，直接读取缓存（0.5KB），不重复解析原始大JSON（450KB）
+- 节省99.9%存储和token
+- 支持快速计算平均值、趋势分析
+
+**输出格式：**
+- 中文版PDF（不再生成英文版）
+- 单日报告 + 对比报告（2份）
+- 发送至Discord #health + 邮件revolutionljk@gmail.com
+
 **输入**
 - 用户健康目标、习惯数据、时间安排
 

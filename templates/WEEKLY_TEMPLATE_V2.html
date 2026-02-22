@@ -1,0 +1,242 @@
+<!-- 
+  统一周报告模板 V2 增强版 - 详细内容结构
+  版本: 2026-02-21 V2.0
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{START_DATE}} 至 {{END_DATE}} 周健康报告</title>
+<style>
+@page { size: A4; margin: 8mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt; line-height: 1.4; color: #1f2937; }
+.container { max-width: 780px; margin: 0 auto; padding: 10px; }
+
+/* 头部 - 蓝色渐变 */
+.header { 
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+  color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 12px; 
+}
+.header h1 { font-size: 20pt; margin-bottom: 5px; }
+.header .subtitle { font-size: 9pt; opacity: 0.9; }
+
+/* 数据进度警告 */
+.alert { 
+  background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 8pt; color: #92400e; 
+}
+.alert.complete { background: #dcfce7; border-color: #22c55e; color: #166534; }
+
+/* 评分卡 */
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.score-card { 
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0); 
+  border-radius: 8px; padding: 12px; text-align: center; border-top: 3px solid #3b82f6; 
+}
+.score-value { font-size: 20pt; font-weight: bold; color: #3b82f6; }
+.score-label { font-size: 8pt; color: #64748b; margin-top: 4px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 8pt; margin-top: 4px; }
+.badge-excellent { background: #dcfce7; color: #166534; }
+.badge-good { background: #dbeafe; color: #1e40af; }
+.badge-average { background: #fef3c7; color: #92400e; }
+.badge-poor { background: #fee2e2; color: #991b1b; }
+
+/* 内容区块 */
+.section { background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.section-title { font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #3b82f6; }
+
+/* 统计对比表 */
+.metric-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.metric-table th, .metric-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+.metric-table th { background: #f1f5f9; font-weight: 600; color: #64748b; }
+.metric-value { font-weight: bold; color: #1e293b; }
+.trend-up { color: #166534; font-weight: bold; }
+.trend-down { color: #991b1b; font-weight: bold; }
+.trend-stable { color: #92400e; font-weight: bold; }
+
+/* AI建议卡片 */
+.ai-rec { background: white; border-radius: 6px; padding: 10px; margin-bottom: 8px; border-left: 3px solid; }
+.ai-rec-high { border-left-color: #dc2626; }
+.ai-rec-medium { border-left-color: #f59e0b; }
+.ai-rec-low { border-left-color: #3b82f6; }
+.ai-rec-title { font-weight: bold; margin-bottom: 5px; font-size: 9pt; color: #1e293b; }
+.ai-rec-content { font-size: 8pt; color: #475569; line-height: 1.6; }
+.ai-text { font-size: 8pt; color: #475569; margin-top: 4px; padding: 6px; background: white; border-radius: 4px; border-left: 3px solid #3b82f6; line-height: 1.6; }
+
+/* 分页 */
+.page-break { page-break-before: always; }
+
+/* 页脚 */
+.footer { text-align: center; font-size: 7pt; color: #94a3b8; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- 第1页：头部 + 统计概览 + 每日明细 -->
+<div class="header">
+  <h1>📊 周健康报告</h1>
+  <div class="subtitle">{{START_DATE}} 至 {{END_DATE}} | {{DATA_STATUS}} | UTC+8</div>
+</div>
+
+<div class="alert {{ALERT_CLASS}}">
+  <strong>{{DATA_PROGRESS}}</strong><br>
+  {{DATA_NOTICE}}
+</div>
+
+<div class="section">
+  <div class="section-title">📈 周统计概览</div>
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="score-value">{{AVG_HRV}}</div>
+      <div class="score-label">平均HRV (ms)</div>
+      <span class="badge {{HRV_TREND_CLASS}}">{{HRV_TREND}}</span>
+    </div>
+    <div class="score-card">
+      <div class="score-value">{{TOTAL_STEPS}}</div>
+      <div class="score-label">总步数</div>
+      <span class="badge {{STEPS_TREND_CLASS}}">{{STEPS_TREND}}</span>
+    </div>
+    <div class="score-card">
+      <div class="score-value">{{AVG_SLEEP}}</div>
+      <div class="score-label">平均睡眠 (h)</div>
+      <span class="badge {{SLEEP_TREND_CLASS}}">{{SLEEP_TREND}}</span>
+    </div>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px;">
+    <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: bold; color: #3b82f6;">{{AVG_STEPS}}</div>
+      <div style="font-size: 7pt; color: #64748b;">日均步数</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: bold; color: #3b82f6;">{{TOTAL_ENERGY}}</div>
+      <div style="font-size: 7pt; color: #64748b;">总消耗 (kcal)</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: bold; color: #3b82f6;">{{WORKOUT_DAYS}}</div>
+      <div style="font-size: 7pt; color: #64748b;">运动天数</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: bold; color: #3b82f6;">{{REST_DAYS}}</div>
+      <div style="font-size: 7pt; color: #64748b;">休息天数</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📅 每日数据明细</div>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>日期</th>
+        <th>星期</th>
+        <th>HRV</th>
+        <th>步数</th>
+        <th>睡眠</th>
+        <th>活动能量</th>
+        <th>运动</th>
+        <th>恢复度</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{DAILY_ROWS}}
+    </tbody>
+  </table>
+</div>
+
+<!-- 第2页：趋势分析 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">📊 周趋势分析</div>
+  
+  <div class="ai-text" style="margin-bottom: 10px;">
+    <strong>HRV趋势分析：</strong>{{HRV_TREND_ANALYSIS}}
+  </div>
+  
+  <div class="ai-text" style="margin-bottom: 10px;">
+    <strong>活动量趋势分析：</strong>{{ACTIVITY_TREND_ANALYSIS}}
+  </div>
+  
+  <div class="ai-text" style="margin-bottom: 10px;">
+    <strong>睡眠质量趋势分析：</strong>{{SLEEP_TREND_ANALYSIS}}
+  </div>
+  
+  <div class="ai-text">
+    <strong>运动模式分析：</strong>{{WORKOUT_PATTERN_ANALYSIS}}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">🎯 本周关键指标对比</div>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>指标</th>
+        <th>周一</th>
+        <th>周二</th>
+        <th>周三</th>
+        <th>周四</th>
+        <th>周五</th>
+        <th>周六</th>
+        <th>周日</th>
+        <th>周平均</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{WEEKLY_COMPARISON_ROWS}}
+    </tbody>
+  </table>
+</div>
+
+<!-- 第3页：AI建议 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">💡 AI 周健康建议（4部分完整版）</div>
+  
+  <div class="ai-rec ai-rec-high">
+    <div class="ai-rec-title">🔴 【最高优先级】{{AI1_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>问题识别：</strong>{{AI1_PROBLEM}}<br><br>
+      <strong>行动计划：</strong>{{AI1_ACTION}}<br><br>
+      <strong>预期效果：</strong>{{AI1_EXPECTATION}}
+    </div>
+  </div>
+  
+  <div class="ai-rec ai-rec-medium">
+    <div class="ai-rec-title">🟡 【中等优先级】{{AI2_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>问题分析：</strong>{{AI2_PROBLEM}}<br><br>
+      <strong>具体建议：</strong>{{AI2_ACTION}}<br><br>
+      <strong>恢复周期：</strong>{{AI2_EXPECTATION}}
+    </div>
+  </div>
+  
+  <div class="ai-rec ai-rec-low">
+    <div class="ai-rec-title">🟢 【日常优化】{{AI3_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>饮食建议：</strong>{{AI3_DIET}}<br><br>
+      <strong>作息建议：</strong>{{AI3_ROUTINE}}
+    </div>
+  </div>
+  
+  <div class="ai-rec">
+    <div class="ai-rec-title">📊 【数据洞察】{{AI4_TITLE}}</div>
+    <div class="ai-rec-content">
+      <strong>优势总结：</strong>{{AI4_ADVANTAGES}}<br><br>
+      <strong>风险提醒：</strong>{{AI4_RISKS}}<br><br>
+      <strong>整体评估：</strong>{{AI4_CONCLUSION}}<br><br>
+      <strong>下周计划：</strong>{{AI4_PLAN}}
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  数据收集进度: {{DATA_COUNT}}/7 天 | 报告生成时间: {{GENERATED_AT}} | UTC+8
+</div>
+
+</div>
+</body>
+</html>

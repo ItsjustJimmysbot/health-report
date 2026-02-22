@@ -1,0 +1,133 @@
+<!-- 
+  统一周报告模板 (WEEKLY_TEMPLATE.html)
+  版本: 2026-02-21 V1.0
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{START_DATE}} 至 {{END_DATE}} 周健康报告</title>
+<style>
+@page { size: A4; margin: 10mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; 
+  font-size: 10pt; 
+  line-height: 1.5; 
+  color: #1f2937; 
+}
+.container { max-width: 780px; margin: 0 auto; padding: 15px; }
+
+/* 头部 - 蓝色渐变 */
+.header { 
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+  color: white; 
+  padding: 20px; 
+  border-radius: 10px; 
+  text-align: center; 
+  margin-bottom: 15px; 
+}
+.header h1 { font-size: 18pt; }
+.header .subtitle { font-size: 10pt; opacity: 0.9; }
+
+/* 数据进度警告 */
+.alert { 
+  background: #fef3c7; 
+  border-left: 4px solid #f59e0b; 
+  padding: 12px; 
+  margin: 15px 0; 
+  border-radius: 4px; 
+  font-size: 9pt; 
+  color: #92400e; 
+}
+.alert.complete { background: #dcfce7; border-color: #22c55e; color: #166534; }
+
+/* 统计卡片 */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+.stat-card { 
+  background: white; 
+  border-radius: 8px; 
+  padding: 12px; 
+  text-align: center; 
+  border: 1px solid #e2e8f0; 
+}
+.stat-value { font-size: 18pt; font-weight: bold; color: #3b82f6; }
+.stat-label { font-size: 8pt; color: #64748b; margin-top: 4px; }
+
+/* 区块 */
+.section { background: #f8fafc; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+.section-title { 
+  font-size: 12pt; 
+  font-weight: bold; 
+  color: #1e293b; 
+  margin-bottom: 10px; 
+  padding-bottom: 5px; 
+  border-bottom: 2px solid #3b82f6; 
+}
+
+/* 数据表 */
+.data-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 10px 0; }
+.data-table th, .data-table td { 
+  padding: 8px; 
+  text-align: center; 
+  border-bottom: 1px solid #e2e8f0; 
+}
+.data-table th { background: #f1f5f9; font-weight: 600; }
+
+/* 趋势 */
+.trend-up { color: #166534; font-weight: bold; }
+.trend-down { color: #991b1b; font-weight: bold; }
+.trend-stable { color: #92400e; font-weight: bold; }
+
+/* AI分析 */
+.ai-box { background: white; border-radius: 6px; padding: 12px; margin: 10px 0; border-left: 3px solid #3b82f6; }
+.ai-title { font-weight: bold; color: #1e40af; margin-bottom: 5px; }
+.ai-content { font-size: 9pt; color: #475569; line-height: 1.6; }
+
+.footer { text-align: center; font-size: 8pt; color: #94a3b8; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📊 周健康报告</h1>
+    <div class="subtitle">{{START_DATE}} 至 {{END_DATE}} | {{DATA_STATUS}} | UTC+8</div>
+  </div>
+  
+  <div class="alert {{ALERT_CLASS}}">
+    <strong>{{DATA_PROGRESS}}</strong><br>
+    {{DATA_NOTICE}}
+  </div>
+  
+  <div class="section">
+    <div class="section-title">📈 周统计概览</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{AVG_HRV}}</div>
+        <div class="stat-label">平均HRV (ms)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{TOTAL_STEPS}}</div>
+        <div class="stat-label">总步数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{AVG_SLEEP}}h</div>
+        <div class="stat-label">平均睡眠</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">💡 AI 周分析</div>
+    <div class="ai-box">
+      <div class="ai-title">📌 周总结</div>
+      <div class="ai-content">{{WEEKLY_SUMMARY}}</div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    数据收集进度: {{DATA_COUNT}}/7 天 | 报告生成时间: {{GENERATED_AT}} | UTC+8
+  </div>
+</div>
+</body>
+</html>

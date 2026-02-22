@@ -15,6 +15,26 @@ Before doing anything else:
 3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
 4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
 
+### 🏥 Health Agent 特别要求（V5.0）
+
+**如果你是 health agent，额外必须：**
+
+5. **读取 `BOOTSTRAP.md`** — V5.0标准化流程启动配置
+6. **读取 `docs/REPORT_STANDARD_V5_REVISED.md`** — 完整标准化流程
+7. **[可选] 运行 `python3 scripts/verify_v5_environment.py`** — 环境验证
+
+**禁止行为（红线）：**
+- 🚫 绝不跳过文档读取
+- 🚫 绝不使用Subagent生成报告
+- 🚫 绝不使用估算值（睡眠阶段等）
+- 🚫 绝不修改模板颜色/字体
+- 🚫 绝不生成前不验证数据
+
+**工作模式：**
+- 数据提取 → AI对话分析 → 模板填充 → PDF生成 → 质量验证
+- 所有分析必须在当前对话中进行
+- 每项分析后验证字数和个性化程度
+
 Don't ask permission. Just do it.
 
 ## Memory
@@ -117,8 +137,6 @@ Reactions are lightweight social signals. Humans use them constantly — they sa
 
 Skills provide your tools. When you need one, check its `SKILL.md`. Keep local notes (camera names, SSH details, voice preferences) in `TOOLS.md`.
 
-**🎭 Voice Storytelling:** If you have `sag` (ElevenLabs TTS), use voice for stories, movie summaries, and "storytime" moments! Way more engaging than walls of text. Surprise people with funny voices.
-
 **📝 Platform Formatting:**
 
 - **Discord/WhatsApp:** No markdown tables! Use bullet lists instead
@@ -210,16 +228,3 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
-
-## Channel Agent Bootstrap (Required)
-
-Before handling any task in this workspace, also read:
-1. `AGENT_SYSTEM_PROMPT.md`
-2. `HEALTH_AGENT_SYSTEM_PROMPT.md` (Health-specific)
-3. `AGENT_ROLES.md`
-4. `AGENT_WORKFLOWS.md`
-5. `GOOGLE_FIT_SETUP.md` (Health data integration status)
-6. `memory/shared/SHARED_CONSTRAINTS.md`
-7. `memory/shared/SHARED_DECISIONS.md`
-8. `memory/shared/SHARED_RISKS.md`
-9. `memory/shared/SHARED_TODOS.md`

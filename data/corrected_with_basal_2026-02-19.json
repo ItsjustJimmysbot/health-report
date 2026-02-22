@@ -1,0 +1,11 @@
+{
+  "date": "2026-02-19",
+  "exercise_min": 1,
+  "hrv": 46.4,
+  "steps": 1993,
+  "resting_hr": 64.0,
+  "active_energy_direct": 531.5,
+  "basal_energy": 6862.7,
+  "active_energy": 531.5,
+  "calc_method": "direct_from_apple_health"
+}

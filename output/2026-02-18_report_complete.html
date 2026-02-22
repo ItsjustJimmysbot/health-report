@@ -1,0 +1,326 @@
+<!-- 
+  统一日报告模板 V2 - 带完整内容结构
+  所有内容区域都有占位符，确保内容完整且UI统一
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>2026-02-18 健康日报</title>
+<style>
+/* 统一样式 - 不允许修改 */
+@page { size: A4; margin: 8mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt; line-height: 1.4; color: #1f2937; }
+.container { max-width: 780px; margin: 0 auto; padding: 10px; }
+
+/* 头部 - 紫色渐变 - 固定 */
+.header { 
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+  color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 12px; 
+}
+.header h1 { font-size: 20pt; margin-bottom: 5px; }
+.header .subtitle { font-size: 9pt; opacity: 0.9; }
+
+/* 评分卡 - 3列 - 固定 */
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.score-card { 
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0); 
+  border-radius: 8px; padding: 12px; text-align: center; border-top: 3px solid #667eea; 
+}
+.score-value { font-size: 24pt; font-weight: bold; color: #667eea; }
+.score-label { font-size: 8pt; color: #64748b; margin-top: 4px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 8pt; margin-top: 4px; }
+.badge-excellent { background: #dcfce7; color: #166534; }
+.badge-good { background: #dbeafe; color: #1e40af; }
+.badge-average { background: #fef3c7; color: #92400e; }
+.badge-poor { background: #fee2e2; color: #991b1b; }
+
+/* 内容区块 */
+.section { background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.section-title { font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #667eea; }
+
+/* 指标表 */
+.metric-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.metric-table th, .metric-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.metric-table th { background: #f1f5f9; font-weight: 600; color: #64748b; }
+.metric-value { font-weight: bold; color: #1e293b; }
+.rating { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 7pt; font-weight: bold; }
+.rating-excellent { background: #dcfce7; color: #166534; }
+.rating-good { background: #dbeafe; color: #1e40af; }
+.rating-average { background: #fef3c7; color: #92400e; }
+.rating-poor { background: #fee2e2; color: #991b1b; }
+.ai-text { font-size: 8pt; color: #475569; margin-top: 4px; padding: 6px; background: white; border-radius: 4px; border-left: 3px solid #667eea; line-height: 1.6; }
+
+/* 睡眠结构 */
+.sleep-structure { display: flex; height: 28px; border-radius: 4px; overflow: hidden; margin: 8px 0; font-size: 7pt; color: white; font-weight: bold; }
+.sleep-bar { display: flex; align-items: center; justify-content: center; }
+.sleep-deep { background: #1e40af; }
+.sleep-core { background: #3b82f6; }
+.sleep-rem { background: #60a5fa; }
+.sleep-awake { background: #f59e0b; }
+
+/* AI建议卡片 */
+.ai-rec { background: white; border-radius: 6px; padding: 10px; margin-bottom: 8px; border-left: 3px solid; }
+.ai-rec-high { border-left-color: #dc2626; }
+.ai-rec-medium { border-left-color: #f59e0b; }
+.ai-rec-low { border-left-color: #3b82f6; }
+.ai-rec-title { font-weight: bold; margin-bottom: 5px; font-size: 9pt; color: #1e293b; }
+.ai-rec-content { font-size: 8pt; color: #475569; line-height: 1.6; }
+
+/* 分页 */
+.page-break { page-break-before: always; }
+
+/* 页脚 */
+.footer { text-align: center; font-size: 7pt; color: #94a3b8; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- 第1页：头部 + 评分卡 + 指标表 -->
+<div class="header">
+  <h1>🏥 健康日报</h1>
+  <div class="subtitle">2026-02-18 · Apple Health | UTC+8</div>
+</div>
+
+<div class="score-grid">
+  <div class="score-card">
+    <div class="score-value">50</div>
+    <div class="score-label">恢复度</div>
+    <span class="badge badge-average">一般</span>
+  </div>
+  <div class="score-card">
+    <div class="score-value">35</div>
+    <div class="score-label">睡眠质量</div>
+    <span class="badge badge-poor">需改善</span>
+  </div>
+  <div class="score-card">
+    <div class="score-value">68</div>
+    <div class="score-label">运动完成</div>
+    <span class="badge badge-good">良好</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📊 详细指标分析（11项完整版）</div>
+  <table class="metric-table">
+    <thead>
+      <tr>
+        <th>指标</th>
+        <th>数值</th>
+        <th>评级</th>
+        <th>AI分析（100-150字）</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- 指标1: HRV -->
+      <tr>
+        <td><b>HRV</b></td>
+        <td class="metric-value">无数据</td>
+        <td><span class="rating rating-poor">缺失</span></td>
+        <td class="ai-text">今日HRV均值为0.0ms（0次测量）。当日无HRV数据记录。</td>
+      </tr>
+      <!-- 指标2: 静息心率 -->
+      <tr>
+        <td>静息心率</td>
+        <td class="metric-value">57 bpm</td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">静息心率57bpm，处于健康范围内，心脏功能良好。</td>
+      </tr>
+      <!-- 指标3: 步数 -->
+      <tr>
+        <td>步数</td>
+        <td class="metric-value">6,852 步<br><small>276个记录</small></td>
+        <td><span class="rating rating-average">偏低</span></td>
+        <td class="ai-text">今日步行6,852步，低于建议的8000步目标，建议增加日常活动量。</td>
+      </tr>
+      <!-- 指标4: 行走距离 -->
+      <tr>
+        <td><b>行走距离</b></td>
+        <td class="metric-value">无数据</td>
+        <td><span class="rating rating-poor">缺失</span></td>
+        <td class="ai-text">行走距离0.00公里，当日无距离数据记录。</td>
+      </tr>
+      <!-- 指标5: 活动能量 -->
+      <tr>
+        <td>活动能量</td>
+        <td class="metric-value">无数据</td>
+        <td><span class="rating rating-poor">缺失</span></td>
+        <td class="ai-text">活动能量消耗0千卡，当日无活动能量数据记录。</td>
+      </tr>
+      <!-- 指标6: 爬楼层数 -->
+      <tr>
+        <td>爬楼层数</td>
+        <td class="metric-value">108 层</td>
+        <td><span class="rating rating-good">良好</span></td>
+        <td class="ai-text">今日爬楼108层，垂直活动充足，有助于下肢力量训练。</td>
+      </tr>
+      <!-- 指标7: 站立时间 -->
+      <tr>
+        <td>站立时间</td>
+        <td class="metric-value">2.0 h</td>
+        <td><span class="rating rating-average">不足</span></td>
+        <td class="ai-text">站立时间2.0小时，站立时间不足，建议每小时起身活动。</td>
+      </tr>
+      <!-- 指标8: 血氧饱和度 -->
+      <tr>
+        <td>血氧饱和度</td>
+        <td class="metric-value">无数据</td>
+        <td><span class="rating rating-poor">缺失</span></td>
+        <td class="ai-text">血氧饱和度0.0%（0次测量），当日无血氧数据记录。</td>
+      </tr>
+      <!-- 指标9: 静息能量 -->
+      <tr>
+        <td><b>静息能量</b></td>
+        <td class="metric-value">7 kcal</td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">静息能量消耗约7千卡，反映基础代谢水平正常。</td>
+      </tr>
+      <!-- 指标10: 呼吸率 -->
+      <tr>
+        <td>呼吸率</td>
+        <td class="metric-value">14.8 次/分<br><small>40次测量</small></td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td class="ai-text">呼吸率14.8次/分钟（40次测量），处于正常成人范围，呼吸功能良好。</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 第2页：睡眠分析 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">😴 睡眠分析 (数据完整)</div>
+  
+  <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+    <div style="font-weight: bold; color: #166534; margin-bottom: 5px;">✅ 睡眠记录完整</div>
+    <div style="font-size: 8pt; color: #15803d;">入睡 06:28 | 醒来 09:17 | 来源: Apple Health</div>
+  </div>
+  
+  <div style="font-size: 9pt; font-weight: bold; margin-bottom: 5px;">睡眠结构分布 (2.8h 总计)</div>
+  
+  <div class="sleep-structure">
+    <div class="sleep-bar sleep-deep" style="width: 0%">深睡 0.0h</div>
+    <div class="sleep-bar sleep-core" style="width: 0%">核心 0.0h</div>
+    <div class="sleep-bar sleep-rem" style="width: 0%">REM 0.0h</div>
+    <div class="sleep-bar sleep-awake" style="width: 0%">清醒 0.0h</div>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; font-size: 8pt; text-align: center;">
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #1e40af; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">深睡期<br>身体修复</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #3b82f6; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">核心睡眠<br>记忆巩固</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #60a5fa; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">REM期<br>情绪调节</div>
+    </div>
+    <div style="background: white; padding: 8px; border-radius: 4px;">
+      <div style="color: #f59e0b; font-weight: bold; font-size: 10pt;">0.0h (0%)</div>
+      <div style="color: #64748b;">清醒时间<br>睡眠中断</div>
+    </div>
+  </div>
+  
+  <div class="ai-text" style="border-left-color: #667eea;">
+    <strong>AI深度分析：</strong>昨晚入睡时间06:28，醒来时间09:17，总睡眠2.8小时。睡眠时长偏短，建议今晚提前入睡。
+  </div>
+</div>
+
+<!-- Workout记录 -->
+<div class="section">
+  <div class="section-title">🏃 运动记录 - 楼梯</div>
+  
+  <div style="background: white; border-radius: 8px; padding: 12px; border-left: 3px solid #667eea; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <span style="font-size: 12pt; font-weight: bold; color: #667eea;">楼梯</span>
+      <span style="font-size: 8pt; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px;">2026-02-18 20:25</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 8pt; text-align: center; margin-bottom: 10px;">
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">33</div>
+        <div style="color: #64748b;">分钟</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">299</div>
+        <div style="color: #64748b;">千卡</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">150</div>
+        <div style="color: #64748b;">平均心率</div>
+      </div>
+      <div style="background: #f8fafc; padding: 6px; border-radius: 4px;">
+        <div style="font-weight: bold; color: #1e293b; font-size: 10pt;">168</div>
+        <div style="color: #64748b;">最高心率</div>
+      </div>
+    </div>
+    <div class="ai-text">
+      <strong>运动AI详细分析：</strong>今日进行了楼梯锻炼，时长33分钟。消耗能量约299千卡。平均心率150bpm，最高心率168bpm，运动强度适中。
+    </div>
+  </div>
+</div>
+
+<!-- 第3页：AI建议 -->
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">💡 AI 详细健康建议（4部分完整版）</div>
+  
+  <!-- AI建议1 -->
+  <div class="ai-rec ai-rec-high">
+    <div class="ai-rec-title">🔴 【最高优先级】睡眠优化</div>
+    <div class="ai-rec-content">
+      <strong>问题识别（紧急）：</strong>昨晚睡眠仅2.8小时，明显不足。<br><br>
+      <strong>行动计划（分步骤）：</strong>1. 今晚提前1小时入睡
+2. 睡前避免使用电子设备
+3. 保持卧室温度18-22°C
+4. 进行10分钟冥想放松<br><br>
+      <strong>预期效果：</strong>充足睡眠将改善日间精力和恢复能力。
+    </div>
+  </div>
+  
+  <!-- AI建议2 -->
+  <div class="ai-rec ai-rec-medium">
+    <div class="ai-rec-title">🟡 【中等优先级】日常活动</div>
+    <div class="ai-rec-content">
+      <strong>问题分析：</strong>步数达标但睡眠严重不足。<br><br>
+      <strong>具体建议：</strong>1. 减少晚间活动
+2. 优先保证睡眠时间
+3. 调整作息规律<br><br>
+      <strong>恢复周期：</strong>规律作息将提升整体健康水平。
+    </div>
+  </div>
+  
+  <!-- AI建议3 -->
+  <div class="ai-rec ai-rec-low">
+    <div class="ai-rec-title">🟢 【日常优化】健康生活方式</div>
+    <div class="ai-rec-content">
+      <strong>饮食建议：</strong>保持均衡饮食，晚餐避免过饱。<br><br>
+      <strong>作息建议：</strong>固定作息时间，创造良好睡眠环境。
+    </div>
+  </div>
+  
+  <!-- AI建议4 -->
+  <div class="ai-rec">
+    <div class="ai-rec-title">📊 【数据洞察】整体评估</div>
+    <div class="ai-rec-content">
+      <strong>优势总结：</strong>日常活动充足，运动习惯良好。<br><br>
+      <strong>风险提醒：</strong>睡眠严重不足，需优先改善。<br><br>
+      <strong>整体评估结论：</strong>整体健康状况一般，睡眠质量是主要短板。<br><br>
+      <strong>1-2周优先级计划：</strong>本周重点：1)保证7小时睡眠 2)固定作息时间
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Apple Health • HRV:0次 • 步数:276条 • 生成: 2026-02-22 01:26 | UTC+8 | 生成: 2026-02-22 01:26 | UTC+8
+</div>
+
+</div>
+</body>
+</html>

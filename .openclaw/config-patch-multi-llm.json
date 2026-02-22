@@ -1,0 +1,175 @@
+{
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "kimi": {
+        "baseUrl": "https://api.moonshot.cn/v1",
+        "apiKey": "${KIMI_API_KEY}",
+        "auth": "api-key",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "kimi-coding/k2p5",
+            "name": "Kimi K2.5",
+            "api": "openai-completions",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "contextWindow": 256000,
+            "maxTokens": 8192,
+            "cost": {
+              "input": 0.0001,
+              "output": 0.0004
+            },
+            "compat": {
+              "supportsStore": false,
+              "supportsDeveloperRole": false,
+              "supportsReasoningEffort": false,
+              "supportsUsageInStreaming": true,
+              "maxTokensField": "max_tokens"
+            }
+          },
+          {
+            "id": "kimi/k2",
+            "name": "Kimi K2",
+            "api": "openai-completions",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "contextWindow": 200000,
+            "maxTokens": 8192,
+            "cost": {
+              "input": 0.00008,
+              "output": 0.0003
+            },
+            "compat": {
+              "supportsStore": false,
+              "supportsDeveloperRole": false,
+              "supportsReasoningEffort": false,
+              "supportsUsageInStreaming": true,
+              "maxTokensField": "max_tokens"
+            }
+          }
+        ]
+      },
+      "minimax": {
+        "baseUrl": "https://api.minimaxi.chat/v1",
+        "apiKey": "${MINIMAX_API_KEY}",
+        "auth": "api-key",
+        "api": "openai-completions",
+        "headers": {
+          "Authorization": "Bearer ${MINIMAX_API_KEY}"
+        },
+        "models": [
+          {
+            "id": "minimax/ab6",
+            "name": "MiniMax AB6",
+            "api": "openai-completions",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "contextWindow": 100000,
+            "maxTokens": 8192,
+            "cost": {
+              "input": 0.00015,
+              "output": 0.0006
+            },
+            "compat": {
+              "supportsStore": false,
+              "supportsDeveloperRole": false,
+              "supportsReasoningEffort": false,
+              "supportsUsageInStreaming": true,
+              "maxTokensField": "max_tokens"
+            }
+          },
+          {
+            "id": "minimax/ab5.5",
+            "name": "MiniMax AB5.5",
+            "api": "openai-completions",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "contextWindow": 80000,
+            "maxTokens": 4096,
+            "cost": {
+              "input": 0.0001,
+              "output": 0.0004
+            },
+            "compat": {
+              "supportsStore": false,
+              "supportsDeveloperRole": false,
+              "supportsReasoningEffort": false,
+              "supportsUsageInStreaming": true,
+              "maxTokensField": "max_tokens"
+            }
+          }
+        ]
+      },
+      "grok": {
+        "baseUrl": "https://api.x.ai/v1",
+        "apiKey": "${GROK_API_KEY}",
+        "auth": "api-key",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "grok/grok-3",
+            "name": "Grok 3",
+            "api": "openai-completions",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "contextWindow": 128000,
+            "maxTokens": 8192,
+            "cost": {
+              "input": 0.00015,
+              "output": 0.0006
+            },
+            "compat": {
+              "supportsStore": false,
+              "supportsDeveloperRole": false,
+              "supportsReasoningEffort": false,
+              "supportsUsageInStreaming": true,
+              "maxTokensField": "max_tokens"
+            }
+          },
+          {
+            "id": "grok/grok-2",
+            "name": "Grok 2",
+            "api": "openai-completions",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "contextWindow": 128000,
+            "maxTokens": 4096,
+            "cost": {
+              "input": 0.0001,
+              "output": 0.0004
+            },
+            "compat": {
+              "supportsStore": false,
+              "supportsDeveloperRole": false,
+              "supportsReasoningEffort": false,
+              "supportsUsageInStreaming": true,
+              "maxTokensField": "max_tokens"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "env": {
+    "vars": {
+      "KIMI_API_KEY": "",
+      "MINIMAX_API_KEY": "",
+      "GROK_API_KEY": ""
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "kimi-coding/k2p5",
+        "fallbacks": [
+          "grok/grok-3",
+          "minimax/ab6",
+          "kimi/k2",
+          "grok/grok-2",
+          "minimax/ab5.5"
+        ]
+      }
+    }
+  }
+}

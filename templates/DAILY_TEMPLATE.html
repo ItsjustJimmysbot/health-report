@@ -1,0 +1,229 @@
+<!-- 
+  统一日报告模板 (DAILY_TEMPLATE.html)
+  版本: 2026-02-21 V1.0
+  使用说明: 所有日报告必须基于此模板，仅修改内容部分
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{DATE}} 健康日报</title>
+<style>
+/* ========== 统一样式规范 ========== */
+@page { size: A4; margin: 8mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; 
+  font-size: 9pt; 
+  line-height: 1.4; 
+  color: #1f2937; 
+}
+.container { max-width: 780px; margin: 0 auto; padding: 10px; }
+
+/* 头部 - 紫色渐变 */
+.header { 
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+  color: white; 
+  padding: 15px; 
+  border-radius: 10px; 
+  text-align: center; 
+  margin-bottom: 12px; 
+}
+.header h1 { font-size: 20pt; margin-bottom: 5px; }
+.header .subtitle { font-size: 9pt; opacity: 0.9; }
+
+/* 评分卡 */
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.score-card { 
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0); 
+  border-radius: 8px; 
+  padding: 12px; 
+  text-align: center; 
+  border-top: 3px solid #667eea; 
+}
+.score-value { font-size: 24pt; font-weight: bold; color: #667eea; }
+.score-label { font-size: 8pt; color: #64748b; margin-top: 4px; }
+.score-badge { 
+  display: inline-block; 
+  padding: 2px 8px; 
+  border-radius: 12px; 
+  font-size: 8pt; 
+  margin-top: 4px; 
+}
+.badge-excellent { background: #dcfce7; color: #166534; }
+.badge-good { background: #dbeafe; color: #1e40af; }
+.badge-average { background: #fef3c7; color: #92400e; }
+.badge-poor { background: #fee2e2; color: #991b1b; }
+
+/* 内容区块 */
+.section { background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.section-title { 
+  font-size: 11pt; 
+  font-weight: bold; 
+  color: #1e293b; 
+  margin-bottom: 10px; 
+  padding-bottom: 5px; 
+  border-bottom: 2px solid #667eea; 
+}
+
+/* 指标表 */
+.metric-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.metric-table th, .metric-table td { 
+  padding: 6px 8px; 
+  text-align: left; 
+  border-bottom: 1px solid #e2e8f0; 
+}
+.metric-table th { background: #f1f5f9; font-weight: 600; color: #64748b; }
+.metric-value { font-weight: bold; color: #1e293b; }
+
+/* 评级标签 */
+.rating { 
+  display: inline-block; 
+  padding: 2px 6px; 
+  border-radius: 4px; 
+  font-size: 7pt; 
+  font-weight: bold; 
+}
+.rating-excellent { background: #dcfce7; color: #166534; }
+.rating-good { background: #dbeafe; color: #1e40af; }
+.rating-average { background: #fef3c7; color: #92400e; }
+.rating-poor { background: #fee2e2; color: #991b1b; }
+
+/* AI分析文本 */
+.ai-text { 
+  font-size: 8pt; 
+  color: #475569; 
+  margin-top: 4px; 
+  padding: 6px; 
+  background: white; 
+  border-radius: 4px; 
+  border-left: 3px solid #667eea; 
+  line-height: 1.6; 
+}
+
+/* 睡眠结构条 */
+.sleep-structure { 
+  display: flex; 
+  height: 28px; 
+  border-radius: 4px; 
+  overflow: hidden; 
+  margin: 8px 0; 
+  font-size: 7pt; 
+  color: white; 
+  font-weight: bold; 
+}
+.sleep-deep { background: #1e40af; display: flex; align-items: center; justify-content: center; }
+.sleep-core { background: #3b82f6; display: flex; align-items: center; justify-content: center; }
+.sleep-rem { background: #60a5fa; display: flex; align-items: center; justify-content: center; }
+.sleep-awake { background: #f59e0b; display: flex; align-items: center; justify-content: center; }
+
+/* AI建议卡片 */
+.ai-rec { 
+  background: white; 
+  border-radius: 6px; 
+  padding: 10px; 
+  margin-bottom: 8px; 
+  border-left: 3px solid; 
+}
+.ai-rec-high { border-left-color: #dc2626; }
+.ai-rec-medium { border-left-color: #f59e0b; }
+.ai-rec-low { border-left-color: #3b82f6; }
+.ai-rec-title { font-weight: bold; margin-bottom: 5px; font-size: 9pt; }
+.ai-rec-content { font-size: 8pt; color: #475569; line-height: 1.6; }
+
+/* 数据来源标注 */
+.data-source { 
+  background: #dbeafe; 
+  border-radius: 6px; 
+  padding: 8px; 
+  margin: 10px 0; 
+  font-size: 8pt; 
+  color: #1e40af; 
+}
+
+/* 页脚 */
+.footer { 
+  text-align: center; 
+  font-size: 7pt; 
+  color: #94a3b8; 
+  padding-top: 10px; 
+  border-top: 1px solid #e2e8f0; 
+}
+
+/* 分页 */
+.page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- 第一页：头部 + 评分卡 + 指标表 -->
+  <div class="header">
+    <h1>🏥 健康日报</h1>
+    <div class="subtitle">{{DATE}} · {{WEEKDAY}} · 第{{DAY_NUM}}天 | {{SOURCE}} | UTC+8</div>
+  </div>
+  
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="score-value">{{RECOVERY_SCORE}}</div>
+      <div class="score-label">恢复度</div>
+      <span class="score-badge {{RECOVERY_BADGE_CLASS}}">{{RECOVERY_LEVEL}}</span>
+    </div>
+    <div class="score-card">
+      <div class="score-value">{{SLEEP_SCORE}}</div>
+      <div class="score-label">睡眠质量</div>
+      <span class="score-badge {{SLEEP_BADGE_CLASS}}">{{SLEEP_LEVEL}}</span>
+    </div>
+    <div class="score-card">
+      <div class="score-value">{{EXERCISE_SCORE}}</div>
+      <div class="score-label">运动完成</div>
+      <span class="score-badge {{EXERCISE_BADGE_CLASS}}">{{EXERCISE_LEVEL}}</span>
+    </div>
+  </div>
+  
+  <!-- 详细指标表 -->
+  <div class="section">
+    <div class="section-title">📊 详细指标分析</div>
+    <table class="metric-table">
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>数值</th>
+          <th>评级</th>
+          <th>AI分析</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 指标行模板 -->
+        <tr>
+          <td><b>HRV</b></td>
+          <td class="metric-value">{{HRV_VALUE}} ms</td>
+          <td><span class="rating {{HRV_RATING_CLASS}}">{{HRV_RATING}}</span></td>
+          <td class="ai-text">{{HRV_ANALYSIS}}</td>
+        </tr>
+        <!-- 更多指标... -->
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- 分页：睡眠分析（第二页） -->
+  <div class="page-break"></div>
+  
+  <div class="section">
+    <div class="section-title">😴 睡眠分析 ({{SLEEP_STATUS}})</div>
+    <!-- 睡眠内容... -->
+  </div>
+  
+  <!-- 分页：AI建议（第三页） -->
+  <div class="page-break"></div>
+  
+  <div class="section">
+    <div class="section-title">💡 AI 详细健康建议</div>
+    <!-- AI建议内容... -->
+  </div>
+  
+  <div class="footer">
+    数据来源: {{DATA_SOURCES}} | 生成: {{GENERATED_AT}} | UTC+8
+  </div>
+</div>
+</body>
+</html>
