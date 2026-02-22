@@ -63,11 +63,11 @@ def parse_sleep_data(date_str, health_dir):
             sleep_start = datetime.strptime(sleep_start_str[:19], '%Y-%m-%d %H:%M:%S')
             if window_start <= sleep_start <= window_end:
                 sleep_records.append({
-                    'total': (sleep.get('asleep', 0) or sleep.get('totalSleep', 0)) / 3600,  # 转换为小时
-                    'deep': sleep.get('deep', 0) / 3600 if sleep.get('deep') else 0,
-                    'core': sleep.get('core', 0) / 3600 if sleep.get('core') else 0,
-                    'rem': sleep.get('rem', 0) / 3600 if sleep.get('rem') else 0,
-                    'awake': sleep.get('awake', 0) / 3600 if sleep.get('awake') else 0,
+                    'total': sleep.get('asleep', 0) or sleep.get('totalSleep', 0),  # 已经是小时单位
+                    'deep': sleep.get('deep', 0) or 0,
+                    'core': sleep.get('core', 0) or 0,
+                    'rem': sleep.get('rem', 0) or 0,
+                    'awake': sleep.get('awake', 0) or 0,
                 })
         except:
             continue
