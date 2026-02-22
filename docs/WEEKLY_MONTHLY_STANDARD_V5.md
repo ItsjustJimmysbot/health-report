@@ -18,6 +18,44 @@
 
 ### 第一步：数据聚合（脚本完成）
 
+#### 1.1 读取每日缓存文件（V5.0新增）
+
+**必须读取缓存文件获取历史数据**，用于本周对比分析：
+
+```python
+def load_daily_cache(date_str: str) -> dict:
+    """读取每日数据缓存"""
+    cache_file = CACHE_DIR / f'{date_str}.json'
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None
+
+# 周报：读取本周7天缓存
+week_dates = ['2026-02-18', '2026-02-19', '2026-02-20', '2026-02-21', 
+              '2026-02-22', '2026-02-23', '2026-02-24']
+daily_caches = [load_daily_cache(d) for d in week_dates if load_daily_cache(d)]
+
+# 生成本周对比表数据
+weekly_comparison_rows = generate_weekly_comparison(daily_caches)
+```
+
+**缓存文件路径**: `cache/daily/YYYY-MM-DD.json`
+
+**缓存数据结构**:
+```json
+{
+  "date": "2026-02-18",
+  "hrv": {"value": 52.8, "points": 51},
+  "resting_hr": {"value": 57},
+  "steps": 6852,
+  "sleep": {"total": 2.82, ...},
+  "workouts": [...]
+}
+```
+
+#### 1.2 聚合统计数据
+
 **周报**（7天数据）:
 ```python
 weekly_data = {
@@ -31,7 +69,8 @@ weekly_data = {
         "hrv_max": 53.4,
         "hrv_min": 45.7,
         "hrv_std": 3.8
-    }
+    },
+    "weekly_comparison": weekly_comparison_rows  # 本周对比数据
 }
 ```
 

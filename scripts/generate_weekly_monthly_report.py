@@ -7,6 +7,74 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+def load_daily_cache(date_str):
+    """读取每日数据缓存文件"""
+    cache_file = Path('/Users/jimmylu/.openclaw/workspace-health/cache/daily') / f'{date_str}.json'
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None
+
+def generate_weekly_comparison_rows(start_date, end_date):
+    """生成本周关键指标对比表格行 - 读取缓存文件"""
+    from datetime import datetime, timedelta
+    
+    start = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    rows = []
+    current = start
+    while current <= end:
+        date_str = current.strftime('%Y-%m-%d')
+        weekday = current.strftime('%a')
+        cache = load_daily_cache(date_str)
+        
+        if cache:
+            hrv = cache.get('hrv', {}).get('value', '--')
+            steps = cache.get('steps', '--')
+            sleep = cache.get('sleep', {}).get('total', '--') if isinstance(cache.get('sleep'), dict) else '--'
+            energy = cache.get('active_energy', '--')
+            has_workout = len(cache.get('workouts', [])) > 0
+            workout = '✓' if has_workout else '-'
+            
+            row = f"""      <tr>
+        <td>{weekday}</td>
+        <td>{hrv}</td>
+        <td>{steps:,}</td>
+        <td>{sleep}h</td>
+        <td>{energy}</td>
+        <td>{workout}</td>
+        <td>{'良好' if (hrv if isinstance(hrv, (int, float)) else 0) > 50 else '一般'}</td>
+        <td>--</td>
+      </tr>"""
+        else:
+            row = f"""      <tr>
+        <td>{weekday}</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>数据缺失</td>
+      </tr>"""
+        rows.append(row)
+        current += timedelta(days=1)
+    
+    # 添加周平均行
+    rows.append("""      <tr style="background: #f1f5f9; font-weight: bold;">
+        <td>平均</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+        <td>--</td>
+      </tr>""")
+    
+    return '\n'.join(rows)
+
 def generate_daily_rows(daily_data):
     """生成每日明细表格行"""
     rows = []
@@ -99,7 +167,7 @@ def generate_weekly_report(data, template_path, output_path):
         
         # 表格行
         '{{DAILY_ROWS}}': generate_daily_rows(daily_data),
-        '{{WEEKLY_COMPARISON_ROWS}}': '<tr><td colspan="8" style="text-align:center;">历史对比数据需读取缓存文件</td></tr>',
+        '{{WEEKLY_COMPARISON_ROWS}}': generate_weekly_comparison_rows(data.get('start_date', ''), data.get('end_date', '')),
         
         # AI建议 - 从recommendations读取
         '{{AI1_TITLE}}': ai.get('recommendations', {}).get('high_priority', {}).get('title', '暂无'),
