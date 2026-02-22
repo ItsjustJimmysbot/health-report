@@ -262,7 +262,32 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
     <!-- 心率曲线图 -->
     <div style="margin: 15px 0; padding: 10px; background: #f8fafc; border-radius: 6px;">
       <div style="font-size: 9pt; font-weight: bold; color: #1e293b; margin-bottom: 8px;">📈 心率变化曲线</div>
-      
+      <div style="height:150px;">
+  <canvas id="hrChart"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  new Chart(document.getElementById('hrChart'), {
+    type: 'line',
+    data: {
+      labels: ['20:33', '20:35', '20:43', '20:45', '20:47', '20:50', '20:52', '20:54', '20:56', '20:58', '21:00', '21:02', '21:04', '21:06'],
+      datasets: [
+        {label: '平均心率', data: [147, 134, 158, 133, 161, 160, 158, 157, 130, 160, 160, 150, 138, 156], borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', tension: 0.3, fill: true, pointRadius: 2},
+        {label: '最高心率', data: [155, 138, 166, 137, 162, 163, 160, 168, 134, 163, 161, 162, 147, 157], borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.05)', tension: 0.3, fill: false, pointRadius: 2}
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {legend: {display: true, position: 'top', labels: {font: {size: 8}, boxWidth: 10}}},
+      scales: {
+        y: {min: 120, max: 178, ticks: {font: {size: 7}}},
+        x: {ticks: {font: {size: 7}, maxRotation: 45}}
+      }
+    }
+  });
+</script>
+
     </div>
     <div class="ai-text">
       <strong>运动AI详细分析：</strong>今日完成楼梯训练33.4分钟，平均心率150bpm，最高心率168bpm。心率区间分析：150bpm平均心率处于最大心率的75-85%区间（假设最大心率200bpm），属于高强度间歇训练。心率曲线显示多次爬坡段心率升至160-168bpm，下坡段回落至130-140bpm，符合楼梯训练的典型特征。
@@ -318,7 +343,7 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 9pt
 </div>
 
 <div class="footer">
-  数据来源: Apple Health | 生成: 2026-02-22 21:23 | UTC+8
+  数据来源: Apple Health | 生成: 2026-02-22 21:28 | UTC+8
 </div>
 
 </div>
