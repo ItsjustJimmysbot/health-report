@@ -323,22 +323,48 @@ def build_data_from_source(date_str: str, ai: dict):
         errors.append("diet plan incomplete (need breakfast, lunch, dinner)")
     
     # CRITICAL: Verify no "data missing" claims when data exists (or vice versa)
-    # Map AI JSON keys to data keys
-    missing_data_checks = [
-        ('flights', 'flights_climbed', '爬楼层数'),
-        ('stand', 'stand_time', '站立时间'),
-        ('basal', 'basal_energy', '静息能量'),
+    # Comprehensive check for ALL metrics
+    all_metrics_checks = [
+        # (ai_key, data_key, chinese_name, threshold)
+        ('hrv', 'hrv', 'HRV', 0),
+        ('resting_hr', 'resting_hr', '静息心率', 0),
+        ('steps', 'steps', '步数', 0),
+        ('distance', 'walking_distance', '行走距离', 0),
+        ('active_energy', 'active_energy', '活动能量', 0),
+        ('flights', 'flights_climbed', '爬楼层数', 0),
+        ('stand', 'stand_time', '站立时间', 0),
+        ('spo2', 'spo2', '血氧饱和度', 0),
+        ('basal', 'basal_energy', '静息能量', 0),
+        ('respiratory', 'respiratory_rate', '呼吸率', 0),
+        ('sleep', 'sleep', '睡眠', 0),  # Special handling for sleep total_hours
+        ('workout', 'workouts', '运动', 0),  # Special handling for workout existence
     ]
-    for ai_key, data_key, chinese_name in missing_data_checks:
-        value = data[data_key]['value']
+    
+    for ai_key, data_key, chinese_name, threshold in all_metrics_checks:
+        # Get the value based on data key
+        if data_key == 'sleep':
+            value = data[data_key]['total_hours'] if data[data_key] else None
+        elif data_key == 'workouts':
+            value = len(data[data_key]) if data[data_key] else 0
+        else:
+            value = data[data_key]['value'] if data[data_key] else None
+        
         analysis = str(ai.get(ai_key, ''))
-        has_data = value is not None and value > 0
-        claims_missing = '缺失' in analysis or ('无' in analysis and '无爬楼' not in analysis and '无运动' not in analysis) or '没有' in analysis or '不存在' in analysis
+        has_data = value is not None and value > threshold
+        
+        # Check if analysis explicitly claims missing data
+        claims_missing = ('数据缺失' in analysis or 
+                         '没有数据' in analysis or 
+                         '数据不存在' in analysis)
+        
+        # Check if analysis mentions actual values (numbers)
+        import re
+        has_number = bool(re.search(r'\d+\.?\d*', analysis))
         
         if has_data and claims_missing:
             errors.append(f"CRITICAL: {chinese_name}分析说'数据缺失'，但实际有数据: {value}")
-        if not has_data and not claims_missing and analysis and len(analysis) > 10 and '无' not in analysis:
-            errors.append(f"CRITICAL: {chinese_name}实际无数据，但分析未说明缺失")
+        if not has_data and has_number and ai_key not in ['workout']:
+            errors.append(f"CRITICAL: {chinese_name}实际无数据，但分析包含数值")
     
     if errors:
         print("VALIDATION FAILED:", file=sys.stderr)
