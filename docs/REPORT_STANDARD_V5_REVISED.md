@@ -152,6 +152,8 @@ def extract_spo2(metrics):
 
 **⚠️ 关键注意点**: `sleep_analysis`指标的`units`是`hr`（小时），`asleep`值**已经是小时**，不需要除以3600！
 
+**⚠️ 字段注意（2026-02数据格式）**: `sleep_analysis.data[]` 常见字段为 `sleepStart/sleepEnd/asleep/deep/core/rem/awake`，很多记录**没有 `qty` 字段**。提取睡眠时应优先读取这些显式字段，不能依赖 `qty`。
+
 **验证方法**:
 ```python
 # 读取指标元数据
