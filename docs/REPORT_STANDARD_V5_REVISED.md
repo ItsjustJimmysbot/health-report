@@ -418,7 +418,83 @@ def verify_ai_analysis(text: str, min_len: int, max_len: int, data: dict) -> boo
 今日完成{workout_name}，时长{duration}分钟，平均心率{avg_hr}bpm...
 ```
 
-### 2.3 饮食建议格式（预防可读性差）
+### 2.3 禁止凭记忆进行对比分析（V5.0新增）
+
+**红线规定**: **严禁凭记忆引用历史数据，所有对比必须基于读取的缓存文件**
+
+**禁止行为**:
+```python
+# ❌ 严禁 - 凭记忆引用昨日数据
+"较昨日52.8ms下降6.4ms"  # 凭记忆，违规！
+"较前日2.82小时显著改善"  # 凭记忆，违规！
+"较昨日6,853步下降71%"  # 凭记忆，违规！
+
+# ❌ 严禁 - 编造趋势描述
+"近期HRV呈下降趋势"  # 无真实历史数据支撑
+"本周睡眠质量持续改善"  # 无真实历史数据支撑
+```
+
+**正确做法**:
+
+**方案1: 不对比，只分析当日数据（推荐）**
+```python
+# ✅ 正确 - 只分析当日真实数据
+"心率变异性今日为46.4ms，略低于理想区间（50-65ms）。"
+
+# ✅ 正确 - 说明数据局限性
+"如需分析趋势，请提供历史数据文件。"
+```
+
+**方案2: 读取缓存文件后进行对比**
+```python
+# ✅ 正确 - 读取缓存文件后再对比
+def load_daily_cache(date_str: str) -> dict:
+    """加载每日数据缓存"""
+    cache_file = CACHE_DIR / f'{date_str}.json'
+    if cache_file.exists():
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None
+
+# 读取昨日缓存
+yesterday_cache = load_daily_cache('2026-02-18')
+if yesterday_cache:
+    hrv_diff = today_hrv - yesterday_cache['hrv']['value']
+    analysis = f"较昨日{hrv_diff:+.1f}ms"
+else:
+    analysis = "昨日数据缺失，无法对比"
+```
+
+**缓存文件路径**:
+```
+cache/daily/YYYY-MM-DD.json
+```
+
+**缓存文件结构**:
+```json
+{
+  "date": "2026-02-18",
+  "hrv": {"value": 52.8, "points": 51},
+  "resting_hr": {"value": 57},
+  "steps": 6852,
+  "sleep": {"total": 2.82, "deep": 0, "core": 0, "rem": 0},
+  "workouts": [...]
+}
+```
+
+**AI分析约束**:
+
+| 场景 | 正确做法 | 错误做法 |
+|-----|---------|---------|
+| 有缓存文件 | "较昨日下降6.4ms（52.8→46.4）" | - |
+| 无缓存文件 | "今日HRV 46.4ms"（不做对比） | "较昨日下降6.4ms"（凭记忆） |
+| 多日趋势 | 读取多份缓存后生成趋势分析 | "近期呈下降趋势"（无数据） |
+
+**违规后果**: 数据可信度严重受损，必须重新生成当日报告
+
+---
+
+### 2.4 饮食建议格式（预防可读性差）
 
 **V5.0强制HTML格式**:
 ```html
@@ -626,6 +702,7 @@ def before_send_check(pdf_path: str) -> bool:
 - [ ] **验证数据单位**（睡眠是hr不是秒，距离是km不是m）
 - [ ] **不编造数据** - 没有真实数据的地方显示"--"
 - [ ] **不估算比例** - 睡眠阶段没有数据时不编造百分比
+- [ ] **不凭记忆对比** - 历史对比必须读取缓存文件
 - [ ] 血氧单位判断正确（>1则不乘100）
 - [ ] 睡眠数据使用`sleepStart`字段，**不除以3600**
 - [ ] **标注数据来源** - Apple Health / Google Fit
@@ -637,6 +714,7 @@ def before_send_check(pdf_path: str) -> bool:
 - [ ] 图表使用`responsive: false`
 - [ ] 所有模板变量已替换
 - [ ] **无编造数据** - 检查睡眠阶段等数据是否真实
+- [ ] **无凭记忆对比** - 检查是否读取了缓存文件
 - [ ] 质量验证通过
 
 ---
@@ -648,3 +726,4 @@ def before_send_check(pdf_path: str) -> bool:
 - 新增：完整11项指标提取清单
 - 新增：数据来源追踪要求
 - 新增：AI分析真实数据约束
+- **新增：禁止凭记忆对比规则（必须读缓存文件）**
