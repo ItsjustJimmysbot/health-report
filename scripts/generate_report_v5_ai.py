@@ -12,10 +12,17 @@ V5.0 Report Generator (single standard entry)
    python3 scripts/generate_report_v5_ai.py 2026-02-18 [template.html] [out.html] < ai_analysis.json
 """
 import json
+import os
 import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+
+# GUARD: Date mode requires AI analysis from stdin (no tty, no /tmp)
+if len(sys.argv) > 1 and re.match(r'^\d{4}-\d{2}-\d{2}$', sys.argv[1]):
+    if sys.stdin.isatty():
+        print("ERROR: Date mode requires AI analysis JSON from stdin", file=sys.stderr)
+        sys.exit(1)
 
 HOME = Path.home()
 HEALTH_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Health Data'
@@ -53,6 +60,20 @@ def get_rating_class(score):
     if score >= 60: return 'rating-good', 'badge-good', '良好'
     if score >= 40: return 'rating-average', 'badge-average', '一般'
     return 'rating-poor', 'badge-poor', '需改善'
+
+
+def format_workout_time_range(start_str, duration_min):
+    """Return HH:MM-HH:MM if possible."""
+    try:
+        from datetime import datetime, timedelta
+        if not start_str:
+            return '--'
+        # supports 'YYYY-MM-DD HH:MM'
+        dt=datetime.strptime(start_str[:16], '%Y-%m-%d %H:%M')
+        end=dt + timedelta(minutes=float(duration_min or 0))
+        return f"{dt.strftime('%H:%M')}-{end.strftime('%H:%M')}"
+    except Exception:
+        return (start_str.split(' ')[1][:5] if isinstance(start_str,str) and ' ' in start_str else '--')
 
 
 def _parse_metrics(date_str: str):
@@ -154,7 +175,7 @@ def _workout_from_source(date_str: str):
 
         out.append({
             'name': w.get('workoutActivityType') or w.get('name') or '运动',
-            'start': (w.get('startDate') or '')[:16].replace('T', ' '),
+            'start': ((w.get('start') or w.get('startDate') or '')[:16].replace('T', ' ')),
             'duration_min': duration_min,
             'energy_kcal': round(float(energy_kcal), 1),
             'avg_hr': avg_hr,
@@ -253,6 +274,60 @@ def build_data_from_source(date_str: str, ai: dict):
     # 给 workout 注入分析
     if data['workouts']:
         data['workouts'][0]['analysis'] = ai.get('workout', '')
+
+    # MANDATORY VALIDATION: Check all analyses reference actual data
+    # Map data keys to AI JSON keys (they may differ)
+    key_mapping = {
+        'hrv': 'hrv',
+        'resting_hr': 'resting_hr', 
+        'steps': 'steps',
+        'distance': 'distance',
+        'active_energy': 'active_energy',
+        'spo2': 'spo2',
+        'respiratory_rate': 'respiratory',  # JSON uses 'respiratory'
+        'sleep': 'sleep',
+    }
+    errors = []
+    checks = [
+        ('hrv', data['hrv']['value'], 'ms'),
+        ('resting_hr', data['resting_hr']['value'], 'bpm'),
+        ('steps', data['steps']['value'], '步'),
+        ('distance', data['walking_distance']['value'], 'km'),
+        ('active_energy', data['active_energy']['value'], 'kcal'),
+        ('spo2', data['spo2']['value'], '%'),
+        ('respiratory_rate', data['respiratory_rate']['value'], '次/分'),
+        ('sleep', data['sleep']['total_hours'], '小时'),
+    ]
+    for data_key, value, unit in checks:
+        ai_key = key_mapping.get(data_key, data_key)
+        analysis = str(ai.get(ai_key, ''))
+        if value is None:
+            continue
+        # Check raw value, formatted value (with comma), and 1-decimal format
+        str_val = str(value)
+        fmt_val = f"{value:,}" if isinstance(value, int) else str_val
+        dec_val = f"{value:.1f}" if isinstance(value, float) else str_val
+        
+        if str_val not in analysis and fmt_val not in analysis and dec_val not in analysis:
+            errors.append(f"{ai_key} analysis missing data reference: expected {value}{unit}")
+    
+    # Check recommendation structure
+    rec = ai.get('priority', {})
+    if not all([rec.get('title'), rec.get('problem'), rec.get('action')]):
+        errors.append("high_priority recommendation incomplete (need title, problem, action)")
+    if not ai.get('ai2_title'):
+        errors.append("medium_priority (ai2) missing")
+    if not ai.get('ai3_title'):
+        errors.append("routine (ai3) missing")
+    if not all([ai.get('breakfast'), ai.get('lunch'), ai.get('dinner')]):
+        errors.append("diet plan incomplete (need breakfast, lunch, dinner)")
+    
+    if errors:
+        print("VALIDATION FAILED:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        print("\nAI analysis must reference actual data values and include all sections.", file=sys.stderr)
+        sys.exit(1)
 
     return data
 
@@ -422,7 +497,7 @@ def generate_report(data, template_path, output_path):
         '{{SLEEP_ANALYSIS_TEXT}}': data['sleep'].get('analysis', '暂无分析'),
 
         '{{WORKOUT_NAME}}': workout['name'] if workout else '无',
-        '{{WORKOUT_TIME}}': workout['start'].split(' ')[1][:5] if workout and workout.get('start') else '--',
+        '{{WORKOUT_TIME}}': format_workout_time_range(workout.get('start'), workout.get('duration_min')) if workout else '--',
         '{{WORKOUT_DURATION}}': str(round(workout['duration_min'], 1)) if workout else '--',
         '{{WORKOUT_ENERGY}}': str(round(workout['energy_kcal'], 1)) if workout else '--',
         '{{WORKOUT_AVG_HR}}': f"{workout['avg_hr']}bpm" if workout and workout.get('avg_hr') is not None else '--',
@@ -476,7 +551,7 @@ def generate_report(data, template_path, output_path):
     if workout:
         workout_section = f'''<div class="workout-section no-break">
   <div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>运动记录 - {workout['name']}</div></div>
-  <div class="workout-header"><div class="workout-type"><div class="workout-icon">💪</div><div><div class="workout-name">{workout['name']}</div><div class="workout-time">{workout['start'].split(' ')[1][:5] if workout.get('start') else '--'}</div></div></div><span class="badge badge-good">已完成</span></div>
+  <div class="workout-header"><div class="workout-type"><div class="workout-icon">💪</div><div><div class="workout-name">{workout['name']}</div><div class="workout-time">{format_workout_time_range(workout.get('start'), workout.get('duration_min'))}</div></div></div><span class="badge badge-good">已完成</span></div>
   <div class="workout-stats">
     <div class="stat-box"><div class="stat-value">{round(workout['duration_min'],1)}</div><div class="stat-label">分钟</div></div>
     <div class="stat-box"><div class="stat-value">{round(workout['energy_kcal'],1)}</div><div class="stat-label">千卡</div></div>
