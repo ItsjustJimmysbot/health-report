@@ -1,0 +1,1048 @@
+<!-- 
+  日报模板 - Medical Dashboard V2
+  字体：本地Noto Serif SC（确保渲染一致性）
+  配色：中等饱和度（居中）
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>2026-02-22 健康日报</title>
+<style>
+/* 本地字体定义 */
+@font-face {
+  font-family: 'Noto Serif SC';
+  src: url('fonts/NotoSerifSC-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  src: url('fonts/NotoSerifSC-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  src: url('fonts/NotoSerifSC-SemiBold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  src: url('fonts/NotoSerifSC-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@page { size: A4; margin: 10mm; }
+* { 
+  margin: 0; 
+  padding: 0; 
+  box-sizing: border-box;
+  font-family: 'Noto Serif SC', serif;
+}
+
+:root {
+  /* 中等饱和度（居中） */
+  --purple-light: #F5E6FE;
+  --purple-main: #A855F7;
+  --purple-dark: #7C3AED;
+  --blue-light: #E0F2FE;
+  --blue-main: #3B82F6;
+  --blue-dark: #2563EB;
+  --green-light: #DCFCE7;
+  --green-main: #22C55E;
+  --green-dark: #16A34A;
+  --yellow-light: #FEF3C7;
+  --yellow-main: #F59E0B;
+  --yellow-dark: #D97706;
+  --pink-light: #FCE7F3;
+  --pink-main: #EC4899;
+  --pink-dark: #DB2777;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --white: #FFFFFF;
+}
+
+body { 
+  font-family: 'Noto Serif SC', serif; 
+  font-size: 13.5pt; 
+  line-height: 1.5; 
+  color: var(--text-primary);
+  background: #F8FAFC;
+}
+
+.container { max-width: 760px; margin: 0 auto; padding: 15px; }
+
+/* ===== Header ===== */
+.header {
+  background: linear-gradient(135deg, var(--purple-main) 0%, var(--purple-dark) 100%);
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 20px;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-brand h1 {
+  font-size: 36pt;
+  font-weight: 600;
+  margin-bottom: 5px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.header-brand .subtitle {
+  font-size: 15pt;
+  opacity: 0.9;
+}
+
+.header-date {
+  text-align: right;
+}
+
+.header-date .day {
+  font-size: 48pt;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.header-date .month {
+  font-size: 15pt;
+  opacity: 0.9;
+}
+
+/* ===== Score Cards ===== */
+.score-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.score-card {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.score-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.score-card.recovery::before { background: linear-gradient(90deg, var(--green-main), var(--green-dark)); }
+.score-card.sleep::before { background: linear-gradient(90deg, var(--purple-main), var(--purple-dark)); }
+.score-card.exercise::before { background: linear-gradient(90deg, var(--blue-main), var(--blue-dark)); }
+
+.score-value {
+  font-size: 54pt;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.score-card.recovery .score-value { color: var(--green-dark); }
+.score-card.sleep .score-value { color: var(--purple-dark); }
+.score-card.exercise .score-value { color: var(--blue-dark); }
+
+.score-label {
+  font-size: 13.5pt;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 10px;
+  font-size: 12pt;
+  font-weight: 600;
+}
+
+.badge-excellent { background: var(--green-light); color: var(--green-dark); }
+.badge-good { background: var(--blue-light); color: var(--blue-dark); }
+.badge-average { background: var(--yellow-light); color: var(--yellow-dark); }
+.badge-poor { background: #FEE2E2; color: #DC2626; }
+
+/* ===== Section Cards ===== */
+.section-card {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 19.5pt;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.section-icon {
+  font-size: 24pt;
+}
+
+/* ===== Metrics Table ===== */
+.metrics-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.metrics-table th {
+  text-align: left;
+  padding: 10px;
+  font-size: 12pt;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-row {
+  background: #F8FAFC;
+  border-radius: 8px;
+}
+
+.metric-row td {
+  padding: 12px 10px;
+  vertical-align: middle;
+}
+
+.metric-row td:first-child { border-radius: 8px 0 0 8px; width: 85px; }
+.metric-row td:nth-child(2) { width: 75px; text-align: center; }
+.metric-row td:nth-child(3) { width: 55px; text-align: center; }
+.metric-row td:last-child { border-radius: 0 8px 8px 0; }
+
+.metric-name { 
+  font-weight: 500; 
+  color: var(--text-primary); 
+  font-family: 'Noto Serif SC', serif;
+  font-size: 15pt;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+.metric-name-main { 
+  font-weight: 600; 
+}
+
+.metric-value-cell {
+  font-size: 16.5pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Noto Serif SC', serif;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.rating {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12pt;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.rating-excellent { background: var(--green-light); color: var(--green-dark); }
+.rating-good { background: var(--blue-light); color: var(--blue-dark); }
+.rating-average { background: var(--yellow-light); color: var(--yellow-dark); }
+.rating-poor { background: #FEE2E2; color: #DC2626; }
+
+.metric-analysis {
+  font-size: 13.5pt;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-family: 'Noto Serif SC', serif;
+  vertical-align: middle;
+}
+
+/* AI分析中的数字加粗 */
+.metric-analysis strong,
+.metric-analysis b {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ===== Sleep Section ===== */
+.sleep-alert {
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.sleep-alert.warning {
+  background: var(--yellow-light);
+  border: 1px solid var(--yellow-main);
+}
+
+.sleep-alert.error {
+  background: #FEE2E2;
+  border: 1px solid #FCA5A5;
+}
+
+.sleep-alert.success {
+  background: var(--green-light);
+  border: 1px solid var(--green-main);
+}
+
+.alert-icon { font-size: 36pt; flex-shrink: 0; }
+
+.alert-content h4 {
+  font-size: 16.5pt;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: var(--text-primary);
+  font-family: 'Noto Serif SC', serif;
+}
+
+.alert-content p {
+  font-size: 13.5pt;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.sleep-big {
+  text-align: center;
+  padding: 35px;
+  background: var(--purple-light);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.sleep-big-label {
+  font-size: 15pt;
+  color: var(--purple-dark);
+  font-weight: 500;
+  margin-bottom: 10px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.sleep-big-value {
+  font-size: 84pt;
+  font-weight: 700;
+  color: var(--purple-dark);
+  line-height: 1;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.sleep-big-unit {
+  font-size: 21pt;
+  color: var(--purple-main);
+}
+
+.sleep-structure-title {
+  font-size: 15pt;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  font-family: 'Noto Serif SC', serif;
+}
+
+.sleep-structure {
+  display: flex;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.sleep-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12pt;
+  font-weight: 600;
+  color: white;
+}
+
+.sleep-deep { background: #581C87; }
+.sleep-core { background: var(--purple-dark); }
+.sleep-rem { background: var(--purple-main); }
+.sleep-awake { background: var(--yellow-main); color: #92400E; }
+
+.sleep-legend {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.legend-item {
+  background: #F8FAFC;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  margin: 0 auto 8px;
+}
+
+.legend-value {
+  font-size: 16.5pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.legend-label {
+  font-size: 12pt;
+  color: var(--text-secondary);
+}
+
+.sleep-analysis-box {
+  background: var(--blue-light);
+  border-left: 4px solid var(--blue-dark);
+  border-radius: 0 8px 8px 0;
+  padding: 15px;
+  margin-top: 20px;
+  font-size: 13.5pt;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  font-family: 'Noto Serif SC', serif;
+}
+
+.sleep-analysis-box strong {
+  color: var(--blue-dark);
+}
+
+/* ===== Workout Section - 紧凑一页版 ===== */
+.workout-section {
+  background: var(--blue-light);
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 15px;
+  page-break-inside: avoid; /* 防止跨页 */
+}
+
+.workout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px 15px;
+  background: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.workout-type {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workout-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--blue-light);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 27pt;
+}
+
+.workout-name {
+  font-size: 18pt;
+  font-weight: 600;
+  color: var(--blue-dark);
+  font-family: 'Noto Serif SC', serif;
+}
+
+.workout-time {
+  font-size: 12pt;
+  color: var(--blue-dark);
+  background: var(--blue-light);
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.workout-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stat-box {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.stat-value {
+  font-size: 21pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.stat-label {
+  font-size: 10.5pt;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+/* ===== 心率图表 - 带数值和图例 ===== */
+.hr-chart-wrapper {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 12px;
+}
+
+.hr-chart-title {
+  font-size: 13.5pt;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.hr-chart-legend {
+  display: flex;
+  gap: 15px;
+  font-size: 12pt;
+}
+
+.hr-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hr-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.hr-legend-dot.avg { background: #3B82F6; }
+.hr-legend-dot.max { background: #EF4444; }
+
+.hr-chart-container {
+  padding: 0 15px;
+  overflow: hidden;
+  position: relative;
+  height: 100px;
+  margin: 10px 0;
+}
+
+.hr-chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Y轴刻度 */
+.hr-y-axis {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 20px;
+  width: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 10.5pt;
+  color: var(--text-secondary);
+  text-align: right;
+  padding-right: 5px;
+}
+
+/* X轴时间标签 */
+.hr-x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 35px;
+  font-size: 10.5pt;
+  color: var(--text-secondary);
+  margin-top: 5px;
+}
+
+/* 心率数据点提示 */
+.hr-data-point {
+  position: absolute;
+  background: var(--blue-dark);
+  color: white;
+  font-size: 10.5pt;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.workout-analysis {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.workout-analysis-title {
+  font-size: 13.5pt;
+  font-weight: 600;
+  color: var(--blue-dark);
+  margin-bottom: 6px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.workout-analysis-text {
+  font-size: 12pt;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  font-family: 'Noto Serif SC', serif;
+}
+
+/* ===== AI Recommendations ===== */
+.ai-rec {
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.ai-rec-high {
+  background: var(--pink-light);
+  border-left: 4px solid var(--pink-main);
+}
+
+.ai-rec-medium {
+  background: var(--yellow-light);
+  border-left: 4px solid var(--yellow-main);
+}
+
+.ai-rec-low {
+  background: var(--blue-light);
+  border-left: 4px solid var(--blue-main);
+}
+
+.ai-priority {
+  font-size: 12pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.ai-rec-high .ai-priority { color: var(--pink-dark); }
+.ai-rec-medium .ai-priority { color: var(--yellow-dark); }
+.ai-rec-low .ai-priority { color: var(--blue-dark); }
+
+.ai-title {
+  font-size: 18pt;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 15px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.ai-content {
+  font-size: 13.5pt;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  font-family: 'Noto Serif SC', serif;
+}
+
+.ai-content strong {
+  color: var(--text-primary);
+}
+
+/* ===== Diet Section ===== */
+.diet-section {
+  background: var(--green-light);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.diet-title {
+  font-size: 18pt;
+  font-weight: 600;
+  color: var(--green-dark);
+  margin-bottom: 15px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.diet-content {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 20px;
+  font-size: 13.5pt;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  font-family: 'Noto Serif SC', serif;
+}
+
+.diet-meal {
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px dashed #E2E8F0;
+}
+
+.diet-meal:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.meal-name {
+  font-weight: 600;
+  color: var(--green-dark);
+  margin-bottom: 5px;
+  font-family: 'Noto Serif SC', serif;
+}
+
+/* ===== Footer ===== */
+.footer {
+  text-align: center;
+  padding: 25px;
+  color: var(--text-secondary);
+  font-size: 12pt;
+  font-family: 'Noto Serif SC', serif;
+}
+
+.footer-divider {
+  width: 50px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--purple-main), var(--purple-dark));
+  border-radius: 2px;
+  margin: 0 auto 15px;
+}
+
+/* ===== Page Break ===== */
+.page-break {
+  page-break-before: always;
+}
+
+/* 防止跨页 */
+.no-break {
+  page-break-inside: avoid;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <div class="header-brand">
+    <h1>🏥 健康日报</h1>
+    <div class="subtitle">基于 Apple Health 数据深度分析</div>
+  </div>
+  <div class="header-date">
+    <div class="day">22</div>
+    <div class="month">2026年2月</div>
+  </div>
+</div>
+
+<!-- Score Cards -->
+<div class="score-section">
+  <div class="score-card recovery">
+    <div class="score-value">90</div>
+    <div class="score-label">恢复度</div>
+    <span class="badge badge-excellent">优秀</span>
+  </div>
+  <div class="score-card sleep">
+    <div class="score-value">30</div>
+    <div class="score-label">睡眠质量</div>
+    <span class="badge badge-poor">需改善</span>
+  </div>
+  <div class="score-card exercise">
+    <div class="score-value">50</div>
+    <div class="score-label">运动完成</div>
+    <span class="badge badge-average">一般</span>
+  </div>
+</div>
+
+<!-- Metrics Table -->
+<div class="section-card">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">📊</span>
+      详细指标分析（11项完整版）
+    </div>
+  </div>
+  
+  <table class="metrics-table">
+    <thead>
+      <tr>
+        <th>指标</th>
+        <th>数值</th>
+        <th>评级</th>
+        <th>AI分析（100-150字）</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="metric-row">
+        <td><span class="metric-name metric-name-main">HRV</span></td>
+        <td class="metric-value-cell">53.4ms</td>
+        <td><span class="rating rating-excellent">优秀</span></td>
+        <td><div class="metric-analysis">心率变异性今日为<strong>53.4ms</strong>（基于58个数据点测量）。较昨日45.7ms<strong>上升7.7ms</strong>（+16.8%），趋势显著改善。从生理机制看，HRV反映自主神经系统调节能力。您的数值已进入理想区间（50-65ms），表明副交感神经活动增强，身体恢复潜力和压力适应力良好。这与静息心率下降至58bpm相呼应，显示心血管系统处于较放松状态。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name">静息心率</span></td>
+        <td class="metric-value-cell">58bpm</td>
+        <td><span class="rating rating-excellent">优秀</span></td>
+        <td><div class="metric-analysis">静息心率58bpm属于优秀水平（<60bpm）。较昨日65bpm下降7bpm，与HRV改善趋势一致，表明自主神经系统平衡良好，身体处于较好的恢复状态。持续保持低静息心率与心血管健康、运动耐力正相关。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name">步数</span></td>
+        <td class="metric-value-cell">728步</td>
+        <td><span class="rating rating-poor">不足</span></td>
+        <td><div class="metric-analysis">今日步数仅728步，较昨日2,688步大幅下降73%，远低于每日推荐目标10,000步，甚至不足基础活动下限2,500步。长时间静坐与代谢综合征、心血管疾病风险增加相关。结合今日HRV良好，明日应积极恢复活动量。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name metric-name-main">行走距离</span></td>
+        <td class="metric-value-cell">0.54km</td>
+        <td><span class="rating rating-poor">不足</span></td>
+        <td><div class="metric-analysis">行走距离0.54km极低，与728步的步数数据一致。正常成人每日应至少行走3-5km以维持基础代谢健康。低活动量可能导致夜间睡眠质量下降，因身体未获得足够运动疲劳信号。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name">活动能量</span></td>
+        <td class="metric-value-cell">0kcal</td>
+        <td><span class="rating rating-poor">不足</span></td>
+        <td><div class="metric-analysis">今日活动能量0kcal，未记录到任何主动运动。虽然静息能量1,646kcal维持基础代谢，但缺乏主动运动意味着错过了提升心肺功能和骨密度的机会。建议明日安排30分钟中等强度运动。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name">爬楼层数</span></td>
+        <td class="metric-value-cell">0层</td>
+        <td><span class="rating rating-poor">不足</span></td>
+        <td><div class="metric-analysis">爬楼层数0层，表明今日活动范围有限，未进行任何垂直方向的活动。爬楼梯是有效的心肺功能训练方式，建议明日至少爬10-15层楼（约3-5分钟）以增强心肺耐力。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name">站立时间</span></td>
+        <td class="metric-value-cell">8min</td>
+        <td><span class="rating rating-poor">不足</span></td>
+        <td><div class="metric-analysis">站立时间仅8分钟，远低于Apple推荐的目标（每天至少12小时每小时站立1分钟）。长时间静坐会增加下肢静脉血栓、腰椎压力和代谢综合征风险。建议每小时起身活动2-3分钟。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name">血氧饱和度</span></td>
+        <td class="metric-value-cell">95.0%</td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td><div class="metric-analysis">血氧饱和度95.0%处于正常范围（95-99%），但较昨日97.3%略有下降。虽仍在健康区间，若持续低于95%建议关注呼吸系统健康。睡眠期间血氧波动可能反映呼吸质量，建议保持侧卧睡姿。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name metric-name-main">静息能量</span></td>
+        <td class="metric-value-cell">1646kcal</td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td><div class="metric-analysis">静息能量1,646kcal属于正常范围，反映基础代谢率稳定。这是身体维持生命活动（呼吸、循环、体温调节）所需的最低能量。静息能量与体重、肌肉量、年龄相关，保持稳定是健康信号。</div></td>
+      </tr>
+      <tr class="metric-row">
+        <td><span class="metric-name">呼吸率</span></td>
+        <td class="metric-value-cell">15.5次/分</td>
+        <td><span class="rating rating-good">正常</span></td>
+        <td><div class="metric-analysis">呼吸率15.5次/分（基于65个数据点）处于正常成人静息呼吸范围（12-20次/分）。呼吸平稳反映自主神经系统平衡，与HRV改善趋势一致。睡眠期间呼吸率波动可用于评估睡眠质量。</div></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Page Break -->
+<div class="page-break"></div>
+
+<!-- Sleep Analysis -->
+<div class="section-card">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">😴</span>
+      睡眠分析 (严重不足)
+    </div>
+  </div>
+
+  <div class="sleep-alert error">
+  <div class="alert-icon">⚠️</div>
+  <div class="alert-content">
+    <h4>睡眠严重不足</h4>
+    <p>昨夜仅睡4.79小时，较推荐标准短缺2-3小时，是当日最大健康风险因素。</p>
+  </div>
+</div>
+
+  <div class="sleep-big">
+    <div class="sleep-big-label">总睡眠时长 (4.79h 总计)</div>
+    <div class="sleep-big-value">4.79<span class="sleep-big-unit">h</span></div>
+  </div>
+
+  <div class="sleep-structure-title">睡眠阶段分布</div>
+  <div class="sleep-structure">
+    <div class="sleep-bar sleep-deep" style="width: 19%">深睡 0.89h</div>
+    <div class="sleep-bar sleep-core" style="width: 54%">核心 2.61h</div>
+    <div class="sleep-bar sleep-rem" style="width: 27%">REM 1.30h</div>
+    <div class="sleep-bar sleep-awake" style="width: 1%">清醒 0.07h</div>
+  </div>
+
+  <div class="sleep-legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #581C87;"></div>
+      <div class="legend-value" style="color: #581C87;">0.89h</div>
+      <div class="legend-label">深睡期 (19%)<br>身体修复</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: var(--purple-dark);"></div>
+      <div class="legend-value" style="color: var(--purple-dark);">2.61h</div>
+      <div class="legend-label">核心睡眠 (54%)<br>记忆巩固</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: var(--purple-main);"></div>
+      <div class="legend-value" style="color: var(--purple-dark);">1.30h</div>
+      <div class="legend-label">REM期 (27%)<br>情绪调节</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: var(--yellow-main);"></div>
+      <div class="legend-value" style="color: var(--yellow-dark);">0.07h</div>
+      <div class="legend-label">清醒时间 (1%)<br>睡眠中断</div>
+    </div>
+  </div>
+
+  <div class="sleep-analysis-box">
+    <strong>AI深度分析：</strong>昨夜睡眠<strong>4.79小时</strong>（数据来源：Apple Health），远低于7-9小时推荐标准。<strong>较昨日7.71小时减少2.92小时</strong>（-38%）。睡眠结构分析：深睡0.89小时（18.5%）、核心睡眠2.61小时（54.4%）、REM 1.30小时（27.1%）。各阶段比例正常，但<strong>绝对时长严重不足</strong>。与HRV关联：虽然今日HRV显示改善，但这更可能是昨日充足睡眠的"余韵"。研究表明，连续睡眠不足两晚后HRV通常下降10-15ms。
+  </div>
+</div>
+
+<!-- Workout Section -->
+<div class="section-card">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">🏃</span>
+      运动分析 (今日无记录)
+    </div>
+  </div>
+  
+  <div class="workout-section">
+    <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+      <div style="font-size: 48pt; margin-bottom: 15px;">📊</div>
+      <div style="font-size: 16pt; font-weight: 600; margin-bottom: 10px;">今日未记录结构化运动</div>
+      <div style="font-size: 13pt; line-height: 1.6;">
+        步数仅<strong>728步</strong>，活动能量<strong>0 kcal</strong><br>
+        建议明日安排30-45分钟中等强度运动恢复活动量
+      </div>
+    </div>
+    
+    <div class="workout-analysis">
+      <div class="workout-analysis-title">AI运动分析</div>
+      <div class="workout-analysis-text">
+        今日<strong>未记录到结构化运动</strong>（Workout数据缺失），步数仅<strong>728步</strong>（较昨日2,688步下降73%），活动能量<strong>0 kcal</strong>。这是典型的低活动量日。从健康角度，728步远低于每日推荐目标10,000步，甚至不足基础活动下限（2,500步）。长时间静坐与代谢综合征、心血管疾病风险增加相关。今日静息能量1,646 kcal属于正常范围，但缺乏主动运动意味着错过了提升心肺功能和骨密度的机会。从恢复角度看，今日HRV 53.4ms显示身体状态良好，是进行中等强度运动的合适时机。但极低的活动量可能导致夜间睡眠质量下降（身体未获得足够运动疲劳信号）。<strong>建议：明日务必恢复活动</strong>。目标步数8,000步以上，可安排30分钟快走或轻度有氧运动。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Page Break -->
+<div class="page-break"></div>
+
+<!-- AI Recommendations -->
+<div class="section-card">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">💡</span>
+      AI 详细健康建议（4部分完整版）
+    </div>
+  </div>
+
+  <div class="ai-rec ai-rec-high">
+    <div class="ai-priority">🔴 最高优先级</div>
+    <div class="ai-title">改善睡眠时长和质量</div>
+    <div class="ai-content">
+      <strong>问题识别（紧急）：</strong>昨夜仅睡<strong>4.79小时</strong>，较推荐标准短缺2-3小时。短期睡眠不足会立即损害认知功能（注意力下降30-50%、反应时间延长20%）和情绪调节能力；长期与肥胖风险增加28%、2型糖尿病风险增加48%、心血管疾病风险增加20%相关。虽然今日HRV暂时良好，但这反映的是昨日睡眠的滞后效应，若今晚继续睡眠不足，HRV将在24-48小时内显著下降。<br><br>
+      <strong>行动计划（分步骤）：</strong>1. <strong>今晚就寝时间提前至22:30</strong>（比平时早60-90分钟），设定21:00闹钟提醒开始睡前准备<br>
+2. <strong>建立睡前1小时「数字戒断」</strong>：21:30后关闭所有电子设备，蓝光会抑制褪黑素分泌达50%，延迟入睡时间<br>
+3. <strong>卧室环境优化</strong>：温度调至18-20°C，使用遮光窗帘，必要时使用白噪音减少环境干扰<br>
+4. <strong>睡前放松仪式</strong>：10分钟温和拉伸 → 5分钟深呼吸（4-7-8呼吸法：吸气4秒、屏息7秒、呼气8秒）→ 阅读纸质书15分钟<br>
+5. <strong>避免晚间刺激物</strong>：14:00后停止摄入咖啡因，晚餐不过饱，睡前2小时不进食<br><br>
+      <strong>预期效果：</strong>通过上述措施，预期<strong>3-5天内</strong>入睡时间缩短至20分钟以内，睡眠效率提升至85%以上；<strong>1周内</strong>睡眠时长稳定在7小时以上。相应的，HRV有望维持在50ms以上，日间精力和专注力显著改善。
+    </div>
+  </div>
+
+  <div class="ai-rec ai-rec-medium">
+    <div class="ai-priority">🟡 中等优先级</div>
+    <div class="ai-title">恢复日常活动量</div>
+    <div class="ai-content">
+      <strong>问题分析：</strong>今日步数728步、活动能量0kcal，活动量严重不足。连续低活动日会导致肌肉流失、代谢率下降、骨密度降低。<br><br>
+      <strong>具体建议：</strong>明日目标：步数8,000步以上，可安排30分钟快走（配速6-7分钟/公里）或轻度有氧运动。利用当前良好的HRV状态（53.4ms），逐步建立规律运动习惯。建议设定每小时站立提醒，避免长时间静坐。<br><br>
+      <strong>恢复周期：</strong>预期3-5天内恢复至正常活动水平，1-2周内形成稳定运动习惯，配合充足睡眠可进一步提升HRV至55ms以上。
+    </div>
+  </div>
+
+  <div class="ai-rec ai-rec-low">
+    <div class="ai-priority">🔵 低优先级</div>
+    <div class="ai-title">关注血氧波动</div>
+    <div class="ai-content">
+      <strong>优化机会：</strong>今日血氧95.0%，虽在正常范围但较昨日97.3%略有下降。睡眠期间呼吸率数据（15.5次/分）正常，但短睡眠时长可能影响呼吸质量评估。<br><br>
+      <strong>日常习惯：</strong>建议睡眠时保持侧卧姿势，避免仰睡时舌根后坠导致气道阻塞。保持卧室通风良好，湿度40-60%。<br><br>
+      <strong>长期收益：</strong>长期保持可改善睡眠呼吸质量，降低夜间低氧风险，有助于深度睡眠时长增加。
+    </div>
+  </div>
+
+  <div class="diet-section">
+    <div class="diet-title">🥗 个性化饮食方案（三餐 + 加餐）</div>
+    <div class="diet-content">
+      <div class="diet-meal">
+        <div class="meal-name">早餐 (7:00-8:00)</div>
+        燕麦粥1碗（50g干燕麦）+ 水煮蛋2个 + 牛奶250ml + 苹果1个<br><em>约450千卡，提供优质蛋白和复合碳水</em>
+      </div>
+      <div class="diet-meal">
+        <div class="meal-name">午餐 (12:00-13:00)</div>
+        糙米饭1碗（150g）+ 清蒸鱼150g + 西兰花炒胡萝卜200g + 豆腐汤1碗<br><em>约600千卡，富含Omega-3和膳食纤维</em>
+      </div>
+      <div class="diet-meal">
+        <div class="meal-name">晚餐 (18:00-19:00)</div>
+        小米粥1碗 + 鸡胸肉100g + 凉拌菠菜150g + 少量坚果（核桃3-4个）<br><em>约400千卡，易消化助眠</em>
+      </div>
+      <div class="diet-meal">
+        <div class="meal-name">加餐建议</div>
+        下午茶：希腊酸奶150g + 蓝莓50g<br>
+睡前1小时：温牛奶200ml（含少量蜂蜜）<br><em>有助褪黑素分泌，改善入睡质量</em>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-divider"></div>
+  <div>数据来源: Apple Health · 2026-02-22 · 本报告仅供参考，不作为医疗诊断依据</div>
+</div>
+
+</div>
+</body>
+</html>
