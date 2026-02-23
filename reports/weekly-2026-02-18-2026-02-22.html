@@ -1,5 +1,5 @@
 <!-- 
-  月报模板 - Medical Dashboard 风格
+  周报模板 - Medical Dashboard 风格
   字体：Noto Serif SC（与日报一致）
   配色：中等饱和度（紫色/蓝色主题）
 -->
@@ -7,7 +7,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>2026年2月 健康月报</title>
+<title>2026-02-18 至 2026-02-22 周健康报告</title>
 <style>
 /* 本地字体定义 - 与日报一致 */
 @font-face {
@@ -93,8 +93,8 @@ body {
   margin-bottom: 5px;
 }
 
-.header-brand .month-year {
-  font-size: 24pt;
+.header-brand .date-range {
+  font-size: 18pt;
   opacity: 0.9;
   margin-bottom: 4px;
 }
@@ -109,7 +109,7 @@ body {
 }
 
 .header-stats .days-count {
-  font-size: 54pt;
+  font-size: 48pt;
   font-weight: 700;
   line-height: 1;
 }
@@ -119,18 +119,18 @@ body {
   opacity: 0.9;
 }
 
-/* ===== 月度概览评分卡（6列） ===== */
-.monthly-summary {
+/* ===== 周概览评分卡 ===== */
+.weekly-summary {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
   margin-bottom: 20px;
 }
 
 .summary-card {
   background: var(--white);
   border-radius: 8px;
-  padding: 16px;
+  padding: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   text-align: center;
   position: relative;
@@ -150,11 +150,9 @@ body {
 .summary-card.steps::before { background: linear-gradient(90deg, var(--blue-main), var(--blue-dark)); }
 .summary-card.sleep::before { background: linear-gradient(90deg, var(--purple-main), var(--purple-dark)); }
 .summary-card.workout::before { background: linear-gradient(90deg, var(--yellow-main), var(--yellow-dark)); }
-.summary-card.calories::before { background: linear-gradient(90deg, #F97316, #EA580C); }
-.summary-card.stand::before { background: linear-gradient(90deg, #06B6D4, #0891B2); }
 
 .summary-value {
-  font-size: 27pt;
+  font-size: 33pt;
   font-weight: 700;
   line-height: 1;
   margin-bottom: 6px;
@@ -165,20 +163,18 @@ body {
 .summary-card.steps .summary-value { color: var(--blue-dark); }
 .summary-card.sleep .summary-value { color: var(--purple-dark); }
 .summary-card.workout .summary-value { color: var(--yellow-dark); }
-.summary-card.calories .summary-value { color: #EA580C; }
-.summary-card.stand .summary-value { color: #0891B2; }
 
 .summary-label {
   font-size: 12pt;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .summary-change {
-  font-size: 12pt;
+  font-size: 13.5pt;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 8px;
+  padding: 3px 8px;
+  border-radius: 10px;
   display: inline-block;
 }
 
@@ -232,7 +228,7 @@ body {
 
 .data-table th {
   text-align: center;
-  padding: 10px 6px;
+  padding: 10px 8px;
   font-size: 12pt;
   font-weight: 600;
   color: var(--text-secondary);
@@ -242,7 +238,7 @@ body {
 
 .data-table td {
   background: #F8FAFC;
-  padding: 10px 6px;
+  padding: 12px 8px;
   text-align: center;
   vertical-align: middle;
 }
@@ -273,7 +269,7 @@ body {
 /* 评级标签 */
 .rating {
   display: inline-block;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 12pt;
   font-weight: 600;
@@ -284,36 +280,25 @@ body {
 .rating-average { background: var(--yellow-light); color: var(--yellow-dark); }
 .rating-poor { background: #FEE2E2; color: #DC2626; }
 
-/* ===== AI 深度分析 ===== */
-.analysis-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.analysis-card {
+/* ===== AI 趋势分析 ===== */
+.trend-analysis {
   background: var(--white);
   border-radius: 8px;
-  padding: 16px;
-  border-left: 4px solid;
+  padding: 20px;
+  border-left: 4px solid var(--purple-main);
 }
 
-.analysis-card.hrv { border-left-color: var(--green-main); }
-.analysis-card.sleep { border-left-color: var(--purple-main); }
-.analysis-card.activity { border-left-color: var(--blue-main); }
-.analysis-card.trend { border-left-color: var(--pink-main); }
-
-.analysis-card-title {
-  font-size: 15pt;
+.analysis-title {
+  font-size: 16.5pt;
   font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--text-primary);
+  color: var(--purple-dark);
+  margin-bottom: 12px;
 }
 
-.analysis-card-content {
-  font-size: 13.5pt;
+.analysis-content {
+  font-size: 14.2pt;
+  line-height: 1.7;
   color: var(--text-secondary);
-  line-height: 1.6;
 }
 
 /* ===== 建议卡片 ===== */
@@ -390,18 +375,18 @@ body {
 <!-- 头部 -->
 <div class="header">
   <div class="header-brand">
-    <h1>📊 月度健康报告</h1>
-    <div class="month-year">2026年2月</div>
-    <div class="subtitle">Apple Health · 月度回顾</div>
+    <h1>📊 周健康报告</h1>
+    <div class="date-range">2026-02-18 至 2026-02-22</div>
+    <div class="subtitle">Week 8 · Apple Health</div>
   </div>
   <div class="header-stats">
     <div class="days-count">5</div>
-    <div class="days-label">天记录</div>
+    <div class="days-label">天数据</div>
   </div>
 </div>
 
-<!-- 月度概览 -->
-<div class="monthly-summary">
+<!-- 周概览 -->
+<div class="weekly-summary">
   <div class="summary-card hrv">
     <div class="summary-value">50.3</div>
     <div class="summary-label">平均 HRV (ms)</div>
@@ -410,7 +395,7 @@ body {
   <div class="summary-card steps">
     <div class="summary-value">3698</div>
     <div class="summary-label">日均步数</div>
-    <div class="summary-change change-down">需提升</div>
+    <div class="summary-change change-down">偏低</div>
   </div>
   <div class="summary-card sleep">
     <div class="summary-value">5.8</div>
@@ -422,67 +407,95 @@ body {
     <div class="summary-label">运动天数</div>
     <div class="summary-change">20%</div>
   </div>
-  <div class="summary-card calories">
-    <div class="summary-value">228</div>
-    <div class="summary-label">日均消耗 (kcal)</div>
-    <div class="summary-change change-down">偏低</div>
-  </div>
-  <div class="summary-card stand">
-    <div class="summary-value">0.5</div>
-    <div class="summary-label">日均站立 (h)</div>
-    <div class="summary-change change-down">不足</div>
-  </div>
 </div>
 
-<!-- 每周汇总 -->
+<!-- 每日明细 -->
 <div class="section-card">
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">📅</span>
-      每周数据汇总
+      每日数据明细
     </div>
-    <div class="section-subtitle">1 周完整记录</div>
+    <div class="section-subtitle">5 天完整记录</div>
   </div>
   
   <table class="data-table">
     <thead>
       <tr>
-        <th>周次</th>
+        <th>日期</th>
         <th>HRV</th>
         <th>步数</th>
         <th>睡眠</th>
+        <th>活动能量</th>
         <th>运动</th>
         <th>恢复度</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-    <td class="cell-primary">第3周</td>
-    <td><strong>50.3</strong></td>
-    <td>3698</td>
-    <td>5.8h</td>
-    <td>1天</td>
-    <td><span class="rating rating-average">一般</span></td>
-</tr>
+        <td class="cell-primary">02-18</td>
+        <td><strong>52.8</strong></td>
+        <td>6,852</td>
+        <td>2.8h</td>
+        <td>564</td>
+        <td>✓</td>
+        <td><span class="rating rating-excellent">优秀</span></td>
+    </tr>
+<tr>
+        <td class="cell-primary">02-19</td>
+        <td><strong>46.4</strong></td>
+        <td>1,993</td>
+        <td>6.1h</td>
+        <td>127</td>
+        <td>—</td>
+        <td><span class="rating rating-excellent">优秀</span></td>
+    </tr>
+<tr>
+        <td class="cell-primary">02-20</td>
+        <td><strong>53.4</strong></td>
+        <td>6,230</td>
+        <td>7.6h</td>
+        <td>214</td>
+        <td>—</td>
+        <td><span class="rating rating-excellent">优秀</span></td>
+    </tr>
+<tr>
+        <td class="cell-primary">02-21</td>
+        <td><strong>45.7</strong></td>
+        <td>2,688</td>
+        <td>7.7h</td>
+        <td>236</td>
+        <td>—</td>
+        <td><span class="rating rating-excellent">优秀</span></td>
+    </tr>
+<tr>
+        <td class="cell-primary">02-22</td>
+        <td><strong>53.4</strong></td>
+        <td>728</td>
+        <td>4.8h</td>
+        <td>0</td>
+        <td>—</td>
+        <td><span class="rating rating-excellent">优秀</span></td>
+    </tr>
     </tbody>
   </table>
 </div>
 
-<!-- 月度趋势图表 -->
+<!-- 趋势图表 -->
 <div class="section-card">
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">📈</span>
-      月度趋势
+      本周趋势
     </div>
-    <div class="section-subtitle">HRV · 步数 · 睡眠 全月变化</div>
+    <div class="section-subtitle">HRV · 步数 · 睡眠 变化曲线</div>
   </div>
-  <div class="chart-container"><div style="height: 280px;">
-  <canvas id="monthlyChart"></canvas>
+  <div class="chart-container"><div style="height: 250px;">
+  <canvas id="weeklyChart"></canvas>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const ctx = document.getElementById('monthlyChart').getContext('2d');
+  const ctx = document.getElementById('weeklyChart').getContext('2d');
   new Chart(ctx, {
     type: 'line',
     data: {
@@ -495,9 +508,7 @@ body {
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
           yAxisID: 'y',
           tension: 0.3,
-          fill: true,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          fill: true
         },
         {
           label: '步数 (÷1000)',
@@ -506,9 +517,7 @@ body {
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           yAxisID: 'y1',
           tension: 0.3,
-          fill: true,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          fill: true
         },
         {
           label: '睡眠 (h)',
@@ -517,9 +526,7 @@ body {
           backgroundColor: 'rgba(168, 85, 247, 0.1)',
           yAxisID: 'y2',
           tension: 0.3,
-          fill: true,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          fill: true
         }
       ]
     },
@@ -537,7 +544,7 @@ body {
         },
         title: {
           display: true,
-          text: '2月 HRV · 步数 · 睡眠 全月趋势',
+          text: '本周 HRV · 步数 · 睡眠 趋势',
           font: { size: 14 }
         }
       },
@@ -561,12 +568,9 @@ body {
         },
         y2: {
           type: 'linear',
-          display: true,
-          position: 'right',
-          title: { display: true, text: '睡眠 (h)' },
+          display: false,
           min: 0,
-          max: 10,
-          grid: { drawOnChartArea: false }
+          max: 10
         }
       }
     }
@@ -574,97 +578,62 @@ body {
 </script></div>
 </div>
 
-<!-- AI 深度分析 -->
+<!-- AI 趋势分析 -->
 <div class="section-card">
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">🤖</span>
-      AI 深度分析
+      AI 趋势分析
     </div>
-    <div class="section-subtitle">基于全月数据的洞察与建议</div>
+    <div class="section-subtitle">基于本周数据的深度洞察</div>
   </div>
-  
-  <div class="analysis-grid">
-    <div class="analysis-card hrv">
-      <div class="analysis-card-title">💓 HRV 趋势分析</div>
-      <div class="analysis-card-content">本月至今HRV平均<strong>50.3ms</strong>，整体处于<strong>良好区间</strong>（45-65ms）。
-波动范围45.7-53.4ms，标准差3.9ms，<strong>稳定性一般</strong>。
-从走势看，HRV与睡眠呈现较强相关性：睡眠不足日（02-18仅2.82h）HRV次日下降；
-睡眠充足日（02-20、02-21达7.5h以上）HRV维持在53ms左右。
-建议通过稳定睡眠时长来降低HRV波动。</div>
-    </div>
-    
-    <div class="analysis-card sleep">
-      <div class="analysis-card-title">😴 睡眠质量分析</div>
-      <div class="analysis-card-content">本月至今平均睡眠<strong>5.81小时</strong>，<strong>低于推荐标准</strong>（7-9小时）。
-仅2/5天（40%）达到7小时以上。
-最短睡眠02-18仅2.82h，最长02-21达7.71h，<strong>睡眠质量参差不齐</strong>。
-深睡比例正常（约18-20%），但时长不足限制了恢复效果。
-建议建立固定就寝时间，目标每晚22:30前入睡。</div>
-    </div>
-    
-    <div class="analysis-card activity">
-      <div class="analysis-card-title">🏃 活动量分析</div>
-      <div class="analysis-card-content">本月至今平均步数<strong>3698步/天</strong>，<strong>远低于推荐目标</strong>（10,000步）。
-仅0/5天（0%）达到8,000步。
-步数分布极不均匀：最高6,852步（02-18），最低仅728步（02-22），
-<strong>工作日活动量持续下降</strong>。
-运动天数仅1天（20%），结构化运动严重不足。
-建议设定每日最低目标5,000步，并逐步增加至8,000步。</div>
-    </div>
-    
-    <div class="analysis-card trend">
-      <div class="analysis-card-title">📊 整体趋势评估</div>
-      <div class="analysis-card-content">
-基于5天数据分析，本月健康趋势呈现<strong>"恢复指标尚可，生活方式需改善"</strong>的特点。
-HRV维持在50ms左右表明自主神经系统功能良好，但<strong>睡眠和活动量的不稳定性</strong>是主要问题。
-具体表现为：工作日步数递减（6,852→728），睡眠时长波动大（2.82-7.71h），
-这种不规律的生活方式可能导致长期健康风险。
-<br><br>
-<strong>改善方向：</strong>优先稳定睡眠时长至7小时以上，恢复日常活动量至6,000步以上，
-建立规律运动习惯。当前HRV基础良好，具备改善潜力，关键在于执行 consistency。</div>
+  <div class="trend-analysis">
+    <div class="analysis-content">
+      本周HRV平均<strong>50.3ms</strong>（波动范围45.7-53.4ms，标准差3.9ms），整体处于<strong>良好区间</strong>（45-65ms）。
+从具体走势看，周初（02-18）52.8ms开局良好，随后02-19下降至46.4ms，可能与当日睡眠不足（6.13h）相关；
+周三（02-20）回升至53.4ms，配合7.59h充足睡眠；周四（02-21）再次降至45.7ms，尽管睡眠7.71h充足但可能受其他压力因素影响；
+周五（02-22）回升至53.4ms，但睡眠仅4.79h，这种HRV与睡眠的"背离"现象值得关注。
+
+步数方面，本周平均<strong>3,698步/天</strong>，远低于推荐目标10,000步。工作日（02-19至02-22）步数呈下降趋势（1,993→6,230→2,688→728），
+周五728步为本周最低，活动量严重不足。
+
+睡眠平均<strong>5.81小时/天</strong>，低于7小时推荐标准。值得注意的是，虽然后半周睡眠时长整体改善（从2.82h提升至4.79h），
+但仍未达标。周五4.79h的严重睡眠不足是本周最大健康风险。
+
+总体而言，本周<strong>HRV表现尚可但波动较大，活动量严重不足，睡眠质量参差不齐</strong>。建议下周重点稳定睡眠时长，恢复日常活动量。
     </div>
   </div>
 </div>
 
-<!-- 下月建议 -->
+<!-- 下周建议 -->
 <div class="section-card">
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">💡</span>
-      下月建议
+      下周建议
     </div>
-    <div class="section-subtitle">基于本月表现的个性化目标设定</div>
+    <div class="section-subtitle">基于本周表现的个性化推荐</div>
   </div>
   <div class="rec-card rec-high">
     <div class="rec-priority">🔴 最高优先级</div>
-    <div class="rec-title">建立规律作息</div>
-    <div class="rec-content">
-        本月睡眠平均5.81h，远低于7h标准。建议固定每晚22:30前就寝，目标7-7.5h睡眠。
-        建立睡前仪式：21:30关闭电子设备→22:00轻度拉伸→22:30入睡。
-    </div>
+    <div class="rec-title">稳定睡眠时长</div>
+    <div class="rec-content">本周睡眠平均5.81h，周五仅4.79h，严重不足。建议每晚22:30前就寝，目标7-7.5h。建立睡前1小时数字戒断，避免蓝光抑制褪黑素分泌。</div>
 </div>
 <div class="rec-card rec-medium">
     <div class="rec-priority">🟡 中等优先级</div>
     <div class="rec-title">恢复日常活动量</div>
-    <div class="rec-content">
-        本月平均步数3,698步，严重不足。建议每日最低目标5,000步，逐步提升至8,000步。
-        可设定每小时站立提醒，饭后步行15分钟。
-    </div>
+    <div class="rec-content">本周平均步数3,698步，周五仅728步，活动量严重不足。建议下周目标日均8,000步，可安排每天30分钟快走或每周3次结构化运动。</div>
 </div>
 <div class="rec-card rec-low">
     <div class="rec-priority">🔵 低优先级</div>
-    <div class="rec-title">增加结构化运动</div>
-    <div class="rec-content">
-        本月仅1天有结构化运动。建议每周安排2-3次中等强度运动，如快走30分钟、骑行或游泳。
-        利用当前良好的HRV基础（50.3ms），逐步建立运动习惯。
-    </div>
+    <div class="rec-title">稳定HRV波动</div>
+    <div class="rec-content">本周HRV标准差3.9ms，波动较大。通过规律作息、稳定睡眠和适度运动，可将HRV波动控制在±2ms以内，提升恢复稳定性。</div>
 </div>
 </div>
 
 <!-- 页脚 -->
 <div class="footer">
-  数据来源: Apple Health · 数据覆盖: 02-18至02-22 · 2026年2月 · 本报告仅供参考，不作为医疗诊断依据
+  数据来源: Apple Health · 2026-02-18 至 2026-02-22 · 本报告仅供参考，不作为医疗诊断依据
 </div>
 
 </div>
