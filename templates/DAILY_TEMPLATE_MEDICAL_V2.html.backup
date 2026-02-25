@@ -71,7 +71,7 @@
 
 body { 
   font-family: 'Noto Serif SC', serif; 
-  font-size: 13.5pt; 
+  font-size: 9pt; 
   line-height: 1.5; 
   color: var(--text-primary);
   background: #F8FAFC;
@@ -92,14 +92,14 @@ body {
 }
 
 .header-brand h1 {
-  font-size: 36pt;
+  font-size: 24pt;
   font-weight: 600;
   margin-bottom: 5px;
   font-family: 'Noto Serif SC', serif;
 }
 
 .header-brand .subtitle {
-  font-size: 15pt;
+  font-size: 10pt;
   opacity: 0.9;
 }
 
@@ -108,13 +108,13 @@ body {
 }
 
 .header-date .day {
-  font-size: 48pt;
+  font-size: 32pt;
   font-weight: 700;
   line-height: 1;
 }
 
 .header-date .month {
-  font-size: 15pt;
+  font-size: 10pt;
   opacity: 0.9;
 }
 
@@ -150,7 +150,7 @@ body {
 .score-card.exercise::before { background: linear-gradient(90deg, var(--blue-main), var(--blue-dark)); }
 
 .score-value {
-  font-size: 54pt;
+  font-size: 36pt;
   font-weight: 700;
   line-height: 1;
   margin-bottom: 8px;
@@ -162,7 +162,7 @@ body {
 .score-card.exercise .score-value { color: var(--blue-dark); }
 
 .score-label {
-  font-size: 13.5pt;
+  font-size: 9pt;
   color: var(--text-secondary);
   margin-bottom: 10px;
 }
@@ -171,7 +171,7 @@ body {
   display: inline-block;
   padding: 5px 12px;
   border-radius: 10px;
-  font-size: 12pt;
+  font-size: 8pt;
   font-weight: 600;
 }
 
@@ -197,7 +197,7 @@ body {
 }
 
 .section-title {
-  font-size: 19.5pt;
+  font-size: 13pt;
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
@@ -207,7 +207,7 @@ body {
 }
 
 .section-icon {
-  font-size: 24pt;
+  font-size: 16pt;
 }
 
 /* ===== Metrics Table ===== */
@@ -220,7 +220,7 @@ body {
 .metrics-table th {
   text-align: left;
   padding: 10px;
-  font-size: 12pt;
+  font-size: 8pt;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -246,7 +246,7 @@ body {
   font-weight: 500; 
   color: var(--text-primary); 
   font-family: 'Noto Serif SC', serif;
-  font-size: 15pt;
+  font-size: 10pt;
   line-height: 1.4;
   vertical-align: middle;
 }
@@ -255,7 +255,7 @@ body {
 }
 
 .metric-value-cell {
-  font-size: 16.5pt;
+  font-size: 11pt;
   font-weight: 700;
   color: var(--text-primary);
   font-family: 'Noto Serif SC', serif;
@@ -267,7 +267,7 @@ body {
   display: inline-block;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12pt;
+  font-size: 8pt;
   font-weight: 600;
   vertical-align: middle;
 }
@@ -278,7 +278,7 @@ body {
 .rating-poor { background: #FEE2E2; color: #DC2626; }
 
 .metric-analysis {
-  font-size: 13.5pt;
+  font-size: 9pt;
   color: var(--text-secondary);
   line-height: 1.6;
   font-family: 'Noto Serif SC', serif;
@@ -317,10 +317,10 @@ body {
   border: 1px solid var(--green-main);
 }
 
-.alert-icon { font-size: 36pt; flex-shrink: 0; }
+.alert-icon { font-size: 24pt; flex-shrink: 0; }
 
 .alert-content h4 {
-  font-size: 16.5pt;
+  font-size: 11pt;
   font-weight: 600;
   margin-bottom: 5px;
   color: var(--text-primary);
@@ -328,7 +328,7 @@ body {
 }
 
 .alert-content p {
-  font-size: 13.5pt;
+  font-size: 9pt;
   color: var(--text-secondary);
   line-height: 1.5;
 }
@@ -342,7 +342,7 @@ body {
 }
 
 .sleep-big-label {
-  font-size: 15pt;
+  font-size: 10pt;
   color: var(--purple-dark);
   font-weight: 500;
   margin-bottom: 10px;
@@ -350,7 +350,7 @@ body {
 }
 
 .sleep-big-value {
-  font-size: 84pt;
+  font-size: 56pt;
   font-weight: 700;
   color: var(--purple-dark);
   line-height: 1;
@@ -358,12 +358,12 @@ body {
 }
 
 .sleep-big-unit {
-  font-size: 21pt;
+  font-size: 14pt;
   color: var(--purple-main);
 }
 
 .sleep-structure-title {
-  font-size: 15pt;
+  font-size: 10pt;
   font-weight: 600;
   margin-bottom: 12px;
   color: var(--text-primary);
@@ -382,7 +382,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12pt;
+  font-size: 8pt;
   font-weight: 600;
   color: white;
 }
@@ -414,7 +414,7 @@ body {
 }
 
 .legend-value {
-  font-size: 16.5pt;
+  font-size: 11pt;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 4px;
@@ -422,7 +422,7 @@ body {
 }
 
 .legend-label {
-  font-size: 12pt;
+  font-size: 8pt;
   color: var(--text-secondary);
 }
 
@@ -432,7 +432,7 @@ body {
   border-radius: 0 8px 8px 0;
   padding: 15px;
   margin-top: 20px;
-  font-size: 13.5pt;
+  font-size: 9pt;
   line-height: 1.7;
   color: var(--text-secondary);
   font-family: 'Noto Serif SC', serif;
@@ -476,18 +476,18 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 27pt;
+  font-size: 18pt;
 }
 
 .workout-name {
-  font-size: 18pt;
+  font-size: 12pt;
   font-weight: 600;
   color: var(--blue-dark);
   font-family: 'Noto Serif SC', serif;
 }
 
 .workout-time {
-  font-size: 12pt;
+  font-size: 8pt;
   color: var(--blue-dark);
   background: var(--blue-light);
   padding: 3px 8px;
@@ -510,7 +510,7 @@ body {
 }
 
 .stat-value {
-  font-size: 21pt;
+  font-size: 14pt;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 2px;
@@ -518,7 +518,7 @@ body {
 }
 
 .stat-label {
-  font-size: 10.5pt;
+  font-size: 7pt;
   color: var(--text-secondary);
   text-transform: uppercase;
 }
@@ -532,7 +532,7 @@ body {
 }
 
 .hr-chart-title {
-  font-size: 13.5pt;
+  font-size: 9pt;
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 10px;
@@ -544,7 +544,7 @@ body {
 .hr-chart-legend {
   display: flex;
   gap: 15px;
-  font-size: 12pt;
+  font-size: 8pt;
 }
 
 .hr-legend-item {
@@ -585,7 +585,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  font-size: 10.5pt;
+  font-size: 7pt;
   color: var(--text-secondary);
   text-align: right;
   padding-right: 5px;
@@ -596,7 +596,7 @@ body {
   display: flex;
   justify-content: space-between;
   padding-left: 35px;
-  font-size: 10.5pt;
+  font-size: 7pt;
   color: var(--text-secondary);
   margin-top: 5px;
 }
@@ -606,7 +606,7 @@ body {
   position: absolute;
   background: var(--blue-dark);
   color: white;
-  font-size: 10.5pt;
+  font-size: 7pt;
   padding: 2px 5px;
   border-radius: 4px;
   font-weight: 600;
@@ -620,7 +620,7 @@ body {
 }
 
 .workout-analysis-title {
-  font-size: 13.5pt;
+  font-size: 9pt;
   font-weight: 600;
   color: var(--blue-dark);
   margin-bottom: 6px;
@@ -628,7 +628,7 @@ body {
 }
 
 .workout-analysis-text {
-  font-size: 12pt;
+  font-size: 8pt;
   line-height: 1.6;
   color: var(--text-secondary);
   font-family: 'Noto Serif SC', serif;
@@ -658,7 +658,7 @@ body {
 }
 
 .ai-priority {
-  font-size: 12pt;
+  font-size: 8pt;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -670,7 +670,7 @@ body {
 .ai-rec-low .ai-priority { color: var(--blue-dark); }
 
 .ai-title {
-  font-size: 18pt;
+  font-size: 12pt;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 15px;
@@ -678,7 +678,7 @@ body {
 }
 
 .ai-content {
-  font-size: 13.5pt;
+  font-size: 9pt;
   line-height: 1.8;
   color: var(--text-secondary);
   font-family: 'Noto Serif SC', serif;
@@ -697,7 +697,7 @@ body {
 }
 
 .diet-title {
-  font-size: 18pt;
+  font-size: 12pt;
   font-weight: 600;
   color: var(--green-dark);
   margin-bottom: 15px;
@@ -708,7 +708,7 @@ body {
   background: var(--white);
   border-radius: 8px;
   padding: 20px;
-  font-size: 13.5pt;
+  font-size: 9pt;
   line-height: 1.8;
   color: var(--text-secondary);
   font-family: 'Noto Serif SC', serif;
@@ -738,7 +738,7 @@ body {
   text-align: center;
   padding: 25px;
   color: var(--text-secondary);
-  font-size: 12pt;
+  font-size: 8pt;
   font-family: 'Noto Serif SC', serif;
 }
 

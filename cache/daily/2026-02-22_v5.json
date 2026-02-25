@@ -2,29 +2,39 @@
   "date": "2026-02-22",
   "hrv": {
     "value": 53.4,
-    "points": 58,
-    "analysis": "心率变异性今日为53.4ms（基于58个数据点测量）。较昨日45.7ms上升7.7ms（+16.8%），趋势显著改善。从生理机制看，HRV反映自主神经系统调节能力。您的数值已进入理想区间（50-65ms），表明副交感神经活动增强，身体恢复潜力和压力适应力良好。"
+    "points": 58
   },
   "resting_hr": {
     "value": 58
   },
   "steps": 728,
-  "active_energy": 0,
-  "spo2": 95.0,
-  "workouts": [],
-  "has_workout": false,
-  "sleep": {
-    "total": 4.79,
-    "deep": 0.89,
-    "core": 2.61,
-    "rem": 1.3,
-    "awake": 0.07
+  "active_energy_kj": 0,
+  "active_energy_kcal": 0,
+  "spo2": {
+    "value": 95.0,
+    "points": 21
   },
-  "ai_summary": {
-    "priority": "睡眠严重不足",
-    "hrv_trend": "上升 (+16.8%)",
-    "sleep_issue": "仅4.79小时，较昨日减少2.92小时",
-    "exercise_issue": "步数728步，活动能量0kcal",
-    "key_recommendation": "今晚22:30前就寝，保证7-8小时睡眠"
-  }
+  "sleep": {
+    "total_hours": 1.26,
+    "deep_hours": 0.89,
+    "core_hours": 2.61,
+    "rem_hours": 1.3,
+    "awake_hours": 0.13,
+    "records": [
+      {
+        "total": 1.262192126678096,
+        "deep": 0.8860389394230312,
+        "core": 2.6078627639015517,
+        "rem": 1.2955762016442085,
+        "awake": 0.12538151191340552,
+        "start": "2026-02-23 05:04:26 +0800",
+        "end": "2026-02-23 17:21:22 +0800"
+      }
+    ]
+  },
+  "sleep_source_file": "/Users/jimmylu/我的云端硬盘/Health Auto Export/Health Data/HealthAutoExport-2026-02-23.json",
+  "workouts": [],
+  "workouts_count": 0,
+  "data_source": "Apple Health",
+  "extraction_method": "时间窗口法 (20:00-12:00)"
 }

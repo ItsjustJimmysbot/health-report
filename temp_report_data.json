@@ -1,0 +1,56 @@
+{
+  "date": "2026-02-22",
+  "scores": {
+    "recovery": {
+      "value": 90,
+      "class": "rating-excellent",
+      "text": "优秀"
+    },
+    "sleep": {
+      "value": 30,
+      "class": "rating-poor",
+      "text": "需改善"
+    },
+    "exercise": {
+      "value": 50,
+      "class": "rating-average",
+      "text": "一般"
+    }
+  },
+  "data": {
+    "hrv": {
+      "value": 53.4,
+      "points": 58
+    },
+    "resting_hr": {
+      "value": 58,
+      "points": 1
+    },
+    "steps": 728,
+    "distance": 0.54,
+    "active_energy": 0,
+    "flights": 0,
+    "stand_time": 8,
+    "spo2": 95.0,
+    "basal_energy": 1646,
+    "respiratory": {
+      "value": 15.5,
+      "points": 65
+    },
+    "sleep": {
+      "total": 4.79,
+      "deep": 0.89,
+      "core": 2.61,
+      "rem": 1.3,
+      "awake": 0.07
+    },
+    "workouts": [],
+    "has_workout": false
+  },
+  "sleep_pct": {
+    "deep": 19,
+    "core": 54,
+    "rem": 27,
+    "awake": 1
+  }
+}
