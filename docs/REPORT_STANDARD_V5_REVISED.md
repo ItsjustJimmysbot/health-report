@@ -15,6 +15,50 @@
 
 ## 🚫 绝对禁止规则（V5.0强制执行）
 
+### 0. 【最高优先级】禁止编写临时/简化脚本
+
+**⚠️ 红线规定**: **任何时候都禁止编写临时、简化、测试版的脚本。只允许在现有正式脚本上修改。**
+
+**禁止行为**:
+```bash
+# ❌ 绝对禁止 - 创建新的简化脚本
+scripts/generate_report.py          # 简化版 - 禁止！
+scripts/extract_health_data.py      # 临时版 - 禁止！
+scripts/test_*.py                   # 测试脚本 - 禁止！
+health-report.sh                    # 临时入口 - 禁止！
+
+# ❌ 绝对禁止 - 绕过现有脚本直接生成
+python3 -c "...临时代码..."         # 临时代码 - 禁止！
+
+# ❌ 绝对禁止 - 复制/修改现有脚本创建新版本
+scripts/generate_v5_medical_dashboard_v2.py  # 副本 - 禁止！
+```
+
+**正确做法**:
+```bash
+# ✅ 正确 - 只在现有正式脚本上修改
+scripts/extract_data_v5.py                    # ✓ 现有正式脚本
+scripts/generate_v5_medical_dashboard.py      # ✓ 现有正式脚本  
+scripts/generate_weekly_monthly_medical.py    # ✓ 现有正式脚本
+
+# ✅ 正确 - 修改现有脚本而非创建新的
+# 需要新功能？→ 修改 extract_data_v5.py
+# 需要修复bug？→ 修改 generate_v5_medical_dashboard.py
+```
+
+**现有正式脚本清单（只允许修改这些）**:
+- `scripts/extract_data_v5.py` - 数据提取
+- `scripts/generate_v5_medical_dashboard.py` - 日报生成
+- `scripts/generate_weekly_monthly_medical.py` - 周报/月报生成
+- `scripts/validate_ai_analysis.py` - AI验证
+
+**违规后果**: 
+- 立即删除临时脚本
+- 使用现有正式脚本重新生成
+- 记录违规，强化流程培训
+
+---
+
 ### 1. 禁止使用Subagent生成报告
 
 **旧版问题**: 使用`sessions_spawn`导致错误无法实时发现，多次返工浪费token

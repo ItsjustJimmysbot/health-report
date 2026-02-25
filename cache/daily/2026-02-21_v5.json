@@ -1,0 +1,40 @@
+{
+  "date": "2026-02-21",
+  "hrv": {
+    "value": 45.7,
+    "points": 69
+  },
+  "resting_hr": {
+    "value": 65
+  },
+  "steps": 2688,
+  "active_energy_kj": 0,
+  "active_energy_kcal": 0,
+  "spo2": {
+    "value": 97.3,
+    "points": 20
+  },
+  "sleep": {
+    "total_hours": 7.71,
+    "deep_hours": 1.35,
+    "core_hours": 4.05,
+    "rem_hours": 2.32,
+    "awake_hours": 0.23,
+    "records": [
+      {
+        "total": 7.714845594565074,
+        "deep": 1.3456868665748174,
+        "core": 4.045534592734443,
+        "rem": 2.3236241352558133,
+        "awake": 0.2256740755505032,
+        "start": "2026-02-22 03:46:39 +0800",
+        "end": "2026-02-22 11:43:04 +0800"
+      }
+    ]
+  },
+  "sleep_source_file": "/Users/jimmylu/我的云端硬盘/Health Auto Export/Health Data/HealthAutoExport-2026-02-22.json",
+  "workouts": [],
+  "workouts_count": 0,
+  "data_source": "Apple Health",
+  "extraction_method": "时间窗口法 (20:00-12:00)"
+}

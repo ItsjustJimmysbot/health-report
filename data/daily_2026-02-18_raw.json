@@ -1,0 +1,28 @@
+{
+  "date": "2026-02-18",
+  "data_source": "Apple Health",
+  "hrv": {
+    "value": 46.4,
+    "points": 26
+  },
+  "resting_hr": {
+    "value": 64
+  },
+  "steps": 1993,
+  "distance_km": 1.43,
+  "active_energy_kcal": 0.0,
+  "flights_climbed": 0,
+  "stand_time_min": 35,
+  "spo2": 95.6,
+  "basal_energy_kcal": 1640.2,
+  "respiratory_rate": 14.5,
+  "sleep": {
+    "total_hours": 2.82,
+    "deep_hours": 0,
+    "core_hours": 0,
+    "rem_hours": 0,
+    "awake_hours": 0,
+    "records": 1
+  },
+  "workouts": []
+}

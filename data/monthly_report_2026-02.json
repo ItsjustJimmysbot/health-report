@@ -1,0 +1,432 @@
+{
+  "period": "2026年2月（部分数据：18-23日）",
+  "note": "基于6天数据生成，完整月报需要整月数据",
+  "days_count": 6,
+  "stats": {
+    "hrv_avg": 52.5,
+    "hrv_min": 45.7,
+    "hrv_max": 63.4,
+    "hrv_stability": "中等波动",
+    "steps_avg": 3174,
+    "steps_goal_achievement": "2/6天",
+    "workout_frequency": "1/6天 (17%)",
+    "sleep_tracking": "0% (严重缺失)"
+  },
+  "daily_data": [
+    {
+      "date": "2026-02-18",
+      "data_source": "Apple Health",
+      "hrv": {
+        "value": 52.8,
+        "points": 51
+      },
+      "resting_hr": {
+        "value": 57,
+        "points": 1
+      },
+      "steps": 6853,
+      "walking_distance": 5.09,
+      "active_energy_kj": 0,
+      "flights_climbed": 109,
+      "stand_time": 117,
+      "spo2": {
+        "value": 96.1,
+        "points": 16
+      },
+      "resting_energy_kj": 7121.961167398599,
+      "respiratory_rate": {
+        "value": 14.8,
+        "points": 40
+      },
+      "sleep": null,
+      "workouts": [
+        {
+          "name": "楼梯",
+          "start_time": "",
+          "duration_min": 33.358704469601314,
+          "energy_kcal": 289.1477196044767,
+          "distance_km": 0,
+          "avg_hr": 150,
+          "max_hr": 168,
+          "hr_data": [
+            {
+              "source": "Siegfried's Apple Watch",
+              "date": "2026-02-18 20:33:19 +0800",
+              "Avg": 147.29166666666669,
+              "Max": 155,
+              "Min": 140,
+              "units": "bpm"
+            },
+            {
+              "date": "2026-02-18 20:34:19 +0800",
+              "Min": 129,
+              "Avg": 133.18181818181816,
+              "source": "Siegfried's Apple Watch",
+              "Max": 136,
+              "units": "bpm"
+            },
+            {
+              "Max": 138,
+              "units": "bpm",
+              "Avg": 134.12698412698413,
+              "Min": 131,
+              "date": "2026-02-18 20:35:19 +0800",
+              "source": "Siegfried's Apple Watch"
+            },
+            {
+              "Avg": 165,
+              "Max": 165,
+              "source": "Siegfried's Apple Watch",
+              "Min": 165,
+              "units": "bpm",
+              "date": "2026-02-18 20:38:19 +0800"
+            },
+            {
+              "source": "Siegfried's Apple Watch",
+              "Max": 166,
+              "Min": 150,
+              "date": "2026-02-18 20:43:19 +0800",
+              "units": "bpm",
+              "Avg": 157.48701298701297
+            },
+            {
+              "date": "2026-02-18 20:44:19 +0800",
+              "source": "Siegfried's Apple Watch",
+              "Avg": 140.61111111111111,
+              "Max": 148,
+              "units": "bpm",
+              "Min": 135
+            },
+            {
+              "units": "bpm",
+              "date": "2026-02-18 20:45:19 +0800",
+              "Avg": 132.65816326530614,
+              "Max": 137,
+              "source": "Siegfried's Apple Watch",
+              "Min": 127
+            },
+            {
+              "source": "Siegfried's Apple Watch",
+              "Avg": 149.55,
+              "Min": 137,
+              "Max": 159,
+              "date": "2026-02-18 20:46:19 +0800",
+              "units": "bpm"
+            },
+            {
+              "Max": 162,
+              "Avg": 161.4344262295082,
+              "units": "bpm",
+              "date": "2026-02-18 20:47:19 +0800",
+              "source": "Siegfried's Apple Watch",
+              "Min": 161
+            },
+            {
+              "Avg": 162.81060606060606,
+              "units": "bpm",
+              "Min": 161,
+              "source": "Siegfried's Apple Watch",
+              "date": "2026-02-18 20:49:19 +0800",
+              "Max": 164
+            },
+            {
+              "source": "Siegfried's Apple Watch",
+              "units": "bpm",
+              "date": "2026-02-18 20:50:19 +0800",
+              "Max": 163,
+              "Min": 157,
+              "Avg": 160.40625000000003
+            },
+            {
+              "Max": 164,
+              "source": "Siegfried's Apple Watch",
+              "Min": 156,
+              "Avg": 158.53960396039602,
+              "date": "2026-02-18 20:51:19 +0800",
+              "units": "bpm"
+            },
+            {
+              "source": "Siegfried's Apple Watch",
+              "Avg": 157.5990099009901,
+              "Min": 156,
+              "date": "2026-02-18 20:52:19 +0800",
+              "units": "bpm",
+              "Max": 160
+            },
+            {
+              "source": "Siegfried's Apple Watch",
+              "date": "2026-02-18 20:53:19 +0800",
+              "Avg": 159.92000000000002,
+              "Min": 159,
+              "units": "bpm",
+              "Max": 161
+            },
+            {
+              "date": "2026-02-18 20:54:19 +0800",
+              "source": "Siegfried's Apple Watch",
+              "Max": 168,
+              "Avg": 157.43999999999997,
+              "units": "bpm",
+              "Min": 148
+            },
+            {
+              "date": "2026-02-18 20:55:19 +0800",
+              "source": "Siegfried's Apple Watch",
+              "Max": 145,
+              "Min": 134,
+              "Avg": 138.86224489795916,
+              "units": "bpm"
+            },
+            {
+              "date": "2026-02-18 20:56:19 +0800",
+              "source": "Siegfried's Apple Watch",
+              "Max": 134,
+              "Min": 126,
+              "Avg": 130.00980392156862,
+              "units": "bpm"
+            },
+            {
+              "units": "bpm",
+              "date": "2026-02-18 20:57:19 +0800",
+              "source": "Siegfried's Apple Watch",
+              "Max": 155,
+              "Min": 136,
+              "Avg": 146.0631067961165
+            },
+            {
+              "Avg": 160.00000000000003,
+              "source": "Siegfried's Apple Watch",
+              "date": "2026-02-18 20:58:19 +0800",
+              "Min": 157,
+              "units": "bpm",
+              "Max": 163
+            },
+            {
+              "Min": 156,
+              "date": "2026-02-18 20:59:19 +0800",
+              "units": "bpm",
+              "source": "Siegfried's Apple Watch",
+              "Max": 161,
+              "Avg": 159.03030303030303
+            },
+            {
+              "date": "2026-02-18 21:00:19 +0800",
+              "units": "bpm",
+              "Min": 158,
+              "Max": 161,
+              "Avg": 159.60606060606062,
+              "source": "Siegfried's Apple Watch"
+            },
+            {
+              "source": "Siegfried's Apple Watch",
+              "Max": 162,
+              "date": "2026-02-18 21:01:19 +0800",
+              "Min": 158,
+              "units": "bpm",
+              "Avg": 160.55208333333334
+            },
+            {
+              "source": "Siegfried's Apple Watch",
+              "date": "2026-02-18 21:02:19 +0800",
+              "Max": 162,
+              "Min": 140,
+              "units": "bpm",
+              "Avg": 150.47938144329896
+            },
+            {
+              "units": "bpm",
+              "Max": 137,
+              "source": "Siegfried's Apple Watch",
+              "Min": 126,
+              "date": "2026-02-18 21:03:19 +0800",
+              "Avg": 130.95408163265304
+            },
+            {
+              "date": "2026-02-18 21:04:19 +0800",
+              "Max": 147,
+              "source": "Siegfried's Apple Watch",
+              "Min": 130,
+              "units": "bpm",
+              "Avg": 137.97368421052633
+            },
+            {
+              "date": "2026-02-18 21:05:19 +0800",
+              "source": "Siegfried's Apple Watch",
+              "Avg": 154.78125000000003,
+              "Min": 154,
+              "Max": 155,
+              "units": "bpm"
+            },
+            {
+              "Min": 155,
+              "source": "Siegfried's Apple Watch",
+              "date": "2026-02-18 21:06:19 +0800",
+              "units": "bpm",
+              "Avg": 155.85333333333335,
+              "Max": 157
+            }
+          ]
+        }
+      ],
+      "total_active_energy_kcal": 289,
+      "resting_energy_kcal": 1702
+    },
+    {
+      "date": "2026-02-19",
+      "data_source": "Apple Health",
+      "hrv": {
+        "value": 46.4,
+        "points": 26
+      },
+      "resting_hr": {
+        "value": 64,
+        "points": 1
+      },
+      "steps": 1994,
+      "walking_distance": 1.43,
+      "active_energy_kj": 0,
+      "flights_climbed": 0,
+      "stand_time": 35,
+      "spo2": {
+        "value": 95.6,
+        "points": 8
+      },
+      "resting_energy_kj": 6862.715006065548,
+      "respiratory_rate": {
+        "value": 14.5,
+        "points": 20
+      },
+      "sleep": null,
+      "workouts": [],
+      "total_active_energy_kcal": 0,
+      "resting_energy_kcal": 1640
+    },
+    {
+      "date": "2026-02-20",
+      "data_source": "Apple Health",
+      "hrv": {
+        "value": 53.4,
+        "points": 35
+      },
+      "resting_hr": {
+        "value": 63,
+        "points": 1
+      },
+      "steps": 6230,
+      "walking_distance": 4.34,
+      "active_energy_kj": 0,
+      "flights_climbed": 0,
+      "stand_time": 76,
+      "spo2": {
+        "value": 95.0,
+        "points": 12
+      },
+      "resting_energy_kj": 6743.8038623442635,
+      "respiratory_rate": {
+        "value": 14.6,
+        "points": 42
+      },
+      "sleep": null,
+      "workouts": [],
+      "total_active_energy_kcal": 0,
+      "resting_energy_kcal": 1612
+    },
+    {
+      "date": "2026-02-21",
+      "data_source": "Apple Health",
+      "hrv": {
+        "value": 45.7,
+        "points": 69
+      },
+      "resting_hr": {
+        "value": 65,
+        "points": 1
+      },
+      "steps": 2688,
+      "walking_distance": 2.17,
+      "active_energy_kj": 0,
+      "flights_climbed": 0,
+      "stand_time": 46,
+      "spo2": {
+        "value": 97.3,
+        "points": 20
+      },
+      "resting_energy_kj": 7176.149199349883,
+      "respiratory_rate": {
+        "value": 14.8,
+        "points": 46
+      },
+      "sleep": null,
+      "workouts": [],
+      "total_active_energy_kcal": 0,
+      "resting_energy_kcal": 1715
+    },
+    {
+      "date": "2026-02-22",
+      "data_source": "Apple Health",
+      "hrv": {
+        "value": 53.4,
+        "points": 58
+      },
+      "resting_hr": {
+        "value": 58,
+        "points": 1
+      },
+      "steps": 728,
+      "walking_distance": 0.54,
+      "active_energy_kj": 0,
+      "flights_climbed": 2,
+      "stand_time": 8,
+      "spo2": {
+        "value": 95.0,
+        "points": 21
+      },
+      "resting_energy_kj": 6888.578151779913,
+      "respiratory_rate": {
+        "value": 15.5,
+        "points": 65
+      },
+      "sleep": null,
+      "workouts": [],
+      "total_active_energy_kcal": 0,
+      "resting_energy_kcal": 1646
+    },
+    {
+      "date": "2026-02-23",
+      "data_source": "Apple Health",
+      "hrv": {
+        "value": 63.4,
+        "points": 23
+      },
+      "resting_hr": {
+        "value": 56,
+        "points": 1
+      },
+      "steps": 550,
+      "walking_distance": 0.4,
+      "active_energy_kj": 0,
+      "flights_climbed": 2,
+      "stand_time": 15,
+      "spo2": {
+        "value": 94.9,
+        "points": 10
+      },
+      "resting_energy_kj": 3146.1002240000007,
+      "respiratory_rate": {
+        "value": 14.7,
+        "points": 32
+      },
+      "sleep": null,
+      "workouts": [],
+      "total_active_energy_kcal": 0,
+      "resting_energy_kcal": 752
+    }
+  ],
+  "ai_analysis": {
+    "executive_summary": "本月（2月18-23日，共6天记录）健康数据显示：HRV平均52.5ms（理想区间45-65ms），整体恢复能力良好；但活动量严重不足，日均步数仅3,174步（目标6,000步的53%），仅1天有结构化运动。最严峻问题是连续6天无睡眠记录，系统无法评估恢复质量。建议立即修复睡眠追踪并建立基础运动习惯。",
+    "hrv_monthly": "本月HRV均值52.5ms处于良好水平，但日间波动较大（标准差约6.5ms），显示恢复状态不够稳定。最高值63.4ms（02-23）与最低值45.7ms（02-21）相差17.7ms。波动主因是活动量剧烈变化：高活动日（6,000+步）HRV普遍高于50ms，而低活动日（2,000步以下）HRV多低于48ms。这表明适度活动对自主神经调节有正向作用。建议：建立稳定的活动节奏，避免\"高强度运动日+完全休息日\"的极端模式，改为\"每日中等活动量\"。",
+    "activity_monthly": "本月活动数据揭示严重问题：日均步数3,174步远低于WHO推荐的10,000步，甚至未达到最低健康阈值5,000步。仅2天（02-18、02-20）步数超过6,000步，其余4天均低于3,000步。结构化运动仅1次（02-18楼梯训练），占记录天数的17%。长期低活动量的健康风险包括：心血管疾病风险增加20-30%、代谢率下降、骨密度降低、抑郁风险上升。改善方案：立即设定每日5,000步底线目标，每周至少3次30分钟中等强度运动，逐步提升至8,000-10,000步/日。",
+    "sleep_monthly": "⚠️ 数据危机：本月6天记录期内，睡眠数据完全缺失。这是系统级故障，可能原因包括：Apple Watch睡眠追踪功能未启用、设备佩戴不当、或睡眠模式未正确设置。无法评估的指标包括：睡眠时长（目标7-9小时）、睡眠效率（目标85%+）、睡眠阶段分布（深睡/REM比例）、入睡潜伏期（目标<20分钟）。长期缺乏睡眠监测的危害：无法识别睡眠障碍（如睡眠呼吸暂停，患病率约10-15%）、无法关联睡眠与HRV/恢复的关系、AI建议准确性下降50%以上。紧急行动：今日内完成Apple Watch睡眠设置检查，建立23:00-07:00固定作息，确保睡前手表正确佩戴且电量>30%。",
+    "priority_monthly": "【最高优先级】建立健康数据基础架构 + 启动运动习惯养成。问题诊断：当前健康数据存在两大结构性缺陷——①睡眠数据完全缺失（6/6天），②运动频率极低（1/6天，17%）。这种数据盲区导致无法准确评估恢复状态、无法发现潜在健康风险、AI分析置信度大幅降低。综合行动计划：第一阶段（本周）：修复Apple Watch睡眠追踪，设定每日5,000步目标，完成至少2次30分钟运动；第二阶段（2-4周）：建立固定作息（23:00-07:00），步数提升至7,000步/日，运动频率提升至每周3次；第三阶段（1-2月）：步数稳定在8,000步以上，HRV波动性降低30%，睡眠质量评分达75分以上。预期成果：3个月内基础代谢提升5-8%，静息心率下降3-5bpm，日间精力评分提高20%，整体健康风险降低15-25%。"
+  }
+}

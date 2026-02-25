@@ -1,0 +1,18 @@
+{
+  "period": "2026-02-18 to 2026-02-22",
+  "days_count": 5,
+  "summary": {
+    "avg_hrv": 50.3,
+    "avg_steps": 3698,
+    "avg_sleep": 5.81,
+    "workout_days": 1,
+    "avg_recovery": 88
+  },
+  "key_findings": [
+    "HRV整体良好但波动较大（标准差3.9ms）",
+    "睡眠平均5.81h，仅2/5天达标",
+    "步数平均3698步，远低于10,000步目标",
+    "工作日活动量持续下降"
+  ],
+  "priority": "稳定睡眠时长，恢复日常活动量"
+}
