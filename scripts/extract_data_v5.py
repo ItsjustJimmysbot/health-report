@@ -73,14 +73,14 @@ def parse_sleep_data_v5(date_str):
     return sleep_records
 
 def extract_workout_data(date_str):
-    """提取运动数据"""
+    """提取运动数据 - V5.1.1-fix: 从当日文件读取"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
-    next_date = (date + timedelta(days=1)).strftime('%Y-%m-%d')
     
+    # V5.1.1-fix: 运动数据从当日文件读取
     # 先检查workout目录
-    workout_file = WORKOUT_DIR / f'HealthAutoExport-{next_date}.json'
+    workout_file = WORKOUT_DIR / f'HealthAutoExport-{date_str}.json'
     if not workout_file.exists():
-        workout_file = HEALTH_DIR / f'HealthAutoExport-{next_date}.json'
+        workout_file = HEALTH_DIR / f'HealthAutoExport-{date_str}.json'
     
     if not workout_file.exists():
         return []
@@ -118,7 +118,7 @@ def extract_workout_data(date_str):
             'duration_min': w.get('duration', 0) / 60 if w.get('duration') else 0,
             'avg_hr': round(avg_hr) if avg_hr else None,
             'max_hr': round(max_hr) if max_hr else None,
-            'energy_kcal': w.get('activeEnergyBurned', 0) / 4.184 if w.get('activeEnergyBurned') else 0,
+            'energy_kcal': (w.get('activeEnergyBurned', {}).get('qty', 0) if isinstance(w.get('activeEnergyBurned'), dict) else w.get('activeEnergyBurned', 0)) / 4.184,
             'hr_data': w.get('heartRateData', [])
         })
     
@@ -129,27 +129,41 @@ def extract_daily_data(date_str):
     date = datetime.strptime(date_str, '%Y-%m-%d')
     next_date = (date + timedelta(days=1)).strftime('%Y-%m-%d')
     
-    filepath = HEALTH_DIR / f'HealthAutoExport-{next_date}.json'
-    if not filepath.exists():
-        print(f"❌ 文件不存在: {filepath}", file=sys.stderr)
-        return None
+    # V5.1.1-fix: 活动数据从当日文件读取，睡眠数据从次日文件读取
+    # 当日文件（用于活动数据）
+    today_filepath = HEALTH_DIR / f'HealthAutoExport-{date_str}.json'
+    # 次日文件（用于睡眠数据）
+    next_filepath = HEALTH_DIR / f'HealthAutoExport-{next_date}.json'
     
-    with open(filepath, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    # 读取当日文件（活动数据）
+    if today_filepath.exists():
+        with open(today_filepath, 'r', encoding='utf-8') as f:
+            today_data = json.load(f)
+        today_metrics = {m['name']: m for m in today_data.get('data', {}).get('metrics', [])}
+    else:
+        print(f"⚠️ 当日文件不存在: {today_filepath}", file=sys.stderr)
+        today_metrics = {}
     
-    metrics = {m['name']: m for m in data.get('data', {}).get('metrics', [])}
+    # 读取次日文件（睡眠数据）
+    if next_filepath.exists():
+        with open(next_filepath, 'r', encoding='utf-8') as f:
+            next_data = json.load(f)
+        next_metrics = {m['name']: m for m in next_data.get('data', {}).get('metrics', [])}
+    else:
+        print(f"⚠️ 次日文件不存在: {next_filepath}", file=sys.stderr)
+        next_metrics = {}
     
-    # 提取各项指标
-    hrv_raw, hrv_points = extract_metric_avg(metrics, 'heart_rate_variability')
-    resting_hr_raw, _ = extract_metric_avg(metrics, 'resting_heart_rate')
-    steps = extract_metric_sum(metrics, 'step_count')
-    distance = extract_metric_sum(metrics, 'walking_running_distance')  # km
-    active_energy = extract_metric_sum(metrics, 'active_energy_burned')  # kJ
-    flights = extract_metric_avg(metrics, 'flights_climbed')[0] or 0
-    stand_time = extract_metric_sum(metrics, 'apple_stand_time')  # min
+    # 提取日间活动指标（从当日文件）
+    hrv_raw, hrv_points = extract_metric_avg(today_metrics, 'heart_rate_variability')
+    resting_hr_raw, _ = extract_metric_avg(today_metrics, 'resting_heart_rate')
+    steps = extract_metric_sum(today_metrics, 'step_count')
+    distance = extract_metric_sum(today_metrics, 'walking_running_distance')  # km
+    active_energy = extract_metric_sum(today_metrics, 'active_energy_burned')  # kJ
+    flights = extract_metric_sum(today_metrics, 'flights_climbed')  # V5.1.1-fix: 使用累加而非平均
+    stand_time = extract_metric_sum(today_metrics, 'apple_stand_time')  # min
     
-    # 血氧 - 智能单位判断
-    spo2_raw, _ = extract_metric_avg(metrics, 'blood_oxygen_saturation')
+    # 血氧 - 智能单位判断（从当日文件）
+    spo2_raw, _ = extract_metric_avg(today_metrics, 'blood_oxygen_saturation')
     if spo2_raw and spo2_raw > 1:
         spo2 = spo2_raw
     elif spo2_raw:
@@ -157,8 +171,8 @@ def extract_daily_data(date_str):
     else:
         spo2 = None
     
-    basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
-    respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
+    basal_energy = extract_metric_sum(today_metrics, 'basal_energy_burned')  # kJ
+    respiratory, _ = extract_metric_avg(today_metrics, 'respiratory_rate')
     
     # 睡眠数据
     sleep_records = parse_sleep_data_v5(date_str)
