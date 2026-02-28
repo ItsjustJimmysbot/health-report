@@ -239,9 +239,11 @@ def _extract_sleep_hours(date_str: str, health_dir: Path = None):
     m2 = _parse_metrics(next_date, health_dir)
 
     deep = core = rem = awake = 0.0
+    bedtime = None
+    waketime = None
 
     def consume(metrics):
-        nonlocal deep, core, rem, awake
+        nonlocal deep, core, rem, awake, bedtime, waketime
         recs = metrics.get('sleep_analysis', {}).get('data', []) if metrics else []
         for row in recs:
             st = row.get('sleepStart') or row.get('startDate')
@@ -259,6 +261,14 @@ def _extract_sleep_hours(date_str: str, health_dir: Path = None):
             core += float(row.get('core') or 0)
             rem += float(row.get('rem') or 0)
             awake += float(row.get('awake') or 0)
+            
+            # V5.1.1-fix: 提取入睡和起床时间
+            sleep_start = row.get('sleepStart')
+            sleep_end = row.get('sleepEnd')
+            if sleep_start:
+                bedtime = sleep_start[11:16]  # Extract HH:MM
+            if sleep_end:
+                waketime = sleep_end[11:16]  # Extract HH:MM
 
     consume(m1)
     consume(m2)
@@ -272,6 +282,8 @@ def _extract_sleep_hours(date_str: str, health_dir: Path = None):
         'core': round(core, 2) if core > 0 else 0,
         'rem': round(rem, 2) if rem > 0 else 0,
         'awake': round(awake, 2) if awake > 0 else 0,
+        'bedtime': bedtime or '--',
+        'waketime': waketime or '--',
     }
 
 
@@ -288,7 +300,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     rhr_vals = _values(metrics, 'resting_heart_rate', date_str)
     steps_vals = _values(metrics, 'step_count', date_str)
     dist_vals = _values(metrics, 'walking_running_distance', date_str)
-    active_vals = _values(metrics, 'active_energy', date_str)
+    active_vals = _values(metrics, 'active_energy_burned', date_str)  # V5.1.1-fix: 正确的指标名
     spo2_vals = _values(metrics, 'blood_oxygen_saturation', date_str)
     flights_vals = _values(metrics, 'flights_climbed', date_str)
     stand_vals = _values(metrics, 'apple_stand_time', date_str)
@@ -362,13 +374,20 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
                 'hr_timeline': [x for x in timeline if x.get('avg') is not None or x.get('max') is not None]
             })
 
+    # V5.1.1-fix: 计算总活动能量（日常活动 + 运动能量）
+    workout_energy_total = sum(w.get('energy_kcal', 0) for w in workouts)
+    if active_kcal is not None:
+        total_active_kcal = active_kcal + workout_energy_total
+    else:
+        total_active_kcal = workout_energy_total if workout_energy_total > 0 else None
+
     data = {
         'date': date_str,
         'hrv': {'value': round(_avg(hrv_vals), 1) if hrv_vals else None, 'points': len(hrv_vals)},
         'resting_hr': {'value': round(_avg(rhr_vals)) if rhr_vals else None},
         'steps': int(_sum(steps_vals)) if steps_vals else None,
         'distance': round(_sum(dist_vals), 2) if dist_vals else None,
-        'active_energy': int(round(active_kcal)) if active_kcal is not None else None,
+        'active_energy': int(round(total_active_kcal)) if total_active_kcal is not None else None,
         'spo2': round(spo2, 1) if spo2 is not None else None,
         'flights_climbed': int(_sum(flights_vals)) if flights_vals else None,
         'apple_stand_time': int(_sum(stand_vals)) if stand_vals else None,  # 分钟
@@ -506,7 +525,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     hrv_v = data['hrv']['value'] or 0
     rhr_v = data['resting_hr']['value'] or 999
     steps_v = data['steps'] or 0
-    active_v = data['active_energy'] or 0
+    active_v = data.get('active_energy') or data.get('active_energy_kcal') or 0
 
     recovery = min(100, 70 + (10 if hrv_v > 50 else 0) + (10 if rhr_v < 65 else 0) + (10 if sleep_hours > 7 else 0))
     sleep_score = 30 if sleep_hours < 6 else 50 if sleep_hours < 7 else 70 if sleep_hours < 8 else 80
@@ -610,6 +629,10 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SLEEP_REM_PCT}}', str(int((s.get('rem', 0) / t) * 100)))
     html = html.replace('{{SLEEP_AWAKE_PCT}}', str(int((s.get('awake', 0) / t) * 100)))
     html = html.replace('{{SLEEP_ANALYSIS_TEXT}}', sleep_analysis)
+    
+    # V5.1.1-fix: 添加入睡时间和起床时间
+    html = html.replace('{{SLEEP_BEDTIME}}', s.get('bedtime', '--'))
+    html = html.replace('{{SLEEP_WAKETIME}}', s.get('waketime', '--'))
 
     # 运动 section（有运动才画图）- 显示所有运动记录
     if data.get('has_workout') and data.get('workouts'):
@@ -842,7 +865,7 @@ if __name__ == '__main__':
             hrv_v = data['hrv']['value'] or 0
             rhr_v = data['resting_hr']['value'] or 999
             steps_v = data['steps'] or 0
-            active_v = data['active_energy'] or 0
+            active_v = data.get('active_energy') or data.get('active_energy_kcal') or 0
             recovery = min(100, 70 + (10 if hrv_v > 50 else 0) + (10 if rhr_v < 65 else 0) + (10 if sleep_hours > 7 else 0))
             sleep_score = 30 if sleep_hours < 6 else 50 if sleep_hours < 7 else 70 if sleep_hours < 8 else 80
             exercise = min(100, 50 + (15 if data.get('has_workout') else 0) + (10 if active_v > 500 else 0) + min(25, steps_v // 400))
@@ -876,7 +899,7 @@ if __name__ == '__main__':
                     'hrv': data['hrv'],
                     'resting_hr': data['resting_hr'],
                     'steps': data['steps'],
-                    'active_energy': data['active_energy'],
+                    'active_energy': data.get('active_energy') or data.get('active_energy_kcal') or 0,
                     'spo2': data['spo2'],
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],
