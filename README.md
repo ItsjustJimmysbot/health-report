@@ -1,20 +1,23 @@
-# Health Agent V5.1 - 每日健康报告专业版
+# Health Agent V5.1 - OpenClaw 专业健康分析 Skill
 
-基于 Apple Health 数据与 OpenClaw 大模型分析的个人健康管理系统。V5.1 版本引入了严格的时间戳过滤逻辑和 V2 Medical 医疗感模板，确保数据与分析 100% 对齐。
+这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
 
 ---
 
-## 🚀 快速安装
+## 🚀 快速安装与 Skill 启用
 
 ### 1. 基础环境准备
 在你的 OpenClaw 运行环境中执行：
 ```bash
-cd ~/.openclaw
-git clone -b agent-health https://github.com/ItsjustJimmysbot/health-report.git workspace-health
-cd workspace-health
+cd ~/.openclaw/skills
+git clone https://github.com/ItsjustJimmysbot/health-report.git health-report
+cd health-report
 pip3 install -r requirements.txt
 playwright install chromium
 ```
+
+### 2. Skill 发现
+安装完成后，OpenClaw 会自动通过 `SKILL.md` 发现并启用此 Skill。你可以直接对 OpenClaw 说：“帮我分析昨天的健康数据”或“生成上周的健康周报”。
 
 ### 2. 数据路径配置
 确保你的 [Health Auto Export](https://apps.apple.com/us/app/health-auto-export-json-csv/id111556706) 导出的 JSON 文件同步到了以下路径：
