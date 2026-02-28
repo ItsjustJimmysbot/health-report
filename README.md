@@ -1,224 +1,67 @@
-# Health Report - 每日健康报告
+# Health Agent V5.1 - 每日健康报告专业版
 
-自动生成精美的每日健康报告，整合 Apple Health 和 Google Fit 数据。
+基于 Apple Health 数据与 OpenClaw 大模型分析的个人健康管理系统。V5.1 版本引入了严格的时间戳过滤逻辑和 V2 Medical 医疗感模板，确保数据与分析 100% 对齐。
 
-![报告示例](assets/screenshot.png)
+---
 
-## 功能特点
+## 🚀 快速安装
 
-- 📊 **可视化报告**: 包含心率趋势、睡眠分析、运动记录等图表
-- 📧 **自动邮件**: 每天 12:30 自动发送前一天的报告
-- 🔐 **数据隐私**: 所有数据本地处理，不上传到第三方服务器
-- 📱 **多数据源**: 整合 Apple Watch、iPhone 和 Google Fit 数据
-
-## 系统要求
-
-- macOS 12.0+
-- Python 3.9+
-- Apple Health（iPhone + Apple Watch）
-- Google 账号
-
-## 📚 详细教程
-
-| 步骤 | 教程 | 说明 |
-|------|------|------|
-| 1 | 📱 [Health Auto Export 配置](docs/health-auto-export-setup.md) | iPhone 数据导出到 Google Drive |
-| 2 | 🔑 [Google Fit API 配置](docs/google-fit-setup.md) | Google Cloud 项目创建和授权 |
-| 3 | ⚙️ [交互式安装](#方式一交互式安装推荐) | 完成系统配置 |
-
-## 快速开始
-
-### 方式一：交互式安装（推荐）
-
+### 1. 基础环境准备
+在你的 OpenClaw 运行环境中执行：
 ```bash
-git clone https://github.com/YOUR_USERNAME/health-report.git
-cd health-report
-./install.sh
-```
-
-然后按照提示完成配置。
-
-### 方式二：手动安装
-
-#### 1. 克隆仓库
-
-```bash
-git clone https://github.com/YOUR_USERNAME/health-report.git
-cd health-report
-```
-
-#### 2. 安装依赖
-
-```bash
+cd ~/.openclaw
+git clone -b agent-health https://github.com/ItsjustJimmysbot/health-report.git workspace-health
+cd workspace-health
 pip3 install -r requirements.txt
 playwright install chromium
 ```
 
-#### 3. 配置数据源
+### 2. 数据路径配置
+确保你的 [Health Auto Export](https://apps.apple.com/us/app/health-auto-export-json-csv/id111556706) 导出的 JSON 文件同步到了以下路径：
+*   `~/我的云端硬盘/Health Auto Export/Health Data/`
+*   `~/我的云端硬盘/Health Auto Export/Workout Data/`
 
-**步骤 A：设置 Apple Health 数据导出**
+### 3. OpenClaw 定时任务 (Cron) 配置
+在 OpenClaw 中添加日报任务，建议时间 `12:10`（确保当日数据已同步完成）。
 
-1. 在 iPhone 上下载 [Health Auto Export](https://apps.apple.com/us/app/health-auto-export-json-csv/id111556706) 应用
-2. 打开应用，点击右上角设置图标 ⚙️
-3. 选择 "Export Settings"
-4. 设置导出格式为 **JSON**
-5. 选择导出频率为 **Daily**（每日）
-6. 开启 "Auto Sync to Cloud"
-7. 选择 **Google Drive** 作为同步目标
-8. 登录你的 Google 账号并授权
-9. 设置导出路径为：`Health Auto Export/`
-
-**步骤 B：设置 Google Fit API**
-
-1. 访问 [Google Cloud Console](https://console.cloud.google.com/)
-2. 创建新项目：
-   - 点击项目选择器
-   - 点击 "New Project"
-   - 输入项目名称（如：health-report）
-   - 点击 "Create"
-3. 启用 Fitness API：
-   - 进入 "APIs & Services" → "Library"
-   - 搜索 "Fitness API"
-   - 点击 "Enable"
-4. 创建 OAuth 凭证：
-   - 进入 "APIs & Services" → "Credentials"
-   - 点击 "Create Credentials" → "OAuth client ID"
-   - 选择应用类型 "Desktop app"
-   - 输入名称 "Health Report"
-   - 点击 "Create"
-   - 下载 JSON 凭证文件（client_secret_*.json）
-
-#### 4. 运行配置向导
-
-```bash
-./setup.sh
+**指令内容模板：**
+```text
+【每日健康日报 - V5.1 标准化流程】
+1. 提取数据：读取昨日 Health JSON。
+2. AI 分析：基于当日真实数值（HRV、步数等）生成详细分析（每项≥150字）。
+3. 关键写入：必须使用 write 工具直接将 JSON 写入 ai_analysis.json（禁止使用 edit）。
+4. 渲染生成：
+   cd ~/.openclaw/workspace-health/scripts && \
+   python3 generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ../ai_analysis.json
+5. 发送邮件：
+   python3 send_health_report_email.py $(date -v-1d +%Y-%m-%d)
 ```
 
-向导会引导你：
-- 设置 Google Drive 本地同步路径
-- 导入 Google Fit API 凭证
-- 授权 Google Fit 访问
-- 配置邮件发送设置
-- 设置每日定时任务
+---
 
-#### 5. 测试运行
+## ✨ V5.1 核心特性
 
-```bash
-./scripts/daily_health_report_auto.sh
-```
+*   **真·数据对齐**：彻底修正了 Apple Health 跨天导出的偏移问题。通过对原始数据执行 `00:00-23:59` 严格时间戳过滤，确保 26 号的报告里只有 26 号的数据。
+*   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、11 项核心指标表、Chart.js 动态心率曲线和深度睡眠结构分析。
+*   **原子化工作流**：将原本不稳定的 `edit` 局部替换逻辑升级为全量 `write` JSON 模式，杜绝了在高并发或长文本下的文件编辑冲突。
+*   **跨夜睡眠归属**：完善了睡眠统计逻辑，自动抓取 `当日 20:00` 至 `次日 12:00` 的睡眠记录并归属为当日恢复指标。
 
-如果配置正确，你会收到一封测试邮件。
+---
 
-## 配置说明
+## 🛠️ 常用命令
 
-### 配置文件位置
+*   **测试数据提取**：`python3 scripts/extract_data_v5.py YYYY-MM-DD`
+*   **手动补发邮件**：`python3 scripts/send_health_report_email.py YYYY-MM-DD`
+*   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
 
-配置文件存储在：`~/.openclaw/credentials/`
+---
 
-- `google-fit-credentials.json` - Google OAuth 凭证
-- `google-fit-token.json` - Google Fit 访问令牌
+## 📝 开发者规范 (V5.1)
+*   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例。
+*   **字数红线**：AI 指标分析段落必须在 150-200 字，核心行动建议 250-300 字。
+*   **单日单源**：每份报告必须仅依赖当日产生的 Data Cache JSON。
 
-### 自定义设置
-
-编辑 `scripts/daily_health_report_auto.sh`：
-
-```bash
-# 修改收件邮箱
-RECIPIENT="your-email@example.com"
-
-# 修改报告时间（cron 格式）
-# 默认：30 12 * * * （每天 12:30）
-```
-
-### 数据文件位置
-
-确保 Google Drive 本地同步路径正确：
-
-```
-~/我的云端硬盘/Health Auto Export/
-├── Health Data/
-│   └── HealthAutoExport-YYYY-MM-DD.json
-└── Workout Data/
-    └── HealthAutoExport-YYYY-MM-DD.json
-```
-
-## 报告内容
-
-每日报告包含：
-
-| 模块 | 数据来源 | 说明 |
-|------|----------|------|
-| 恢复度评分 | HRV + 睡眠 + 步数 | 综合评估身体恢复状态 |
-| 睡眠分析 | Google Fit | 20:00-次日 12:00 的睡眠数据 |
-| 全天心率 | Apple Health | 24 小时心率趋势 |
-| 锻炼心率 | Apple Health | 运动期间心率区间 |
-| 活动数据 | Apple Health | 步数、爬楼、距离、卡路里 |
-| 运动记录 | Apple Health | 每次运动的详细数据 |
-| 健康建议 | AI 生成 | 基于数据的个性化建议 |
-
-## 故障排除
-
-### 问题：没有收到邮件
-
-**解决**：
-1. 检查 macOS Mail.app 是否已配置邮箱
-2. 运行 `./scripts/daily_health_report_auto.sh` 查看错误信息
-3. 检查 `~/.openclaw/workspace-health/logs/daily_report.log`
-
-### 问题：睡眠数据为空
-
-**解决**：
-1. 确保 Google Fit 已授权访问
-2. 运行 `./scripts/setup-google-fit-auth.sh` 重新授权
-3. 检查 Health Auto Export 是否正在同步到 Google Drive
-
-### 问题：PDF 中文显示乱码
-
-**解决**：
-确保已安装 Playwright 和 Chromium：
-```bash
-pip3 install playwright
-playwright install chromium
-```
-
-### 问题：找不到数据文件
-
-**解决**：
-1. 检查 Google Drive 是否正确同步到本地
-2. 运行配置向导重新设置路径：
-   ```bash
-   ./setup.sh
-   ```
-
-## 隐私说明
-
-- 所有健康数据仅存储在本地
-- Google Fit API 仅用于读取睡眠数据
-- 邮件通过 macOS Mail.app 本地发送
-- 不会将数据上传到任何第三方服务器
-
-## 技术栈
-
-- Python 3.9+
-- Playwright (PDF 生成)
-- Chart.js (数据可视化)
-- Google Fit API (睡眠数据)
-- Apple Health Export (运动和健康数据)
+---
 
 ## 许可证
-
 MIT License
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 更新日志
-
-### v1.0.0 (2026-02-20)
-- 初始版本发布
-- 支持 Apple Health 数据导入
-- 支持 Google Fit 睡眠数据
-- 自动生成 PDF 报告
-- 邮件自动发送
-- 每日定时任务
