@@ -17,9 +17,14 @@ TEMPLATE_DIR = HOME / '.openclaw' / 'workspace-health' / 'templates'
 OUTPUT_DIR = HOME / '.openclaw' / 'workspace' / 'shared' / 'health-reports' / 'upload'
 CACHE_DIR = HOME / '.openclaw' / 'workspace-health' / 'cache' / 'daily'
 
-def load_cache(date_str):
+def load_cache(date_str, member_name="默认用户"):
     """加载单日缓存数据"""
-    cache_path = CACHE_DIR / f'{date_str}.json'
+    # 优先尝试带成员名的缓存
+    cache_path = CACHE_DIR / f'{date_str}_{member_name}.json'
+    if not cache_path.exists():
+        # 回退到无成员名的旧格式
+        cache_path = CACHE_DIR / f'{date_str}.json'
+    
     if cache_path.exists():
         with open(cache_path, 'r', encoding='utf-8') as f:
             return json.load(f)
