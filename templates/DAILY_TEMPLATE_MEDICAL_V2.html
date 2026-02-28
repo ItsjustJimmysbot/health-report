@@ -892,6 +892,11 @@ body {
 
   {{SLEEP_ALERT}}
 
+  <div style="display: flex; justify-content: center; gap: 30px; margin: 15px 0; font-size: 14px; color: var(--text-secondary);">
+    <div>🌙 入睡时间: <strong>{{SLEEP_BEDTIME}}</strong></div>
+    <div>☀️ 起床时间: <strong>{{SLEEP_WAKETIME}}</strong></div>
+  </div>
+
   <div class="sleep-big">
     <div class="sleep-big-label">总睡眠时长 ({{SLEEP_TOTAL}}h 总计)</div>
     <div class="sleep-big-value">{{SLEEP_HOURS}}<span class="sleep-big-unit">h</span></div>

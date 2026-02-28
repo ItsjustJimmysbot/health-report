@@ -206,9 +206,19 @@ def _parse_metrics(date_str: str, health_dir: Path = None):
     return {m.get('name'): m for m in data.get('data', {}).get('metrics', [])}
 
 
-def _values(metrics: dict, name: str):
+def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
+    
+    # V5.1 修正：严格时间窗口过滤，防止次日数据污染当日指标
+    if target_date:
+        filtered_arr = []
+        for x in arr:
+            st = x.get('startDate') or x.get('date')
+            if st and st.startswith(target_date):
+                filtered_arr.append(x)
+        arr = filtered_arr
+
     vals = [x.get('qty') for x in arr if isinstance(x, dict) and x.get('qty') is not None]
     return vals
 
@@ -269,20 +279,21 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     health_dir = health_dir or DEFAULT_HEALTH_DIR
     workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
     
+    # V5.1 修正：活动数据读取当日文件，严格过滤当日时间戳
     metrics = _parse_metrics(date_str, health_dir)
     if not metrics:
         raise FileNotFoundError(f'未找到源数据: {health_dir}/HealthAutoExport-{date_str}.json')
 
-    hrv_vals = _values(metrics, 'heart_rate_variability')
-    rhr_vals = _values(metrics, 'resting_heart_rate')
-    steps_vals = _values(metrics, 'step_count')
-    dist_vals = _values(metrics, 'walking_running_distance')
-    active_vals = _values(metrics, 'active_energy')
-    spo2_vals = _values(metrics, 'blood_oxygen_saturation')
-    flights_vals = _values(metrics, 'flights_climbed')
-    stand_vals = _values(metrics, 'apple_stand_time')
-    basal_vals = _values(metrics, 'basal_energy_burned')
-    resp_vals = _values(metrics, 'respiratory_rate')
+    hrv_vals = _values(metrics, 'heart_rate_variability', date_str)
+    rhr_vals = _values(metrics, 'resting_heart_rate', date_str)
+    steps_vals = _values(metrics, 'step_count', date_str)
+    dist_vals = _values(metrics, 'walking_running_distance', date_str)
+    active_vals = _values(metrics, 'active_energy', date_str)
+    spo2_vals = _values(metrics, 'blood_oxygen_saturation', date_str)
+    flights_vals = _values(metrics, 'flights_climbed', date_str)
+    stand_vals = _values(metrics, 'apple_stand_time', date_str)
+    basal_vals = _values(metrics, 'basal_energy_burned', date_str)
+    resp_vals = _values(metrics, 'respiratory_rate', date_str)
 
     # 能量通常是kJ，转kcal
     active_kcal = (_sum(active_vals) / 4.184) if active_vals else None
@@ -600,38 +611,67 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SLEEP_AWAKE_PCT}}', str(int((s.get('awake', 0) / t) * 100)))
     html = html.replace('{{SLEEP_ANALYSIS_TEXT}}', sleep_analysis)
 
-    # 运动 section（有运动才画图）
+    # 运动 section（有运动才画图）- 显示所有运动记录
     if data.get('has_workout') and data.get('workouts'):
-        w = data['workouts'][0]
+        workouts = data['workouts']
         workout_analysis = ai_analysis.get('workout')
         if not workout_analysis:
             raise ValueError("❌ 错误: 缺少运动分析 - 必须在当前AI对话中生成（今日有运动记录）")
-        # 格式化时间显示
-        start_time = w.get('start', '')
-        end_time = w.get('end', '')
-        if start_time and len(start_time) >= 16:
-            start_display = start_time[11:16]
-        else:
-            start_display = start_time or '--:--'
         
-        if end_time and len(end_time) >= 16:
-            end_display = end_time[11:16]
-        else:
-            end_display = end_time or '--:--'
-        
-        time_display = f"{start_display} - {end_display}" if start_display != '--:--' or end_display != '--:--' else "时间未记录"
-        
-        workout_section = f'''<div class="workout-section no-break">
-  <div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>运动记录 - {w['name']}</div></div>
-  <div class="workout-header"><div class="workout-type"><div class="workout-icon">💪</div><div><div class="workout-name">{w['name']}</div><div class="workout-time">{time_display}</div></div></div><span class="badge badge-good">已完成</span></div>
+        # 构建所有运动记录的HTML
+        workout_entries = []
+        for idx, w in enumerate(workouts, 1):
+            # 格式化时间显示
+            start_time = w.get('start', '')
+            end_time = w.get('end', '')
+            if start_time and len(start_time) >= 16:
+                start_display = start_time[11:16]
+            else:
+                start_display = start_time or '--:--'
+            
+            if end_time and len(end_time) >= 16:
+                end_display = end_time[11:16]
+            else:
+                end_display = end_time or '--:--'
+            
+            time_display = f"{start_display} - {end_display}" if start_display != '--:--' or end_display != '--:--' else "时间未记录"
+            
+            # 为每个运动生成心率图（如果有数据）
+            hr_timeline = w.get('hr_timeline', [])
+            hr_chart = generate_hr_svg(hr_timeline) if hr_timeline else ""
+            
+            entry = f'''<div class="workout-entry" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.5); border-radius: 8px;">
+  <div class="workout-header" style="margin-bottom: 10px;">
+    <div class="workout-type">
+      <div class="workout-icon">💪</div>
+      <div>
+        <div class="workout-name">{idx}. {w['name']}</div>
+        <div class="workout-time">{time_display}</div>
+      </div>
+    </div>
+    <span class="badge badge-good">已完成</span>
+  </div>
   <div class="workout-stats">
     <div class="stat-box"><div class="stat-value">{int(w['duration_min']) if w['duration_min'] else '--'}</div><div class="stat-label">分钟</div></div>
     <div class="stat-box"><div class="stat-value">{int(w['energy_kcal']) if w['energy_kcal'] else '--'}</div><div class="stat-label">千卡</div></div>
     <div class="stat-box"><div class="stat-value">{w['avg_hr'] if w['avg_hr'] is not None else '--'}</div><div class="stat-label">平均心率</div></div>
     <div class="stat-box"><div class="stat-value">{w['max_hr'] if w['max_hr'] is not None else '--'}</div><div class="stat-label">最高心率</div></div>
   </div>
-  {generate_hr_svg(w.get('hr_timeline', []))}
-  <div class="workout-analysis"><div class="workout-analysis-title">运动AI详细分析</div><div class="workout-analysis-text">{workout_analysis}</div></div>
+  {hr_chart}
+</div>'''
+            workout_entries.append(entry)
+        
+        workout_section = f'''<div class="workout-section no-break">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">🏃</span>运动记录 - 共{len(workouts)}次训练
+    </div>
+  </div>
+  {''.join(workout_entries)}
+  <div class="workout-analysis">
+    <div class="workout-analysis-title">运动AI综合分析</div>
+    <div class="workout-analysis-text">{workout_analysis}</div>
+  </div>
 </div>'''
     else:
         # 无运动时也必须有workout分析字段（说明无运动的情况）
