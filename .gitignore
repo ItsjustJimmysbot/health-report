@@ -1,3 +1,46 @@
-.openclaw/cache/
-.openclaw/heartbeat-memory-sync.state
-.openclaw/workspace-state.json
+# Local data and caches
+cache/
+data/
+logs/
+memory/
+output/
+reports/
+workspace/
+upload/
+
+# User-specific configuration and context
+USER.md
+SOUL.md
+MEMORY.md
+AGENT_ROLES.md
+AGENT_WORKFLOWS.md
+AGENT_SYSTEM_PROMPT.md
+HEALTH_AGENT_SYSTEM_PROMPT.md
+IDENTITY.md
+BOOTSTRAP.md
+HEARTBEAT.md
+AGENTS.md
+TOOLS.md
+.env*
+
+# Analysis and temporary files
+ai_analysis*.json
+temp_*.json
+*.html
+*.pdf
+*.png
+*.backup
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
