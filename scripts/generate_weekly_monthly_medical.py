@@ -30,7 +30,7 @@ def load_config():
     
     # 默认配置
     return {
-        "version": "5.4.1",
+        "version": "5.5.0",
         "members": [{
             "name": "默认用户",
             "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",

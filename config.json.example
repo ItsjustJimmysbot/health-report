@@ -1,5 +1,5 @@
 {
-  "version": "5.4.1",
+  "version": "5.5.0",
   "language": "CN",
   "validation_mode": "strict",
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
