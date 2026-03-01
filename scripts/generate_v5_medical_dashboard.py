@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-V5.0 AI分析报告生成器 - Medical Dashboard 模板版
-- 读取源数据（HealthAutoExport-YYYY-MM-DD.json）
+V5.2.3 AI分析报告生成器 - Medical Dashboard 模板版
+- 从 config.json 读取配置
 - 严格真实值：缺失即'--'，不估算
 - 仅在有运动时显示心率曲线
 - 支持多成员报告生成（最多3人，控制token消耗）
@@ -9,10 +9,9 @@ V5.0 AI分析报告生成器 - Medical Dashboard 模板版
 用法:
   python3 scripts/generate_v5_medical_dashboard.py <YYYY-MM-DD> < ai_analysis.json
 
-多成员配置方法：
-  1. 修改下方 MEMBER_COUNT 变量（1-3）
-  2. 填写对应成员的数据路径
-  3. 为每个成员分别提供AI分析（通过stdin多次传入）
+配置方法：
+  1. 编辑 config.json 设置成员信息和路径
+  2. 为每个成员分别提供AI分析（通过stdin传入）
 """
 import json
 import sys
@@ -20,59 +19,82 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-# ==================== 多成员配置区域 ====================
-# 成员数量：默认1，最多3（控制单次运行token消耗）
-MEMBER_COUNT = 1  # 可选值：1, 2, 3
+# ==================== 配置加载 ====================
+def load_config():
+    """从 config.json 加载配置"""
+    config_paths = [
+        Path(__file__).parent.parent / "config.json",  # 脚本同级目录
+        Path.home() / ".openclaw" / "workspace-health" / "config.json",  # 工作空间
+    ]
+    
+    for config_path in config_paths:
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    
+    # 默认配置
+    return {
+        "version": "5.2.3",
+        "members": [{
+            "name": "默认用户",
+            "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
+            "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
+            "email": ""
+        }],
+        "analysis_limits": {
+            "metric_min_words": 150,
+            "metric_max_words": 200,
+            "action_min_words": 250,
+            "action_max_words": 300
+        }
+    }
 
-# 成员数据路径配置（当MEMBER_COUNT > 1时填写）
-# 成员1：默认使用当前用户路径（无需修改）
-MEMBER_1_NAME = "默认用户"
-MEMBER_1_HEALTH_DIR = None  # None表示使用默认路径
-MEMBER_1_WORKOUT_DIR = None  # None表示使用默认路径
+# 加载配置
+CONFIG = load_config()
+MEMBERS = CONFIG.get("members", [{}])
+ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 
-# 成员2：填写第二个成员的健康数据路径
-MEMBER_2_NAME = "成员2"
-MEMBER_2_HEALTH_DIR = ""  # 示例：Path.home() / "Dropbox" / "成员2" / "Health Data"
-MEMBER_2_WORKOUT_DIR = ""  # 示例：Path.home() / "Dropbox" / "成员2" / "Workout Data"
+# 成员数量（最多3人）
+MEMBER_COUNT = min(len(MEMBERS), 3)
 
-# 成员3：填写第三个成员的健康数据路径  
-MEMBER_3_NAME = "成员3"
-MEMBER_3_HEALTH_DIR = ""  # 示例：Path.home() / "Dropbox" / "成员3" / "Health Data"
-MEMBER_3_WORKOUT_DIR = ""  # 示例：Path.home() / "Dropbox" / "成员3" / "Workout Data"
+# 获取成员配置
+def get_member_config(index: int):
+    """获取指定成员的配置"""
+    if index < len(MEMBERS):
+        member = MEMBERS[index]
+        return {
+            "name": member.get("name", f"成员{index+1}"),
+            "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
+            "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
+            "email": member.get("email", "")
+        }
+    return {"name": f"成员{index+1}", "health_dir": None, "workout_dir": None, "email": ""}
 
-# ==================== AI分析字数限制配置 ====================
-# 以下变量控制AI分析的最低字数要求，可根据需要修改
-
+# ==================== AI分析字数限制配置（从 config.json 读取） ====================
 # 指标分析字数限制（每项）
-MIN_LENGTH_HRV = 150           # HRV分析最低字数
-MIN_LENGTH_RESTING_HR = 150    # 静息心率分析最低字数
-MIN_LENGTH_STEPS = 150         # 步数分析最低字数
-MIN_LENGTH_DISTANCE = 150      # 距离分析最低字数
-MIN_LENGTH_ACTIVE_ENERGY = 150 # 活动能量分析最低字数
-MIN_LENGTH_SPO2 = 150          # 血氧分析最低字数
-MIN_LENGTH_FLIGHTS = 150       # 爬楼分析最低字数
-MIN_LENGTH_STAND = 150         # 站立分析最低字数
-MIN_LENGTH_BASAL = 150         # 基础代谢分析最低字数
-MIN_LENGTH_RESPIRATORY = 150   # 呼吸率分析最低字数
-
-# 睡眠分析字数限制
-MIN_LENGTH_SLEEP = 150         # 睡眠分析最低字数
-
-# 运动分析字数限制
-MIN_LENGTH_WORKOUT = 150       # 运动分析最低字数（有运动时）
+MIN_LENGTH_HRV = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_RESTING_HR = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_STEPS = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_DISTANCE = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_ACTIVE_ENERGY = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_SPO2 = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_FLIGHTS = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_STAND = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_BASAL = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_RESPIRATORY = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_SLEEP = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MIN_LENGTH_WORKOUT = ANALYSIS_LIMITS.get("metric_min_words", 150)
 
 # 优先级建议字数限制
-MIN_LENGTH_PRIORITY_TITLE = 10         # 最高优先级标题最低字数
-MIN_LENGTH_PRIORITY_PROBLEM = 80       # 问题识别最低字数
-MIN_LENGTH_PRIORITY_ACTION = 100       # 行动计划最低字数
-MIN_LENGTH_PRIORITY_EXPECTATION = 70   # 预期效果最低字数
-
-# 次级建议字数限制
+action_min = ANALYSIS_LIMITS.get("action_min_words", 250)
+MIN_LENGTH_PRIORITY_TITLE = 10
+MIN_LENGTH_PRIORITY_PROBLEM = 80
+MIN_LENGTH_PRIORITY_ACTION = 100
+MIN_LENGTH_PRIORITY_EXPECTATION = 70
 MIN_LENGTH_AI2_TITLE = 10
 MIN_LENGTH_AI2_PROBLEM = 80
 MIN_LENGTH_AI2_ACTION = 100
 MIN_LENGTH_AI2_EXPECTATION = 70
-
 MIN_LENGTH_AI3_TITLE = 10
 MIN_LENGTH_AI3_PROBLEM = 80
 MIN_LENGTH_AI3_ACTION = 100
@@ -100,25 +122,25 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_member_config(index: int):
-    """获取成员配置"""
-    configs = [
-        {
-            "name": MEMBER_1_NAME,
-            "health_dir": MEMBER_1_HEALTH_DIR or DEFAULT_HEALTH_DIR,
-            "workout_dir": MEMBER_1_WORKOUT_DIR or DEFAULT_WORKOUT_DIR
-        },
-        {
-            "name": MEMBER_2_NAME,
-            "health_dir": MEMBER_2_HEALTH_DIR if MEMBER_2_HEALTH_DIR else DEFAULT_HEALTH_DIR,
-            "workout_dir": MEMBER_2_WORKOUT_DIR if MEMBER_2_WORKOUT_DIR else DEFAULT_WORKOUT_DIR
-        },
-        {
-            "name": MEMBER_3_NAME,
-            "health_dir": MEMBER_3_HEALTH_DIR if MEMBER_3_HEALTH_DIR else DEFAULT_HEALTH_DIR,
-            "workout_dir": MEMBER_3_WORKOUT_DIR if MEMBER_3_WORKOUT_DIR else DEFAULT_WORKOUT_DIR
-        },
-    ]
-    return configs[index] if index < len(configs) else configs[0]
+    """获取指定成员的配置（从 config.json 读取）"""
+    members = CONFIG.get("members", [])
+    
+    if index < len(members):
+        member = members[index]
+        return {
+            "name": member.get("name", f"成员{index+1}"),
+            "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
+            "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
+            "email": member.get("email", "")
+        }
+    
+    # 默认配置
+    return {
+        "name": f"成员{index+1}",
+        "health_dir": DEFAULT_HEALTH_DIR,
+        "workout_dir": DEFAULT_WORKOUT_DIR,
+        "email": ""
+    }
 
 
 def verify_ai_analysis(ai_analysis: dict) -> list:
