@@ -106,13 +106,14 @@ VALIDATION_MODE = "strict"  # 可选值: "strict", "warn"
 # =====================================================
 
 HOME = Path.home()
-TEMPLATE_DIR = HOME / '.openclaw' / 'workspace-health' / 'templates'
-OUTPUT_DIR = HOME / '.openclaw' / 'workspace' / 'shared' / 'health-reports' / 'upload'
+TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
+OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path(__file__).parent.parent / 'output'))).expanduser()
 DEFAULT_HEALTH_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Health Data'
 DEFAULT_WORKOUT_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Workout Data'
 
 # 固定缓存路径（用于周报/月报分析）
-CACHE_DIR = HOME / '.openclaw' / 'workspace-health' / 'cache' / 'daily'
+CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -228,7 +229,14 @@ def _parse_metrics(date_str: str, health_dir: Path = None):
     p = health_dir / f'HealthAutoExport-{date_str}.json'
     if not p.exists():
         return {}
-    data = json.loads(p.read_text())
+    try:
+        data = json.loads(p.read_text(encoding='utf-8'))
+    except json.JSONDecodeError as e:
+        print(f"⚠️ 解析文件失败: {p} - {e}")
+        return {}
+    except Exception as e:
+        print(f"⚠️ 读取文件失败: {p} - {e}")
+        return {}
     return {m.get('name'): m for m in data.get('data', {}).get('metrics', [])}
 
 
@@ -350,7 +358,11 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     if not wp.exists():
         wp = health_dir / f'HealthAutoExport-{date_str}.json'
     if wp.exists():
-        wd = json.loads(wp.read_text())
+        try:
+            wd = json.loads(wp.read_text(encoding='utf-8'))
+        except Exception as e:
+            print(f"⚠️ 解析运动文件失败: {wp} - {e}")
+            wd = {}
         for w in wd.get('data', {}).get('workouts', []):
             timeline = []
             for h in (w.get('heartRateData') or []):
@@ -851,12 +863,36 @@ if __name__ == '__main__':
     print(f"   成员数: {member_count} (上限3人，控制token消耗)")
     print("")
     
-    # 读取所有成员的AI分析（JSON数组格式）
-    all_ai_analyses = json.load(sys.stdin)
+    # 读取所有成员的AI分析（支持单对象或字典）
+    raw_ai_analyses = json.load(sys.stdin)
     
-    # 如果是单个对象，转为数组
+    all_ai_analyses = []
+    if isinstance(raw_ai_analyses, list):
+        all_ai_analyses = raw_ai_analyses
+    elif isinstance(raw_ai_analyses, dict):
+        if "members" in raw_ai_analyses:
+             all_ai_analyses = raw_ai_analyses["members"]
+        else:
+            # 可能是单成员字典，直接用
+             all_ai_analyses = [raw_ai_analyses]
+    else:
+         print(f"❌ 错误: 传入的 AI 分析格式不正确（期望对象、列表或包含 members 的对象）")
+         sys.exit(1)
+         
+    # 处理字典按成员名映射的情况
     if isinstance(all_ai_analyses, dict):
-        all_ai_analyses = [all_ai_analyses]
+        mapped_analyses = []
+        for idx in range(member_count):
+            member_cfg = get_member_config(idx)
+            member_name = member_cfg['name']
+            if member_name in all_ai_analyses:
+                mapped_analyses.append(all_ai_analyses[member_name])
+            elif "默认用户" in all_ai_analyses:
+                 mapped_analyses.append(all_ai_analyses["默认用户"])
+            else:
+                 print(f"⚠️ 警告: 找不到成员 {member_name} 的分析数据，使用第一个可用数据")
+                 mapped_analyses.append(list(all_ai_analyses.values())[0] if all_ai_analyses else {})
+        all_ai_analyses = mapped_analyses
     
     if len(all_ai_analyses) < member_count:
         print(f"❌ 错误: 需要 {member_count} 个成员的AI分析，但只提供了 {len(all_ai_analyses)} 个")
