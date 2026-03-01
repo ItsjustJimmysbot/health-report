@@ -126,7 +126,11 @@ python3 scripts/generate_weekly_monthly_medical.py monthly 2026 2 < monthly_anal
     "sender_email": "发送邮箱",
     "password": "应用专用密码"
   },
-  "language": "CN"
+  "language": "CN",
+  "receiver_email": "target_email@example.com",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
 }
 ```
 
