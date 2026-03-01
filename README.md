@@ -238,6 +238,57 @@ playwright install chromium
 }
 ```
 
+### 👥 多成员配置（最多3人）
+
+支持为家庭成员分别生成健康报告，只需在 `members` 数组中添加多个成员：
+
+```json
+{
+  "version": "5.6.0",
+  "members": [
+    {
+      "name": "爸爸",
+      "age": 45,
+      "gender": "male",
+      "height_cm": 178,
+      "weight_kg": 75,
+      "health_dir": "~/HealthData/Dad/Health Data",
+      "workout_dir": "~/HealthData/Dad/Workout Data",
+      "email": "dad@example.com"
+    },
+    {
+      "name": "妈妈",
+      "age": 42,
+      "gender": "female",
+      "height_cm": 165,
+      "weight_kg": 58,
+      "health_dir": "~/HealthData/Mom/Health Data",
+      "workout_dir": "~/HealthData/Mom/Workout Data",
+      "email": "mom@example.com"
+    },
+    {
+      "name": "孩子",
+      "age": 15,
+      "gender": "male",
+      "height_cm": 170,
+      "weight_kg": 55,
+      "health_dir": "~/HealthData/Kid/Health Data",
+      "workout_dir": "~/HealthData/Kid/Workout Data",
+      "email": "kid@example.com"
+    }
+  ],
+  "analysis_limits": {...},
+  "email_config": {...},
+  "language": "CN"
+}
+```
+
+**多成员使用说明：**
+- 每个成员需要独立的 `health_dir` 和 `workout_dir` 路径
+- 可以为每个成员设置不同的接收邮箱 `email`
+- 目前默认使用第一个成员（`members[0]`）的数据生成报告
+- 后续版本将支持一键生成所有成员的报告
+
 ### 🌐 多语言支持 (V5.6.0 新增)
 
 通过 `config.json` 中的 `language` 字段切换报告语言：
