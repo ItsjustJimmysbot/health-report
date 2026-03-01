@@ -430,19 +430,29 @@ def real_text(v, fmt):
 
 
 def badge(score):
-    if score >= 80: return 'badge-excellent', '优秀'
-    if score >= 60: return 'badge-good', '良好'
-    if score >= 40: return 'badge-average', '一般'
-    return 'badge-poor', '需改善'
+    if LANGUAGE == 'EN':
+        if score >= 80: return 'badge-excellent', 'Excellent'
+        if score >= 60: return 'badge-good', 'Good'
+        if score >= 40: return 'badge-average', 'Average'
+        return 'badge-poor', 'Needs Improvement'
+    else:
+        if score >= 80: return 'badge-excellent', '优秀'
+        if score >= 60: return 'badge-good', '良好'
+        if score >= 40: return 'badge-average', '一般'
+        return 'badge-poor', '需改善'
 
 
 def gen_rating_from_value(v):
-    return ('rating-good', '正常') if v != '--' else ('rating-average', '--')
+    if LANGUAGE == 'EN':
+        return ('rating-good', 'Normal') if v != '--' else ('rating-average', '--')
+    else:
+        return ('rating-good', '正常') if v != '--' else ('rating-average', '--')
 
 
 def generate_hr_svg(hr_data):
+    no_data_text = 'No heart rate data' if LANGUAGE == 'EN' else '无心率数据'
     if not hr_data:
-        return '<div style="color:#999;text-align:center;padding:20px;">无心率数据</div>'
+        return f'<div style="color:#999;text-align:center;padding:20px;">{no_data_text}</div>'
 
     avg = [h['avg'] for h in hr_data if h.get('avg') is not None]
     mx = [h['max'] for h in hr_data if h.get('max') is not None]
@@ -490,11 +500,17 @@ def generate_hr_svg(hr_data):
         if i > 0 and i < y_ticks:
             y_labels.append(f'<line x1="{left_margin}" y1="{y_pos}" x2="{left_margin + chart_width}" y2="{y_pos}" stroke="#E5E7EB" stroke-width="0.5" stroke-dasharray="2,2"/>')
 
+    hr_title = 'Heart Rate' if LANGUAGE == 'EN' else '心率变化'
+    avg_text = 'Avg' if LANGUAGE == 'EN' else '平均'
+    max_text = 'Max' if LANGUAGE == 'EN' else '最高'
+    time_axis = 'Time' if LANGUAGE == 'EN' else '时间'
+    hr_axis = 'HR (bpm)' if LANGUAGE == 'EN' else '心率 (bpm)'
+    
     return f'''<div class="hr-chart-wrapper">
-<div class="hr-chart-title"><span>📈 心率变化</span>
+<div class="hr-chart-title"><span>📈 {hr_title}</span>
 <div class="hr-chart-legend">
-<div class="hr-legend-item"><div class="hr-legend-dot avg"></div><span>平均</span></div>
-<div class="hr-legend-item"><div class="hr-legend-dot max"></div><span>最高</span></div>
+<div class="hr-legend-item"><div class="hr-legend-dot avg"></div><span>{avg_text}</span></div>
+<div class="hr-legend-item"><div class="hr-legend-dot max"></div><span>{max_text}</span></div>
 </div>
 </div>
 <div class="hr-chart-container">
@@ -511,8 +527,8 @@ def generate_hr_svg(hr_data):
 <!-- 时间标签 -->
 {''.join(time_labels)}
 <!-- 轴标题 -->
-<text x="{left_margin + chart_width / 2}" y="{bottom_margin + chart_height + 25}" text-anchor="middle" font-size="9" fill="#64748B">时间</text>
-<text x="15" y="{bottom_margin + chart_height / 2}" text-anchor="middle" font-size="9" fill="#64748B" transform="rotate(-90, 15, {bottom_margin + chart_height / 2})">心率 (bpm)</text>
+<text x="{left_margin + chart_width / 2}" y="{bottom_margin + chart_height + 25}" text-anchor="middle" font-size="9" fill="#64748B">{time_axis}</text>
+<text x="15" y="{bottom_margin + chart_height / 2}" text-anchor="middle" font-size="9" fill="#64748B" transform="rotate(-90, 15, {bottom_margin + chart_height / 2})">{hr_axis}</text>
 </svg>
 </div>
 </div>'''
@@ -541,8 +557,17 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     # 基础信息
     html = html.replace('{{DATE}}', date_str)
     html = html.replace('{{DAY}}', date_str.split('-')[2])
-    html = html.replace('{{MONTH_YEAR}}', f"{date_str.split('-')[0]}年{int(date_str.split('-')[1])}月")
-    html = html.replace('{{HEADER_SUBTITLE}}', f'{date_str} · Apple Health · AI分析版')
+    year_text = date_str.split('-')[0]
+    month_text = int(date_str.split('-')[1])
+    if LANGUAGE == 'EN':
+        month_names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        month_year = f"{month_names[month_text]} {year_text}"
+        header_subtitle = f'{date_str} · Apple Health · AI Analysis Edition'
+    else:
+        month_year = f"{year_text}年{month_text}月"
+        header_subtitle = f'{date_str} · Apple Health · AI分析版'
+    html = html.replace('{{MONTH_YEAR}}', month_year)
+    html = html.replace('{{HEADER_SUBTITLE}}', header_subtitle)
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
 
     # 评分
@@ -570,19 +595,25 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     hrv_analysis = ai_analysis.get('hrv')
     if not hrv_analysis:
         raise ValueError("❌ 错误: 缺少HRV分析 - 必须在当前AI对话中生成")
-    html = html.replace('{{METRIC1_VALUE}}', m1).replace('{{METRIC1_RATING_CLASS}}', 'rating-good' if data['hrv']['value'] and data['hrv']['value'] > 50 else 'rating-average').replace('{{METRIC1_RATING}}', '良好' if data['hrv']['value'] and data['hrv']['value'] > 50 else '一般').replace('{{METRIC1_ANALYSIS}}', hrv_analysis)
+    hrv_rating_text = 'Good' if LANGUAGE == 'EN' else '良好'
+    hrv_rating_text2 = 'Average' if LANGUAGE == 'EN' else '一般'
+    html = html.replace('{{METRIC1_VALUE}}', m1).replace('{{METRIC1_RATING_CLASS}}', 'rating-good' if data['hrv']['value'] and data['hrv']['value'] > 50 else 'rating-average').replace('{{METRIC1_RATING}}', hrv_rating_text if data['hrv']['value'] and data['hrv']['value'] > 50 else hrv_rating_text2).replace('{{METRIC1_ANALYSIS}}', hrv_analysis)
 
     m2 = real_text(data['resting_hr']['value'], lambda v: f"{int(v)} bpm")
     rhr_analysis = ai_analysis.get('resting_hr')
     if not rhr_analysis:
         raise ValueError("❌ 错误: 缺少静息心率分析 - 必须在当前AI对话中生成")
-    html = html.replace('{{METRIC2_VALUE}}', m2).replace('{{METRIC2_RATING_CLASS}}', 'rating-excellent' if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else 'rating-good').replace('{{METRIC2_RATING}}', '优秀' if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else '良好').replace('{{METRIC2_ANALYSIS}}', rhr_analysis)
+    rhr_rating_text = 'Excellent' if LANGUAGE == 'EN' else '优秀'
+    rhr_rating_text2 = 'Good' if LANGUAGE == 'EN' else '良好'
+    html = html.replace('{{METRIC2_VALUE}}', m2).replace('{{METRIC2_RATING_CLASS}}', 'rating-excellent' if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else 'rating-good').replace('{{METRIC2_RATING}}', rhr_rating_text if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else rhr_rating_text2).replace('{{METRIC2_ANALYSIS}}', rhr_analysis)
 
     m3 = real_text(data['steps'], lambda v: f"{int(v):,}")
     steps_analysis = ai_analysis.get('steps')
     if not steps_analysis:
         raise ValueError("❌ 错误: 缺少步数分析 - 必须在当前AI对话中生成")
-    html = html.replace('{{METRIC3_VALUE}}', m3).replace('{{METRIC3_RATING_CLASS}}', 'rating-good' if data['steps'] and data['steps'] > 8000 else 'rating-average').replace('{{METRIC3_RATING}}', '良好' if data['steps'] and data['steps'] > 8000 else '一般').replace('{{METRIC3_ANALYSIS}}', steps_analysis)
+    steps_rating_text = 'Good' if LANGUAGE == 'EN' else '良好'
+    steps_rating_text2 = 'Average' if LANGUAGE == 'EN' else '一般'
+    html = html.replace('{{METRIC3_VALUE}}', m3).replace('{{METRIC3_RATING_CLASS}}', 'rating-good' if data['steps'] and data['steps'] > 8000 else 'rating-average').replace('{{METRIC3_RATING}}', steps_rating_text if data['steps'] and data['steps'] > 8000 else steps_rating_text2).replace('{{METRIC3_ANALYSIS}}', steps_analysis)
 
     m4 = real_text(data['distance'], lambda v: f"{v:.1f} km")
     c4, t4 = gen_rating_from_value(m4)
@@ -637,8 +668,14 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     sleep_analysis = ai_analysis.get('sleep')
     if not sleep_analysis:
         raise ValueError("❌ 错误: 缺少睡眠分析 - 必须在当前AI对话中生成")
-    html = html.replace('{{SLEEP_STATUS}}', '数据不足' if sleep_hours < 3 else '正常')
-    alert = f'<div class="sleep-alert warning"><div class="alert-icon">⚠️</div><div class="alert-content"><h4>睡眠严重不足</h4><p>总睡眠时长{sleep_hours:.1f}小时，远低于7-9小时推荐标准。</p></div></div>' if sleep_hours < 6 else ''
+    sleep_status_text = 'Insufficient Data' if LANGUAGE == 'EN' else '数据不足'
+    sleep_status_normal = 'Normal' if LANGUAGE == 'EN' else '正常'
+    html = html.replace('{{SLEEP_STATUS}}', sleep_status_text if sleep_hours < 3 else sleep_status_normal)
+    
+    if LANGUAGE == 'EN':
+        alert = f'<div class="sleep-alert warning"><div class="alert-icon">⚠️</div><div class="alert-content"><h4>Severe Sleep Deficiency</h4><p>Total sleep duration {sleep_hours:.1f} hours, far below the 7-9 hour recommended standard.</p></div></div>' if sleep_hours < 6 else ''
+    else:
+        alert = f'<div class="sleep-alert warning"><div class="alert-icon">⚠️</div><div class="alert-content"><h4>睡眠严重不足</h4><p>总睡眠时长{sleep_hours:.1f}小时，远低于7-9小时推荐标准。</p></div></div>' if sleep_hours < 6 else ''
     html = html.replace('{{SLEEP_ALERT}}', alert)
     html = html.replace('{{SLEEP_TOTAL}}', f"{sleep_hours:.1f}")
     html = html.replace('{{SLEEP_HOURS}}', f"{sleep_hours:.1f}")
@@ -682,11 +719,17 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
             else:
                 end_display = end_time or '--:--'
             
-            time_display = f"{start_display} - {end_display}" if start_display != '--:--' or end_display != '--:--' else "时间未记录"
+            time_display = f"{start_display} - {end_display}" if start_display != '--:--' or end_display != '--:--' else ("Time not recorded" if LANGUAGE == 'EN' else "时间未记录")
             
             # 为每个运动生成心率图（如果有数据）
             hr_timeline = w.get('hr_timeline', [])
             hr_chart = generate_hr_svg(hr_timeline) if hr_timeline else ""
+            
+            completed_text = 'Completed' if LANGUAGE == 'EN' else '已完成'
+            min_text = 'min' if LANGUAGE == 'EN' else '分钟'
+            kcal_text = 'kcal' if LANGUAGE == 'EN' else '千卡'
+            avg_hr_text = 'Avg HR' if LANGUAGE == 'EN' else '平均心率'
+            max_hr_text = 'Max HR' if LANGUAGE == 'EN' else '最高心率'
             
             entry = f'''<div class="workout-entry" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.5); border-radius: 8px;">
   <div class="workout-header" style="margin-bottom: 10px;">
@@ -697,27 +740,29 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         <div class="workout-time">{time_display}</div>
       </div>
     </div>
-    <span class="badge badge-good">已完成</span>
+    <span class="badge badge-good">{completed_text}</span>
   </div>
   <div class="workout-stats">
-    <div class="stat-box"><div class="stat-value">{int(w['duration_min']) if w['duration_min'] else '--'}</div><div class="stat-label">分钟</div></div>
-    <div class="stat-box"><div class="stat-value">{int(w['energy_kcal']) if w['energy_kcal'] else '--'}</div><div class="stat-label">千卡</div></div>
-    <div class="stat-box"><div class="stat-value">{w['avg_hr'] if w['avg_hr'] is not None else '--'}</div><div class="stat-label">平均心率</div></div>
-    <div class="stat-box"><div class="stat-value">{w['max_hr'] if w['max_hr'] is not None else '--'}</div><div class="stat-label">最高心率</div></div>
+    <div class="stat-box"><div class="stat-value">{int(w['duration_min']) if w['duration_min'] else '--'}</div><div class="stat-label">{min_text}</div></div>
+    <div class="stat-box"><div class="stat-value">{int(w['energy_kcal']) if w['energy_kcal'] else '--'}</div><div class="stat-label">{kcal_text}</div></div>
+    <div class="stat-box"><div class="stat-value">{w['avg_hr'] if w['avg_hr'] is not None else '--'}</div><div class="stat-label">{avg_hr_text}</div></div>
+    <div class="stat-box"><div class="stat-value">{w['max_hr'] if w['max_hr'] is not None else '--'}</div><div class="stat-label">{max_hr_text}</div></div>
   </div>
   {hr_chart}
 </div>'''
             workout_entries.append(entry)
         
+        workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
+        ai_analysis_title = 'Workout AI Analysis' if LANGUAGE == 'EN' else '运动AI综合分析'
         workout_section = f'''<div class="workout-section no-break">
   <div class="section-header">
     <div class="section-title">
-      <span class="section-icon">🏃</span>运动记录 - 共{len(workouts)}次训练
+      <span class="section-icon">🏃</span>{workout_title} - {len(workouts)} workouts
     </div>
   </div>
   {''.join(workout_entries)}
   <div class="workout-analysis">
-    <div class="workout-analysis-title">运动AI综合分析</div>
+    <div class="workout-analysis-title">{ai_analysis_title}</div>
     <div class="workout-analysis-text">{workout_analysis}</div>
   </div>
 </div>'''
@@ -726,7 +771,9 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         workout_analysis = ai_analysis.get('workout')
         if not workout_analysis:
             raise ValueError("❌ 错误: 缺少运动分析 - 必须在当前AI对话中生成（即使无运动也需分析）")
-        workout_section = f'''<div class="workout-section no-break"><div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>运动记录</div></div><div class="workout-analysis"><div class="workout-analysis-title">今日无结构化运动</div><div class="workout-analysis-text">{workout_analysis}</div></div></div>'''
+        workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
+        no_workout_title = 'No Structured Exercise Today' if LANGUAGE == 'EN' else '今日无结构化运动'
+        workout_section = f'''<div class="workout-section no-break"><div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>{workout_title}</div></div><div class="workout-analysis"><div class="workout-analysis-title">{no_workout_title}</div><div class="workout-analysis-text">{workout_analysis}</div></div></div>'''
     html = html.replace('{{WORKOUT_SECTION}}', workout_section)
 
     # AI建议 - 必须有真实内容，禁止模板填充
