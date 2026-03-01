@@ -1,0 +1,32 @@
+{
+  "date": "2026-02-25",
+  "meals": {
+    "breakfast": {
+      "items": ["燕麦粥", "水煮蛋", "牛奶"],
+      "images": [],
+      "time": "08:30",
+      "notes": "营养早餐"
+    },
+    "lunch": {
+      "items": ["鸡胸肉沙拉", "糙米饭", "蔬菜汤"],
+      "images": [],
+      "time": "12:15",
+      "notes": "低脂午餐"
+    },
+    "dinner": {
+      "items": ["三文鱼", "西兰花", "红薯"],
+      "images": [],
+      "time": "19:00",
+      "notes": "高蛋白晚餐"
+    },
+    "snack": {
+      "items": ["坚果", "酸奶"],
+      "images": [],
+      "time": "15:30",
+      "notes": "训练后加餐"
+    }
+  },
+  "total_calories": 1850,
+  "water_intake": 2500,
+  "source": "health_channel"
+}
