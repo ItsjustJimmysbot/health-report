@@ -54,6 +54,9 @@ CONFIG = load_config()
 MEMBERS = CONFIG.get("members", [{}])
 ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 
+# 语言配置 (CN=中文, EN=英文)
+LANGUAGE = CONFIG.get("language", "CN")
+
 # 成员数量（最多3人）
 MEMBER_COUNT = min(len(MEMBERS), 3)
 
@@ -860,8 +863,9 @@ if __name__ == '__main__':
         print("   数据提取: 实时从Apple Health文件读取")
         print("   AI分析: 当前对话生成（已验证）")
         
-        # 读取模板
-        with open(TEMPLATE_DIR / 'DAILY_TEMPLATE_MEDICAL_V2.html', 'r', encoding='utf-8') as f:
+        # 读取模板（根据语言选择）
+        template_file = 'DAILY_TEMPLATE_MEDICAL_V2_EN.html' if LANGUAGE == 'EN' else 'DAILY_TEMPLATE_MEDICAL_V2.html'
+        with open(TEMPLATE_DIR / template_file, 'r', encoding='utf-8') as f:
             template = f.read()
         
         # 生成报告（需要修改generate_report以支持自定义health_dir）
