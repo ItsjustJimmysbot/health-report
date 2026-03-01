@@ -1,4 +1,4 @@
-# Health Agent V5.6.0 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.7.0 - OpenClaw 专业健康分析 Skill
 
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
 
@@ -47,7 +47,7 @@ playwright install chromium
 
 ```json
 {
-  "version": "5.6.0",
+  "version": "5.7.0",
   "members": [
     {
       "name": "Jimmy",
@@ -98,7 +98,7 @@ playwright install chromium
 
 **指令内容模板：**
 ```text
-【每日健康日报 - V5.6.0 标准化流程】
+【每日健康日报 - V5.7.0 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
 2. 提取数据：从 Health 路径提取当日数据
 3. AI 分析：基于当日真实数值（HRV、步数等）生成详细分析（每项≥150字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
@@ -118,7 +118,7 @@ playwright install chromium
 
 **指令内容模板：**
 ```text
-【每周健康周报 - V5.6.0 标准化流程】
+【每周健康周报 - V5.7.0 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算日期：获取上周一至上周日日期
    START_DATE=$(date -v-7d +%Y-%m-%d)
@@ -139,7 +139,7 @@ playwright install chromium
 
 **指令内容模板：**
 ```text
-【每月健康月报 - V5.6.0 标准化流程】
+【每月健康月报 - V5.7.0 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算月份：获取上月年份和月份
    YEAR=$(date -v-1m +%Y)
@@ -165,7 +165,7 @@ playwright install chromium
 
 ---
 
-## ✨ V5.6.0 核心特性
+## ✨ V5.7.0 核心特性
 
 *   **多语言支持 (新增)**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）
 *   **配置化路径**：所有脚本统一从 `config.json` 读取数据路径，无需修改代码
@@ -189,7 +189,7 @@ playwright install chromium
 
 ---
 
-## 📝 开发者规范 (V5.6.0)
+## 📝 开发者规范 (V5.7.0)
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
 *   **字数红线**：AI 指标分析段落必须在 150-200 字，核心行动建议 250-300 字
@@ -202,7 +202,7 @@ playwright install chromium
 ### config.json 结构
 ```json
 {
-  "version": "5.6.0",
+  "version": "5.7.0",
   "members": [
     {
       "name": "Jimmy",
@@ -244,7 +244,7 @@ playwright install chromium
 
 ```json
 {
-  "version": "5.6.0",
+  "version": "5.7.0",
   "members": [
     {
       "name": "爸爸",
@@ -283,26 +283,52 @@ playwright install chromium
 }
 ```
 
-**⚠️ 当前限制说明：**
-虽然配置文件支持定义多个成员（最多3人），但目前的脚本实现**只会使用第一个成员**（`members[0]`）的数据来生成报告。
+**✅ V5.7.0+ 完整多成员支持：**
 
-这意味着：
-- 即使配置了多个成员，运行脚本时也只会提取 `members[0]` 的数据
-- 要为其他成员生成报告，需要将他们移到 `members` 数组的第一个位置
-- 多成员配置的完整支持（一键生成所有成员报告）将在后续版本实现
+现在支持一次提取所有成员的数据！
 
-**临时解决方案：**
+**提取单个成员：**
 ```bash
-# 为爸爸生成报告（将爸爸设为 members[0]）
-# 修改 config.json 后运行
+# 提取第一个成员数据（默认）
 python3 scripts/extract_data_v5.py 2026-03-01
 
-# 然后改为妈妈为 members[0]，再运行一次
-# 修改 config.json 后运行
-python3 scripts/extract_data_v5.py 2026-03-01
+# 提取第二个成员数据
+python3 scripts/extract_data_v5.py 2026-03-01 1
+
+# 提取第三个成员数据
+python3 scripts/extract_data_v5.py 2026-03-01 2
 ```
 
-### 🌐 多语言支持 (V5.6.0 新增)
+**提取所有成员（V5.7.0+）：**
+```bash
+# 使用 all 参数提取所有成员的数据
+python3 scripts/extract_data_v5.py 2026-03-01 all
+
+# 输出将包含每个成员的数据，格式如下：
+# {
+#   "date": "2026-03-01",
+#   "members_count": 3,
+#   "members": [
+#     {"profile": {...}, "hrv": {...}, ...},  # 成员1
+#     {"profile": {...}, "hrv": {...}, ...},  # 成员2
+#     {"profile": {...}, "hrv": {...}, ...}   # 成员3
+#   ]
+# }
+```
+
+**在定时任务中使用（推荐）：**
+在 OpenClaw 定时任务指令中使用 `all` 参数，一次生成所有成员的报告：
+```text
+【每日健康日报 - V5.7.0 全成员流程】
+1. 读取 config.json：获取所有成员配置
+2. 提取数据：为每个成员分别提取数据
+   python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
+3. AI 分析：为每个成员分别生成分析报告（考虑年龄、性别、BMI等个性化因素）
+4. 渲染生成：为每个成员生成独立 PDF 报告
+5. 发送邮件：分别发送给每个成员配置的邮箱
+```
+
+### 🌐 多语言支持 (V5.7.0 新增)
 
 通过 `config.json` 中的 `language` 字段切换报告语言：
 
@@ -328,7 +354,7 @@ MIT License
 
 ---
 
-# Health Agent V5.6.0 - OpenClaw Professional Health Analysis Skill [English]
+# Health Agent V5.7.0 - OpenClaw Professional Health Analysis Skill [English]
 
 A formally packaged **OpenClaw Skill** that transforms raw Apple Health data into in-depth, medical-grade personal health analysis reports.
 
@@ -377,7 +403,7 @@ Before first use, edit `config.json` to configure your data paths:
 
 ```json
 {
-  "version": "5.6.0",
+  "version": "5.7.0",
   "members": [
     {
       "name": "Jimmy",
@@ -429,7 +455,7 @@ Add a daily report task in OpenClaw, recommended time `12:10` (to ensure daily d
 
 **Daily Report Task Template:**
 ```text
-[Daily Health Report - V5.6.0 Standardized Process]
+[Daily Health Report - V5.7.0 Standardized Process]
 1. Read config.json: Get configured Health path and language field (CN or EN)
 2. Extract Data: Extract daily data from Health path
 3. AI Analysis: Generate detailed analysis based on actual values (HRV, steps, etc.) with ≥150 words per metric. If language is EN, output must be in pure English; if CN, use pure Chinese.
@@ -455,7 +481,7 @@ Recommended on the 1st of each month at 10:00 AM to generate last month's report
 
 ---
 
-## ✨ V5.6.0 Core Features
+## ✨ V5.7.0 Core Features
 
 *   **Multi-language Support (New)**: Supports Chinese and English interface switching via `config.json` `language` field (CN/EN)
 *   **Profile Data (New)**: Support for `age`, `gender`, `height_cm`, `weight_kg` in member config for personalized AI analysis
@@ -478,7 +504,7 @@ Recommended on the 1st of each month at 10:00 AM to generate last month's report
 
 ---
 
-## 📝 Developer Specifications (V5.6.0)
+## 📝 Developer Specifications (V5.7.0)
 *   **Config Priority**: All paths must be read from `config.json`, no hardcoding
 *   **No Fabrication**: When data is missing, display `--`, strictly prohibit AI estimation
 *   **Word Count Requirements**: AI metric analysis paragraphs must be 150-200 words, core action recommendations 250-300 words
@@ -491,7 +517,7 @@ Recommended on the 1st of each month at 10:00 AM to generate last month's report
 ### config.json
 ```json
 {
-  "version": "5.6.0",
+  "version": "5.7.0",
   "members": [
     {
       "name": "Jimmy",
@@ -527,7 +553,7 @@ Recommended on the 1st of each month at 10:00 AM to generate last month's report
 }
 ```
 
-### 🌐 Multi-language Support (V5.6.0)
+### 🌐 Multi-language Support (V5.7.0)
 
 Switch report language via `language` field in `config.json`:
 
