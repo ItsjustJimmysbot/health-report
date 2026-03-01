@@ -75,6 +75,57 @@ playwright install chromium
    python3 send_health_report_email.py $(date -v-1d +%Y-%m-%d)
 ```
 
+### 6. 周报定时任务 (Weekly Cron)
+建议每周一上午 9:00 生成上周周报，汇总 7 天数据。
+
+**Cron 设置：**
+- 时间：`0 9 * * 1` (每周一 9:00)
+
+**指令内容模板：**
+```text
+【每周健康周报 - V5.4.0 标准化流程】
+1. 计算日期：获取上周一至上周日日期
+   START_DATE=$(date -v-7d +%Y-%m-%d)
+   END_DATE=$(date -v-1d +%Y-%m-%d)
+2. AI 分析：基于整周数据趋势生成周报分析
+3. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
+4. 渲染生成：
+   cd ~/.openclaw/workspace-health/scripts && \
+   python3 generate_weekly_monthly_medical.py weekly $START_DATE $END_DATE < ../weekly_analysis.json
+5. 发送邮件：发送周报 PDF 到配置邮箱
+```
+
+### 7. 月报定时任务 (Monthly Cron)
+建议每月 1 日上午 10:00 生成上月月报，汇总整月数据。
+
+**Cron 设置：**
+- 时间：`0 10 1 * *` (每月 1 日 10:00)
+
+**指令内容模板：**
+```text
+【每月健康月报 - V5.4.0 标准化流程】
+1. 计算月份：获取上月年份和月份
+   YEAR=$(date -v-1m +%Y)
+   MONTH=$(date -v-1m +%m)
+2. AI 分析：基于整月数据趋势生成月报深度分析
+3. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
+4. 渲染生成：
+   cd ~/.openclaw/workspace-health/scripts && \
+   python3 generate_weekly_monthly_medical.py monthly $YEAR $MONTH < ../monthly_analysis.json
+5. 发送邮件：发送月报 PDF 到配置邮箱
+```
+
+**注意：** 周报和月报的 AI 分析 JSON 需包含 `recommendations` 数组（优先级建议），格式如下：
+```json
+{
+  "trend_analysis": "本周 HRV 呈现...",
+  "recommendations": [
+    {"priority": "high", "title": "优先保证睡眠", "content": "建议每晚..."},
+    {"priority": "medium", "title": "增加有氧运动", "content": "建议每周..."}
+  ]
+}
+```
+
 ---
 
 ## ✨ V5.4.0 核心特性
