@@ -230,13 +230,9 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None):
     total_energy_kJ = active_energy + workout_energy
     total_energy_kcal = total_energy_kJ / 4.184
     
-    # 获取成员 profile 信息
-    profile = get_member_profile()
-    
     result = {
         'date': date_str,
         'data_source': 'Apple Health',
-        'profile': profile,
         'profile': USER_PROFILE,
         'hrv': {
             'value': round(hrv_raw, 1) if hrv_raw else None,
