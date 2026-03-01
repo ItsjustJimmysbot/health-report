@@ -30,6 +30,8 @@ playwright install chromium
       "name": "Jimmy",
       "age": 30,
       "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
       "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
       "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
       "email": "your-email@example.com"
@@ -183,6 +185,8 @@ playwright install chromium
       "name": "Jimmy",
       "age": 30,
       "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
       "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
       "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
       "email": "your-email@example.com"

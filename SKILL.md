@@ -21,6 +21,8 @@ description: 基于 Apple Health 数据的 AI 健康分析报告生成工具。�
       "name": "Jimmy",
       "age": 30,
       "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
       "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
       "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
       "email": "your-email@example.com"
@@ -127,6 +129,8 @@ python3 scripts/generate_weekly_monthly_medical.py monthly 2026 2 < monthly_anal
       "name": "Jimmy",
       "age": 30,
       "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
       "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
       "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
       "email": "your-email@example.com"

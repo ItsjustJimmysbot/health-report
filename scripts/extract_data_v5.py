@@ -16,20 +16,28 @@ def load_config():
     return {}
 
 def get_health_dirs():
-    """获取Health数据目录，优先从config.json读取"""
+    """获取Health数据目录和成员档案，优先从config.json读取"""
     config = load_config()
     members = config.get('members', [])
     if members and len(members) > 0:
         member = members[0]
         health_dir = member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data')
         workout_dir = member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data')
+        profile = {
+            'name': member.get('name', ''),
+            'age': member.get('age'),
+            'gender': member.get('gender'),
+            'height_cm': member.get('height_cm'),
+            'weight_kg': member.get('weight_kg')
+        }
     else:
         health_dir = '~/我的云端硬盘/Health Auto Export/Health Data'
         workout_dir = '~/我的云端硬盘/Health Auto Export/Workout Data'
+        profile = {'name': '', 'age': None, 'gender': None, 'height_cm': None, 'weight_kg': None}
     
-    return Path(health_dir).expanduser(), Path(workout_dir).expanduser()
+    return Path(health_dir).expanduser(), Path(workout_dir).expanduser(), profile
 
-HEALTH_DIR, WORKOUT_DIR = get_health_dirs()
+HEALTH_DIR, WORKOUT_DIR, USER_PROFILE = get_health_dirs()
 
 def extract_metric_avg(metrics, metric_name):
     """提取平均值和数据点数"""
@@ -225,6 +233,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None):
     result = {
         'date': date_str,
         'data_source': 'Apple Health',
+        'profile': USER_PROFILE,
         'hrv': {
             'value': round(hrv_raw, 1) if hrv_raw else None,
             'points': hrv_points
