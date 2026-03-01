@@ -525,7 +525,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     hrv_v = data['hrv']['value'] or 0
     rhr_v = data['resting_hr']['value'] or 999
     steps_v = data['steps'] or 0
-    active_v = data.get('active_energy') or data.get('active_energy_kcal') or 0
+    active_v = data.get('active_energy') or 0  # V5.2.3-fix: 统一使用 active_energy
 
     recovery = min(100, 70 + (10 if hrv_v > 50 else 0) + (10 if rhr_v < 65 else 0) + (10 if sleep_hours > 7 else 0))
     sleep_score = 30 if sleep_hours < 6 else 50 if sleep_hours < 7 else 70 if sleep_hours < 8 else 80
@@ -704,13 +704,6 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         workout_section = f'''<div class="workout-section no-break"><div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>运动记录</div></div><div class="workout-analysis"><div class="workout-analysis-title">今日无结构化运动</div><div class="workout-analysis-text">{workout_analysis}</div></div></div>'''
     html = html.replace('{{WORKOUT_SECTION}}', workout_section)
 
-    # AI建议
-    p = ai_analysis.get('priority', {})
-    html = html.replace('{{AI1_TITLE}}', p.get('title', ''))
-    html = html.replace('{{AI1_PROBLEM}}', p.get('problem', ''))
-    html = html.replace('{{AI1_ACTION}}', p.get('action', ''))
-    html = html.replace('{{AI1_EXPECTATION}}', p.get('expectation', ''))
-
     # AI建议 - 必须有真实内容，禁止模板填充
     required_ai_fields = [
         'priority', 'ai2_title', 'ai2_problem', 'ai2_action', 'ai2_expectation',
@@ -865,7 +858,7 @@ if __name__ == '__main__':
             hrv_v = data['hrv']['value'] or 0
             rhr_v = data['resting_hr']['value'] or 999
             steps_v = data['steps'] or 0
-            active_v = data.get('active_energy') or data.get('active_energy_kcal') or 0
+            active_v = data.get('active_energy') or 0  # V5.2.3-fix: 统一使用 active_energy
             recovery = min(100, 70 + (10 if hrv_v > 50 else 0) + (10 if rhr_v < 65 else 0) + (10 if sleep_hours > 7 else 0))
             sleep_score = 30 if sleep_hours < 6 else 50 if sleep_hours < 7 else 70 if sleep_hours < 8 else 80
             exercise = min(100, 50 + (15 if data.get('has_workout') else 0) + (10 if active_v > 500 else 0) + min(25, steps_v // 400))
@@ -877,15 +870,27 @@ if __name__ == '__main__':
             
             html_path.write_text(html, encoding='utf-8')
             
-            with sync_playwright() as p:
-                browser = p.chromium.launch()
-                page = browser.new_page()
-                page.goto(f'file://{html_path}')
-                page.wait_for_timeout(2500)
-                page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                         margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
-                         display_header_footer=False)
-                browser.close()
+            # V5.2.3-fix: 添加PDF生成重试机制
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch()
+                        page = browser.new_page()
+                        page.goto(f'file://{html_path}')
+                        page.wait_for_timeout(2500)
+                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
+                                 display_header_footer=False)
+                        browser.close()
+                    break  # 成功则跳出重试循环
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        print(f'   ⚠️ PDF生成失败，第{attempt + 1}次重试...')
+                        import time
+                        time.sleep(1)
+                    else:
+                        raise Exception(f'PDF生成失败（已重试{max_retries}次）: {e}')
             
             print(f'✅ 报告已生成: {pdf_path}')
             print(f'   大小: {pdf_path.stat().st_size / 1024:.0f} KB')
@@ -899,7 +904,7 @@ if __name__ == '__main__':
                     'hrv': data['hrv'],
                     'resting_hr': data['resting_hr'],
                     'steps': data['steps'],
-                    'active_energy': data.get('active_energy') or data.get('active_energy_kcal') or 0,
+                    'active_energy': data.get('active_energy') or 0,  # V5.2.3-fix: 统一使用 active_energy
                     'spo2': data['spo2'],
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],
