@@ -236,81 +236,8 @@ def generate_monthly_chart(dates, hrv_values, steps_values, sleep_values):
     lang_labels = labels.get(LANGUAGE, labels["CN"])
     
     return _build_chartjs_template('monthlyChart', display_dates, hrv_values, steps_values, sleep_values, lang_labels, 280)
-    if not dates or not hrv_values:
-        return '<div style="text-align:center;color:#999;padding:40px;">暂无月度趋势数据</div>'
-    
-    n = len(dates)
-    width = 700
-    height = 250
-    padding = {'top': 30, 'right': 40, 'bottom': 50, 'left': 50}
-    chart_w = width - padding['left'] - padding['right']
-    chart_h = height - padding['top'] - padding['bottom']
-    
-    # 计算范围
-    hrv_min, hrv_max = min(hrv_values) * 0.9, max(hrv_values) * 1.1
-    steps_min, steps_max = 0, max(steps_values) * 1.2
-    
-    # 生成点
-    def get_points(values, min_v, max_v):
-        points = []
-        for i, v in enumerate(values):
-            x = padding['left'] + (i / max(n - 1, 1)) * chart_w
-            y = padding['top'] + chart_h - ((v - min_v) / (max_v - min_v + 0.001)) * chart_h
-            points.append(f"{x:.1f},{y:.1f}")
-        return points
-    
-    hrv_points = get_points(hrv_values, hrv_min, hrv_max)
-    steps_points = get_points(steps_values, steps_min, steps_max)
-    sleep_points = get_points(sleep_values, 0, max(sleep_values) * 1.2 if sleep_values else 10)
-    
-    # X轴标签 - 与数据点对齐，每5天或每天显示（根据数据量）
-    x_labels = ""
-    label_interval = max(1, n // 6)  # 确保标签数量合理，不会重叠
-    for i in range(0, n, label_interval):
-        x = padding['left'] + (i / max(n - 1, 1)) * chart_w
-        label = dates[i][8:10] if len(dates[i]) >= 10 else str(i+1)
-        x_labels += f'<text x="{x}" y="{height - 15}" text-anchor="middle" font-size="10" fill="#64748B">{label}日</text>'
-    
-    # 确保最后一个数据点有标签
-    if (n - 1) % label_interval != 0:
-        x = padding['left'] + chart_w
-        label = dates[-1][8:10] if len(dates[-1]) >= 10 else str(n)
-        x_labels += f'<text x="{x}" y="{height - 15}" text-anchor="middle" font-size="10" fill="#64748B">{label}日</text>'
-    
-    # 生成SVG
-    svg = f'''<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="background:#fff;">
-        <!-- 网格线 -->
-        {''.join([f'<line x1="{padding["left"]}" y1="{padding["top"] + (height - padding["top"] - padding["bottom"]) / 4 * i}" x2="{width - padding["right"]}" y2="{padding["top"] + (height - padding["top"] - padding["bottom"]) / 4 * i}" stroke="#E2E8F0" stroke-width="1"/>' for i in range(5)])}
-        
-        <!-- HRV曲线（绿色） -->
-        <polyline fill="none" stroke="#22C55E" stroke-width="2.5" points="{' '.join(hrv_points)}"/>
-        {''.join([f'<circle cx="{p.split(",")[0]}" cy="{p.split(",")[1]}" r="3" fill="#22C55E"/>' for p in hrv_points])}
-        
-        <!-- 步数曲线（蓝色，虚线） -->
-        <polyline fill="none" stroke="#3B82F6" stroke-width="2" stroke-dasharray="5,3" points="{' '.join(steps_points)}"/>
-        
-        <!-- 睡眠曲线（紫色，点线） -->
-        <polyline fill="none" stroke="#A855F7" stroke-width="2" stroke-dasharray="3,3" points="{' '.join(sleep_points)}"/>
-        
-        <!-- X轴标签 -->
-        {x_labels}
-        
-        <!-- 图例 -->
-        <g transform="translate({width/2 - 120}, 10)">
-            <line x1="0" y1="6" x2="20" y2="6" stroke="#22C55E" stroke-width="2.5"/>
-            <text x="25" y="10" font-size="10" fill="#64748B">HRV (ms)</text>
-            
-            <line x1="80" y1="6" x2="100" y2="6" stroke="#3B82F6" stroke-width="2" stroke-dasharray="5,3"/>
-            <text x="105" y="10" font-size="10" fill="#64748B">步数</text>
-            
-            <line x1="160" y1="6" x2="180" y2="6" stroke="#A855F7" stroke-width="2" stroke-dasharray="3,3"/>
-            <text x="185" y="10" font-size="10" fill="#64748B">睡眠(h)</text>
-        </g>
-    </svg>'''
-    
-    return svg
 
-def generate_weekly_report(start_date, end_date, ai_analysis, template):
+def generate_weekly_report(start_date, end_date, ai_analysis, template, member_name="默认用户"):
     """生成周报 - 使用Medical Dashboard模板"""
     
     # 计算日期范围
@@ -325,7 +252,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template):
     # 加载每日数据
     weekly_data = []
     for date in week_dates:
-        data = load_cache(date)
+        data = load_cache(date, member_name)
         if data:
             weekly_data.append(data)
     
@@ -346,7 +273,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template):
     # 生成每日明细行
     daily_rows = []
     for date in week_dates:
-        data = load_cache(date)
+        data = load_cache(date, member_name)
         if data:
             workout_mark = '✓' if data['has_workout'] else '-'
             row = f"""<tr>
@@ -409,7 +336,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template):
     
     return html
 
-def generate_monthly_report(year, month, ai_analysis, template):
+def generate_monthly_report(year, month, ai_analysis, template, member_name="默认用户"):
     """生成月报 - 使用Medical Dashboard模板"""
     
     # 计算月份天数
@@ -423,7 +350,7 @@ def generate_monthly_report(year, month, ai_analysis, template):
     month_dates = [f"{year}-{month:02d}-{day:02d}" for day in range(1, last_day + 1)]
     monthly_data = []
     for date in month_dates:
-        data = load_cache(date)
+        data = load_cache(date, member_name)
         if data:
             monthly_data.append(data)
     
@@ -661,7 +588,7 @@ def main():
             print(f"🧑 正在为成员 {idx+1}/{member_count} 生成周报: {member_name}")
             
             # 生成报告
-            html = generate_weekly_report(start_date, end_date, ai_analysis, template)
+            html = generate_weekly_report(start_date, end_date, ai_analysis, template, member_name)
             if not html:
                 continue
             
@@ -711,7 +638,7 @@ def main():
             print(f"🧑 正在为成员 {idx+1}/{member_count} 生成月报: {member_name}")
             
             # 生成报告
-            html = generate_monthly_report(year, month, ai_analysis, template)
+            html = generate_monthly_report(year, month, ai_analysis, template, member_name)
             if not html:
                 continue
             

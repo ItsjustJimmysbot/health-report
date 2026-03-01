@@ -102,7 +102,7 @@ MIN_LENGTH_DINNER = 30         # 晚餐最低字数
 MIN_LENGTH_SNACK = 30          # 加餐最低字数
 
 # 验证模式：strict=严格模式(不满足则报错), warn=警告模式(只提示)
-VALIDATION_MODE = "strict"  # 可选值: "strict", "warn"
+VALIDATION_MODE = CONFIG.get("validation_mode", "strict")  # 可选值: "strict", "warn"
 # =====================================================
 
 HOME = Path.home()
