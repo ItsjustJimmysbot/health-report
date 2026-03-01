@@ -1,4 +1,4 @@
-# Health Agent V5.2.3 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.4.0 - OpenClaw 专业健康分析 Skill
 
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
 
@@ -24,7 +24,7 @@ playwright install chromium
 
 ```json
 {
-  "version": "5.2.3",
+  "version": "5.4.0",
   "members": [
     {
       "name": "默认用户",
@@ -55,7 +55,7 @@ playwright install chromium
 
 **指令内容模板：**
 ```text
-【每日健康日报 - V5.2.3 标准化流程】
+【每日健康日报 - V5.4.0 标准化流程】
 1. 提取数据：读取 config.json 配置的 Health 路径
 2. AI 分析：基于当日真实数值（HRV、步数等）生成详细分析（每项≥150字）
 3. 关键写入：使用 write 工具将 JSON 写入 ai_analysis.json
@@ -68,10 +68,14 @@ playwright install chromium
 
 ---
 
-## ✨ V5.2.3 核心特性
+## ✨ V5.4.0 核心特性
 
+*   **多语言支持 (新增)**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）
 *   **配置化路径**：所有脚本统一从 `config.json` 读取数据路径，无需修改代码
 *   **真·数据对齐**：彻底修正了 Apple Health 跨天导出的偏移问题。日间活动从当日文件读取，睡眠数据从次日文件读取
+*   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、11 项核心指标表、Chart.js 动态心率曲线和深度睡眠结构分析
+*   **原子化工作流**：将原本不稳定的 `edit` 局部替换逻辑升级为全量 `write` JSON 模式
+*   **跨夜睡眠归属**：完善了睡眠统计逻辑，自动抓取 `当日 20:00` 至 `次日 12:00` 的睡眠记录并归属为当日恢复指标
 *   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、11 项核心指标表、Chart.js 动态心率曲线和深度睡眠结构分析
 *   **原子化工作流**：将原本不稳定的 `edit` 局部替换逻辑升级为全量 `write` JSON 模式
 *   **跨夜睡眠归属**：完善了睡眠统计逻辑，自动抓取 `当日 20:00` 至 `次日 12:00` 的睡眠记录并归属为当日恢复指标
@@ -88,7 +92,7 @@ playwright install chromium
 
 ---
 
-## 📝 开发者规范 (V5.2.3)
+## 📝 开发者规范 (V5.4.0)
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
 *   **字数红线**：AI 指标分析段落必须在 150-200 字，核心行动建议 250-300 字
@@ -101,7 +105,7 @@ playwright install chromium
 ### config.json 结构
 ```json
 {
-  "version": "5.2.3",
+  "version": "5.4.0",
   "members": [
     {
       "name": "成员名称",
@@ -121,9 +125,29 @@ playwright install chromium
     "smtp_port": 587,
     "sender_email": "sender@example.com",
     "password": "应用专用密码"
-  }
+  },
+  "language": "CN"
 }
 ```
+
+### 🌐 多语言支持 (V5.4.0 新增)
+
+通过 `config.json` 中的 `language` 字段切换报告语言：
+
+- `"language": "CN"` - 中文界面（睡眠质量、运动记录、评级等）
+- `"language": "EN"` - 英文界面（Sleep Quality / Workout Records / Excellent / Good 等）
+
+**切换步骤：**
+1. 编辑 `config.json` 修改 `language` 字段
+2. 重新生成报告即可自动切换语言
+
+**支持翻译的界面元素：**
+- 所有标题（睡眠质量、运动记录、11项核心指标等）
+- 评分评级（Excellent / Good / Average / Normal）
+- 运动状态标签（Completed / 已完成）
+- 心率图表标签（Heart Rate / Avg / Max / Time）
+- 睡眠状态（Normal / Insufficient Data）
+- 日期格式（2026年2月 / Feb 2026）
 
 ---
 

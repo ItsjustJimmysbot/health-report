@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-V5.2.3 AI分析报告生成器 - Medical Dashboard 模板版
+V5.4.0 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
+- 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
 - 仅在有运动时显示心率曲线
 - 支持多成员报告生成（最多3人，控制token消耗）
@@ -34,7 +35,7 @@ def load_config():
     
     # 默认配置
     return {
-        "version": "5.2.3",
+        "version": "5.4.0",
         "members": [{
             "name": "默认用户",
             "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
@@ -46,7 +47,8 @@ def load_config():
             "metric_max_words": 200,
             "action_min_words": 250,
             "action_max_words": 300
-        }
+        },
+        "language": "CN"
     }
 
 # 加载配置

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V5.0报告生成"""
+"""提取Apple Health数据用于V5.4.0报告生成"""
 
 import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# V5.2.3-fix: 从 config.json 读取路径配置，如果不存在则使用默认值
+# V5.4.0: 从 config.json 读取路径配置，支持多语言
 def load_config():
     """加载配置文件"""
     config_path = Path.home() / ".openclaw" / "workspace-health" / "config.json"
