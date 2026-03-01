@@ -173,12 +173,20 @@ python3 scripts/generate_weekly_monthly_medical.py monthly 2026 2 < monthly_anal
   "members": [
     {
       "name": "成员1",
+      "age": 30,
+      "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
       "health_dir": "~/HealthData/Member1/Health Data",
       "workout_dir": "~/HealthData/Member1/Workout Data",
       "email": "member1@example.com"
     },
     {
       "name": "成员2",
+      "age": 28,
+      "gender": "female",
+      "height_cm": 165,
+      "weight_kg": 55,
       "health_dir": "~/HealthData/Member2/Health Data",
       "workout_dir": "~/HealthData/Member2/Workout Data",
       "email": "member2@example.com"
