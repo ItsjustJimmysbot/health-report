@@ -1,15 +1,15 @@
 <!-- 
-  日报模板 - Medical Dashboard V2
-  字体：本地Noto Serif SC（确保渲染一致性）
-  配色：中等饱和度（居中）
+  Daily Report Template - Medical Dashboard V2
+  Font: Local Noto Serif SC (ensure rendering consistency)
+  Color: Medium saturation (centered)
 -->
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>{{DATE}} Health Report</title>
 <style>
-/* 本地字体定义 */
+/* Local font definition */
 @font-face {
   font-family: 'Noto Serif SC';
   src: url('fonts/NotoSerifSC-Regular.otf') format('opentype');
@@ -48,7 +48,7 @@
 }
 
 :root {
-  /* 中等饱和度（居中） */
+  /* Medium Saturation (Centered) */
   --purple-light: #F5E6FE;
   --purple-main: #A855F7;
   --purple-dark: #7C3AED;
@@ -285,7 +285,7 @@ body {
   vertical-align: middle;
 }
 
-/* AI分析中的数字加粗 */
+/* AI Analysis text bold */
 .metric-analysis strong,
 .metric-analysis b {
   font-weight: 700;
@@ -442,13 +442,13 @@ body {
   color: var(--blue-dark);
 }
 
-/* ===== Workout Section - 紧凑一页版 ===== */
+/* ===== Workout Section - Compact Single Page ===== */
 .workout-section {
   background: var(--blue-light);
   border-radius: 8px;
   padding: 18px;
   margin-bottom: 15px;
-  page-break-inside: avoid; /* 防止跨页 */
+  page-break-inside: avoid; /* Prevent page break */
 }
 
 .workout-header {
@@ -523,7 +523,7 @@ body {
   text-transform: uppercase;
 }
 
-/* ===== Heart Rate图表 - 带数值和图例 ===== */
+/* ===== Heart Rate Chart - With Value and Legend ===== */
 .hr-chart-wrapper {
   background: var(--white);
   border-radius: 8px;
@@ -575,7 +575,7 @@ body {
   height: 100%;
 }
 
-/* Y轴刻度 */
+/* Y-axis scale */
 .hr-y-axis {
   position: absolute;
   left: 0;
@@ -591,7 +591,7 @@ body {
   padding-right: 5px;
 }
 
-/* X轴时间标签 */
+/* X-axis time labels */
 .hr-x-axis {
   display: flex;
   justify-content: space-between;
@@ -601,7 +601,7 @@ body {
   margin-top: 5px;
 }
 
-/* Heart Rate数据点提示 */
+/* Heart rate data tips */
 .hr-data-point {
   position: absolute;
   background: var(--blue-dark);
@@ -755,7 +755,7 @@ body {
   page-break-before: always;
 }
 
-/* 防止跨页 */
+/* Prevent page break */
 .no-break {
   page-break-inside: avoid;
 }
@@ -790,7 +790,7 @@ body {
   </div>
   <div class="score-card exercise">
     <div class="score-value">{{SCORE_EXERCISE}}</div>
-    <div class="score-label">运动完成</div>
+    <div class="score-label">Exercise Complete</div>
     <span class="badge {{BADGE_EXERCISE_CLASS}}">{{BADGE_EXERCISE_TEXT}}</span>
   </div>
 </div>
@@ -800,17 +800,17 @@ body {
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">📊</span>
-      详细指标分析（11项完整版）
+      Detailed Metric Analysis (11 items complete)
     </div>
   </div>
   
   <table class="metrics-table">
     <thead>
       <tr>
-        <th>指标</th>
-        <th>数值</th>
-        <th>评级</th>
-        <th>AI分析（100-150字）</th>
+        <th>Metric</th>
+        <th>Value</th>
+        <th>Rating</th>
+        <th>AI Analysis(100-150 words)</th>
       </tr>
     </thead>
     <tbody>
@@ -821,7 +821,7 @@ body {
         <td><div class="metric-analysis">{{METRIC1_ANALYSIS}}</div></td>
       </tr>
       <tr class="metric-row">
-        <td><span class="metric-name">静息Heart Rate</span></td>
+        <td><span class="metric-name">Resting HR</span></td>
         <td class="metric-value-cell">{{METRIC2_VALUE}}</td>
         <td><span class="rating {{METRIC2_RATING_CLASS}}">{{METRIC2_RATING}}</span></td>
         <td><div class="metric-analysis">{{METRIC2_ANALYSIS}}</div></td>
@@ -833,7 +833,7 @@ body {
         <td><div class="metric-analysis">{{METRIC3_ANALYSIS}}</div></td>
       </tr>
       <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">行走Distance</span></td>
+        <td><span class="metric-name metric-name-main">Walking Distance</span></td>
         <td class="metric-value-cell">{{METRIC4_VALUE}}</td>
         <td><span class="rating {{METRIC4_RATING_CLASS}}">{{METRIC4_RATING}}</span></td>
         <td><div class="metric-analysis">{{METRIC4_ANALYSIS}}</div></td>
@@ -845,25 +845,25 @@ body {
         <td><div class="metric-analysis">{{METRIC5_ANALYSIS}}</div></td>
       </tr>
       <tr class="metric-row">
-        <td><span class="metric-name">Flights层数</span></td>
+        <td><span class="metric-name">Flightsfloors</span></td>
         <td class="metric-value-cell">{{METRIC6_VALUE}}</td>
         <td><span class="rating {{METRIC6_RATING_CLASS}}">{{METRIC6_RATING}}</span></td>
         <td><div class="metric-analysis">{{METRIC6_ANALYSIS}}</div></td>
       </tr>
       <tr class="metric-row">
-        <td><span class="metric-name">Stand时间</span></td>
+        <td><span class="metric-name">Standing Time</span></td>
         <td class="metric-value-cell">{{METRIC7_VALUE}}</td>
         <td><span class="rating {{METRIC7_RATING_CLASS}}">{{METRIC7_RATING}}</span></td>
         <td><div class="metric-analysis">{{METRIC7_ANALYSIS}}</div></td>
       </tr>
       <tr class="metric-row">
-        <td><span class="metric-name">Blood Oxygen饱和度</span></td>
+        <td><span class="metric-name">Blood OxygenSaturation</span></td>
         <td class="metric-value-cell">{{METRIC8_VALUE}}</td>
         <td><span class="rating {{METRIC8_RATING_CLASS}}">{{METRIC8_RATING}}</span></td>
         <td><div class="metric-analysis">{{METRIC8_ANALYSIS}}</div></td>
       </tr>
       <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">静息能量</span></td>
+        <td><span class="metric-name metric-name-main">Resting Energy</span></td>
         <td class="metric-value-cell">{{METRIC9_VALUE}}</td>
         <td><span class="rating {{METRIC9_RATING_CLASS}}">{{METRIC9_RATING}}</span></td>
         <td><div class="metric-analysis">{{METRIC9_ANALYSIS}}</div></td>
@@ -898,14 +898,14 @@ body {
   </div>
 
   <div class="sleep-big">
-    <div class="sleep-big-label">总睡眠时长 ({{SLEEP_TOTAL}}h 总计)</div>
+    <div class="sleep-big-label">Total sleep duration ({{SLEEP_TOTAL}}h Total)</div>
     <div class="sleep-big-value">{{SLEEP_HOURS}}<span class="sleep-big-unit">h</span></div>
   </div>
 
-  <div class="sleep-structure-title">睡眠阶段分布</div>
+  <div class="sleep-structure-title">Sleep Stage Distribution</div>
   <div class="sleep-structure">
-    <div class="sleep-bar sleep-deep" style="width: {{SLEEP_DEEP_PCT}}%">Deep {{SLEEP_DEEP}}h</div>
-    <div class="sleep-bar sleep-core" style="width: {{SLEEP_CORE_PCT}}%">核心 {{SLEEP_CORE}}h</div>
+    <div class="sleep-bar sleep-deep" style="width: {{SLEEP_DEEP_PCT}}%">Deep Sleep {{SLEEP_DEEP}}h</div>
+    <div class="sleep-bar sleep-core" style="width: {{SLEEP_CORE_PCT}}%">Core {{SLEEP_CORE}}h</div>
     <div class="sleep-bar sleep-rem" style="width: {{SLEEP_REM_PCT}}%">REM {{SLEEP_REM}}h</div>
     <div class="sleep-bar sleep-awake" style="width: {{SLEEP_AWAKE_PCT}}%">Awake {{SLEEP_AWAKE}}h</div>
   </div>
@@ -914,27 +914,27 @@ body {
     <div class="legend-item">
       <div class="legend-dot" style="background: #581C87;"></div>
       <div class="legend-value" style="color: #581C87;">{{SLEEP_DEEP}}h</div>
-      <div class="legend-label">Deep期 ({{SLEEP_DEEP_PCT}}%)<br>身体修复</div>
+      <div class="legend-label">Deep SleepPhase ({{SLEEP_DEEP_PCT}}%)<br>Body Recovery</div>
     </div>
     <div class="legend-item">
       <div class="legend-dot" style="background: var(--purple-dark);"></div>
       <div class="legend-value" style="color: var(--purple-dark);">{{SLEEP_CORE}}h</div>
-      <div class="legend-label">Core ({{SLEEP_CORE_PCT}}%)<br>记忆巩固</div>
+      <div class="legend-label">Core Sleep ({{SLEEP_CORE_PCT}}%)<br>Memory Consolidation</div>
     </div>
     <div class="legend-item">
       <div class="legend-dot" style="background: var(--purple-main);"></div>
       <div class="legend-value" style="color: var(--purple-dark);">{{SLEEP_REM}}h</div>
-      <div class="legend-label">REM期 ({{SLEEP_REM_PCT}}%)<br>情绪调节</div>
+      <div class="legend-label">REMPhase ({{SLEEP_REM_PCT}}%)<br>Emotion Regulation</div>
     </div>
     <div class="legend-item">
       <div class="legend-dot" style="background: var(--yellow-main);"></div>
       <div class="legend-value" style="color: var(--yellow-dark);">{{SLEEP_AWAKE}}h</div>
-      <div class="legend-label">Awake时间 ({{SLEEP_AWAKE_PCT}}%)<br>睡眠中断</div>
+      <div class="legend-label">Awake Time ({{SLEEP_AWAKE_PCT}}%)<br>Sleep Interruption</div>
     </div>
   </div>
 
   <div class="sleep-analysis-box">
-    <strong>AI深度分析：</strong>{{SLEEP_ANALYSIS_TEXT}}
+    <strong>AI Deep Analysis：</strong>{{SLEEP_ANALYSIS_TEXT}}
   </div>
 </div>
 
@@ -948,7 +948,7 @@ body {
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">💡</span>
-      AI 详细健康建议（4部分完整版）
+      AI Suggestions 4)
     </div>
   </div>
 
@@ -956,9 +956,9 @@ body {
     <div class="ai-priority">🔴 Highest Priority</div>
     <div class="ai-title">{{AI1_TITLE}}</div>
     <div class="ai-content">
-      <strong>Problem（紧急）：</strong>{{AI1_PROBLEM}}<br><br>
-      <strong>Action Plan（分步骤）：</strong>{{AI1_ACTION}}<br><br>
-      <strong>Expected Result：</strong>{{AI1_EXPECTATION}}
+      <strong>Problem Identification (Urgent)：</strong>{{AI1_PROBLEM}}<br><br>
+      <strong>Action Plan (Step-by-step):</strong>{{AI1_ACTION}}<br><br>
+      <strong>Expected Results:</strong>{{AI1_EXPECTATION}}
     </div>
   </div>
 
@@ -966,24 +966,24 @@ body {
     <div class="ai-priority">🟡 Medium Priority</div>
     <div class="ai-title">{{AI2_TITLE}}</div>
     <div class="ai-content">
-      <strong>问题分析：</strong>{{AI2_PROBLEM}}<br><br>
-      <strong>具体建议：</strong>{{AI2_ACTION}}<br><br>
-      <strong>恢复周期：</strong>{{AI2_EXPECTATION}}
+      <strong>Problem Analysis:</strong>{{AI2_PROBLEM}}<br><br>
+      <strong>Specific Recommendations:</strong>{{AI2_ACTION}}<br><br>
+      <strong>Recovery Period:</strong>{{AI2_EXPECTATION}}
     </div>
   </div>
 
   <div class="ai-rec ai-rec-low">
-    <div class="ai-priority">🔵 低优先级</div>
+    <div class="ai-priority">🔵 </div>
     <div class="ai-title">{{AI3_TITLE}}</div>
     <div class="ai-content">
-      <strong>优化机会：</strong>{{AI3_PROBLEM}}<br><br>
-      <strong>日常习惯：</strong>{{AI3_ACTION}}<br><br>
-      <strong>长期收益：</strong>{{AI3_EXPECTATION}}
+      <strong>：</strong>{{AI3_PROBLEM}}<br><br>
+      <strong>Daily Habits：</strong>{{AI3_ACTION}}<br><br>
+      <strong>Phase：</strong>{{AI3_EXPECTATION}}
     </div>
   </div>
 
   <div class="diet-section">
-    <div class="diet-title">🥗 个性化饮食方案（三餐 + Snacks）</div>
+    <div class="diet-title">🥗   + Snacks </div>
     <div class="diet-content">
       <div class="diet-meal">
         <div class="meal-name">Breakfast (7:00-8:00)</div>
@@ -998,7 +998,7 @@ body {
         {{AI4_DINNER}}
       </div>
       <div class="diet-meal">
-        <div class="meal-name">Snacks建议</div>
+        <div class="meal-name">SnacksSuggestions</div>
         {{AI4_SNACK}}
       </div>
     </div>
@@ -1008,7 +1008,7 @@ body {
 <!-- Footer -->
 <div class="footer">
   <div class="footer-divider"></div>
-  <div>{{DATA_SOURCE}} · {{DATE}} · 本报告仅供参考，不作为医疗诊断依据</div>
+  <div>{{DATA_SOURCE}}   {{DATE}}   This report is for reference only and not for medical diagnosis</div>
 </div>
 
 </div>
