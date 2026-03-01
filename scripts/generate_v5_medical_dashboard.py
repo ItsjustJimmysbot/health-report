@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V5.4.0 AI分析报告生成器 - Medical Dashboard 模板版
+V5.4.1 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
@@ -36,7 +36,7 @@ def load_config():
     
     # 默认配置
     return {
-        "version": "5.4.0",
+        "version": "5.4.1",
         "members": [{
             "name": "默认用户",
             "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",

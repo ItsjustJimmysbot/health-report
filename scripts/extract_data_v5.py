@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V5.4.0报告生成"""
+"""提取Apple Health数据用于V5.4.1报告生成"""
 
 import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# V5.4.0: 从 config.json 读取路径配置，支持多语言
+# V5.4.1: 从 config.json 读取路径配置，支持多语言
 def load_config():
     """加载配置文件"""
     config_path = Path.home() / ".openclaw" / "workspace-health" / "config.json"
@@ -51,11 +51,11 @@ def extract_metric_sum(metrics, metric_name):
     return sum(d.get('qty', 0) for d in data if d.get('qty') is not None)
 
 def parse_sleep_data_v5(date_str, health_dir=None):
-    """V5.0: 使用sleepStart字段，严格时间窗口筛选 - V5.4.0-fix: 支持路径传入"""
+    """V5.0: 使用sleepStart字段，严格时间窗口筛选 - V5.4.1-fix: 支持路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     next_date = (date + timedelta(days=1)).strftime('%Y-%m-%d')
     
-    # V5.4.0-fix: 使用传入的路径或全局默认路径
+    # V5.4.1-fix: 使用传入的路径或全局默认路径
     health_dir = health_dir or HEALTH_DIR
     filepath = health_dir / f'HealthAutoExport-{next_date}.json'
     if not filepath.exists():
@@ -153,11 +153,11 @@ def extract_workout_data(date_str):
     return result
 
 def extract_daily_data(date_str, health_dir=None, workout_dir=None):
-    """提取完整的一天数据 - V5.4.0-fix: 支持多成员路径传入"""
+    """提取完整的一天数据 - V5.4.1-fix: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     next_date = (date + timedelta(days=1)).strftime('%Y-%m-%d')
     
-    # V5.4.0-fix: 使用传入的路径或全局默认路径
+    # V5.4.1-fix: 使用传入的路径或全局默认路径
     health_dir = health_dir or HEALTH_DIR
     workout_dir = workout_dir or WORKOUT_DIR
     
@@ -206,7 +206,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None):
     basal_energy = extract_metric_sum(today_metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(today_metrics, 'respiratory_rate')
     
-    # 睡眠数据 - V5.4.0-fix: 传递健康数据路径
+    # 睡眠数据 - V5.4.1-fix: 传递健康数据路径
     sleep_records = parse_sleep_data_v5(date_str, health_dir)
     sleep_total = sum(r['total'] for r in sleep_records) if sleep_records else 0
     sleep_deep = sum(r['deep'] for r in sleep_records) if sleep_records else 0

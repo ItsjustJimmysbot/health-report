@@ -1,4 +1,4 @@
-# Health Agent V5.4.0 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.4.1 - OpenClaw 专业健康分析 Skill
 
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
 
@@ -24,7 +24,7 @@ playwright install chromium
 
 ```json
 {
-  "version": "5.4.0",
+  "version": "5.4.1",
   "members": [
     {
       "name": "默认用户",
@@ -64,7 +64,7 @@ playwright install chromium
 
 **指令内容模板：**
 ```text
-【每日健康日报 - V5.4.0 标准化流程】
+【每日健康日报 - V5.4.1 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
 2. 提取数据：从 Health 路径提取当日数据
 3. AI 分析：基于当日真实数值（HRV、步数等）生成详细分析（每项≥150字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
@@ -84,7 +84,7 @@ playwright install chromium
 
 **指令内容模板：**
 ```text
-【每周健康周报 - V5.4.0 标准化流程】
+【每周健康周报 - V5.4.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算日期：获取上周一至上周日日期
    START_DATE=$(date -v-7d +%Y-%m-%d)
@@ -105,7 +105,7 @@ playwright install chromium
 
 **指令内容模板：**
 ```text
-【每月健康月报 - V5.4.0 标准化流程】
+【每月健康月报 - V5.4.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算月份：获取上月年份和月份
    YEAR=$(date -v-1m +%Y)
@@ -131,7 +131,7 @@ playwright install chromium
 
 ---
 
-## ✨ V5.4.0 核心特性
+## ✨ V5.4.1 核心特性
 
 *   **多语言支持 (新增)**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）
 *   **配置化路径**：所有脚本统一从 `config.json` 读取数据路径，无需修改代码
@@ -155,7 +155,7 @@ playwright install chromium
 
 ---
 
-## 📝 开发者规范 (V5.4.0)
+## 📝 开发者规范 (V5.4.1)
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
 *   **字数红线**：AI 指标分析段落必须在 150-200 字，核心行动建议 250-300 字
@@ -168,7 +168,7 @@ playwright install chromium
 ### config.json 结构
 ```json
 {
-  "version": "5.4.0",
+  "version": "5.4.1",
   "members": [
     {
       "name": "成员名称",
@@ -193,7 +193,7 @@ playwright install chromium
 }
 ```
 
-### 🌐 多语言支持 (V5.4.0 新增)
+### 🌐 多语言支持 (V5.4.1 新增)
 
 通过 `config.json` 中的 `language` 字段切换报告语言：
 
