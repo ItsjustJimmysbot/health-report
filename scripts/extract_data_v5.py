@@ -232,7 +232,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     steps = extract_metric_sum(metrics, 'step_count')
     
     # 距离 (km)
-    distance = extract_metric_sum(metrics, 'distance_walking_running') / 1000
+    distance = extract_metric_sum(metrics, 'walking_running_distance') / 1000
     
     # 活动能量 (kJ)
     active_energy = extract_metric_sum(metrics, 'active_energy_burned')
@@ -244,7 +244,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     stand_time = extract_metric_sum(metrics, 'apple_stand_time') / 60
     
     # 血氧 - V5.5.0: 修复百分比单位问题
-    spo2_raw, _ = extract_metric_avg(metrics, 'oxygen_saturation')
+    spo2_raw, _ = extract_metric_avg(metrics, 'blood_oxygen_saturation')
     if spo2_raw and spo2_raw <= 1.0:
         spo2 = spo2_raw * 100
     elif spo2_raw:

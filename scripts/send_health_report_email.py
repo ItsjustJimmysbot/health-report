@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-健康报告邮件发送脚本 V5.6 - 自动 fallback (Mail.app -> Gmail -> 通用SMTP -> 复制到本地)
+健康报告邮件发送脚本 V5.7 - 自动 fallback (Mail.app -> Gmail -> 通用SMTP -> 复制到本地)
+支持多成员：可通过参数指定发送给哪个成员
 """
 
 import sys
@@ -24,8 +25,22 @@ def load_config():
 
 CONFIG = load_config()
 EMAIL_CONFIG = CONFIG.get("email_config", {})
-# 优先使用配置中的接收邮箱，没有则使用全局接收邮箱，没有则使用发件邮箱
-RECEIVER_EMAIL = CONFIG.get("receiver_email") or (CONFIG.get("members", [{}])[0].get("email") if CONFIG.get("members") else EMAIL_CONFIG.get("receiver_email", EMAIL_CONFIG.get("sender_email", "")))
+
+def get_member_email(member_idx=0):
+    """获取指定成员的邮箱，优先使用成员自己的邮箱，其次使用全局 receiver_email"""
+    members = CONFIG.get("members", [])
+    
+    # 边界检查
+    if members and len(members) > member_idx:
+        member = members[member_idx]
+        # 优先使用成员自己的邮箱
+        return member.get("email") or CONFIG.get("receiver_email") or EMAIL_CONFIG.get("receiver_email", EMAIL_CONFIG.get("sender_email", ""))
+    elif members and len(members) > 0:
+        # fallback 到第一个成员
+        return members[0].get("email") or CONFIG.get("receiver_email") or EMAIL_CONFIG.get("receiver_email", EMAIL_CONFIG.get("sender_email", ""))
+    else:
+        # 没有成员配置，使用全局配置
+        return CONFIG.get("receiver_email") or EMAIL_CONFIG.get("receiver_email", EMAIL_CONFIG.get("sender_email", ""))
 
 def send_with_mail_app(recipient, report_files, subject, body):
     """使用 macOS Mail.app 发送邮件"""
@@ -160,39 +175,31 @@ def find_reports(date_str, upload_dir):
     
     return [str(r) for r in selected_daily + selected_weekly + selected_monthly]
 
-def main():
-    if len(sys.argv) < 2:
-        print("用法: python3 send_health_report_email.py <日期> [报告文件...]")
-        sys.exit(1)
-        
-    date_str = sys.argv[1]
+def send_email(date_str, report_files, member_idx=0):
+    """发送健康报告邮件给指定成员"""
     
-    # 确定输出目录
-    upload_dir = CONFIG.get("output_dir", "~/.openclaw/workspace/shared/health-reports/upload")
-    
-    if len(sys.argv) > 2:
-        report_files = sys.argv[2:]
-    else:
-        report_files = find_reports(date_str, upload_dir)
-        
     if not report_files:
-        print(f"❌ 未找到 {date_str} 的报告文件")
-        sys.exit(1)
-        
+        print("❌ 错误: 没有报告文件需要发送")
+        return False
+    
     existing_files = [f for f in report_files if Path(f).exists()]
     if not existing_files:
         print("❌ 错误: 指定的报告文件都不存在")
-        sys.exit(1)
-
+        return False
+    
+    # 获取指定成员的邮箱
+    receiver_email = get_member_email(member_idx)
+    upload_dir = CONFIG.get("output_dir", "~/.openclaw/workspace/shared/health-reports/upload")
+    
     subject = f"健康报告 - {date_str}"
     body = f"您好，\n您的健康报告 ({date_str}) 已生成。\n\n"
     
-    print(f"📧 准备发送邮件至 {RECEIVER_EMAIL}")
+    print(f"📧 准备发送邮件至 {receiver_email}")
     
     # 1. 尝试 Mail.app
     print("📋 方式1: 使用 macOS Mail.app...")
-    if send_with_mail_app(RECEIVER_EMAIL, existing_files, subject, body):
-        sys.exit(0)
+    if send_with_mail_app(receiver_email, existing_files, subject, body):
+        return True
         
     # 获取 SMTP 配置
     sender = EMAIL_CONFIG.get("sender_email")
@@ -202,20 +209,64 @@ def main():
         if "gmail.com" in sender:
             # 2. Gmail 专用
             print("\n📋 方式2: 使用 Gmail SMTP...")
-            if send_with_gmail(sender, password, RECEIVER_EMAIL, existing_files, subject, body):
-                sys.exit(0)
+            if send_with_gmail(sender, password, receiver_email, existing_files, subject, body):
+                return True
         else:
             # 3. 通用 SMTP
             print("\n📋 方式3: 使用通用 SMTP...")
-            if send_with_smtp(sender, password, RECEIVER_EMAIL, existing_files, subject, body):
-                sys.exit(0)
+            if send_with_smtp(sender, password, receiver_email, existing_files, subject, body):
+                return True
     else:
         print("\n⚠️ 未配置 email_config.sender_email/password，跳过 SMTP。")
         
     # 4. Fallback: 复制到本地
     print("\n📋 方式4: 保存到本地 (Fallback)...")
-    send_with_copy(date_str, existing_files, upload_dir)
-    sys.exit(0)
+    return send_with_copy(date_str, existing_files, upload_dir)
+
+def main():
+    if len(sys.argv) < 2:
+        print("用法: python3 send_health_report_email.py <日期> [member_index] [报告文件...]")
+        print("示例:")
+        print("  python3 send_health_report_email.py 2026-03-01         # 发送给第一个成员")
+        print("  python3 send_health_report_email.py 2026-03-01 1       # 发送给第二个成员")
+        print("  python3 send_health_report_email.py 2026-03-01 0 file1.pdf file2.pdf")
+        sys.exit(1)
+        
+    date_str = sys.argv[1]
+    
+    # 解析参数：检查第二个参数是否为成员索引（数字）
+    member_idx = 0
+    report_files_start = 2
+    
+    if len(sys.argv) > 2:
+        try:
+            # 尝试解析为成员索引
+            member_idx = int(sys.argv[2])
+            report_files_start = 3
+        except ValueError:
+            # 不是数字，视为报告文件
+            member_idx = 0
+            report_files_start = 2
+    
+    # 确定输出目录
+    upload_dir = CONFIG.get("output_dir", "~/.openclaw/workspace/shared/health-reports/upload")
+    
+    if len(sys.argv) > report_files_start:
+        report_files = sys.argv[report_files_start:]
+    else:
+        report_files = find_reports(date_str, upload_dir)
+        
+    if not report_files:
+        print(f"❌ 未找到 {date_str} 的报告文件")
+        sys.exit(1)
+    
+    print(f"📊 找到 {len(report_files)} 个报告文件:")
+    for f in report_files:
+        print(f"  - {f}")
+    print()
+        
+    success = send_email(date_str, report_files, member_idx)
+    sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()
