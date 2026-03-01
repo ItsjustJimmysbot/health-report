@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V5.6.0报告生成"""
+"""提取Apple Health数据用于V5.7.0报告生成 - 支持多成员"""
 
 import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# V5.6.0: 从 config.json 读取路径配置，支持多语言
+# V5.7.0: 从 config.json 读取路径配置，支持多语言和多成员
 def load_config():
     """加载配置文件"""
     config_path = Path.home() / ".openclaw" / "workspace-health" / "config.json"
@@ -15,8 +15,8 @@ def load_config():
             return json.load(f)
     return {}
 
-def get_health_dirs(member_idx=0):
-    """获取Health数据目录和成员档案，优先从config.json读取"""
+def get_member_config(member_idx=0):
+    """获取指定成员的配置，优先从config.json读取"""
     config = load_config()
     members = config.get('members', [])
     
@@ -27,22 +27,28 @@ def get_health_dirs(member_idx=0):
         member = members[0]  # fallback 到第一个成员
     else:
         # 默认配置
-        health_dir = '~/我的云端硬盘/Health Auto Export/Health Data'
-        workout_dir = '~/我的云端硬盘/Health Auto Export/Workout Data'
-        profile = {'name': '', 'age': None, 'gender': None, 'height_cm': None, 'weight_kg': None}
-        return Path(health_dir).expanduser(), Path(workout_dir).expanduser(), profile
+        return {
+            'health_dir': '~/我的云端硬盘/Health Auto Export/Health Data',
+            'workout_dir': '~/我的云端硬盘/Health Auto Export/Workout Data',
+            'profile': {'name': '', 'age': None, 'gender': None, 'height_cm': None, 'weight_kg': None}
+        }
     
-    health_dir = member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data')
-    workout_dir = member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data')
-    profile = {
-        'name': member.get('name', ''),
-        'age': member.get('age'),
-        'gender': member.get('gender'),
-        'height_cm': member.get('height_cm'),
-        'weight_kg': member.get('weight_kg')
+    return {
+        'health_dir': member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data'),
+        'workout_dir': member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data'),
+        'profile': {
+            'name': member.get('name', ''),
+            'age': member.get('age'),
+            'gender': member.get('gender'),
+            'height_cm': member.get('height_cm'),
+            'weight_kg': member.get('weight_kg')
+        }
     }
-    
-    return Path(health_dir).expanduser(), Path(workout_dir).expanduser(), profile
+
+def get_all_members_count():
+    """获取配置的成员总数"""
+    config = load_config()
+    return len(config.get('members', []))
 
 def extract_metric_avg(metrics, metric_name):
     """提取平均值和数据点数"""
@@ -64,11 +70,11 @@ def extract_metric_sum(metrics, metric_name):
     return sum(d.get('qty', 0) for d in data if d.get('qty') is not None)
 
 def parse_sleep_data_v5(date_str, health_dir=None):
-    """V5.0: 使用sleepStart字段，严格时间窗口筛选 - V5.6.0-fix: 支持路径传入"""
+    """V5.0: 使用sleepStart字段，严格时间窗口筛选 - V5.7.0: 支持路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     next_date = date + timedelta(days=1)
     
-    # V5.6.0-fix: 使用传入的路径或全局默认路径
+    # V5.7.0: 使用传入的路径或全局默认路径
     if health_dir is None:
         health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
     else:
@@ -136,10 +142,10 @@ def parse_sleep_data_v5(date_str, health_dir=None):
     return sleep_records
 
 def extract_workout_data(date_str, workout_dir=None):
-    """提取运动数据 - V5.6.0-fix: 支持路径传入"""
+    """提取运动数据 - V5.7.0: 支持路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.6.0-fix: 使用传入的路径或全局默认路径
+    # V5.7.0: 使用传入的路径或全局默认路径
     if workout_dir is None:
         workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
     else:
@@ -182,10 +188,10 @@ def extract_workout_data(date_str, workout_dir=None):
     return workouts
 
 def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None):
-    """提取完整的一天数据 - V5.6.0-fix: 支持多成员路径传入"""
+    """提取完整的一天数据 - V5.7.0: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.6.0-fix: 使用传入的路径或全局默认路径
+    # V5.7.0: 使用传入的路径或全局默认路径
     if health_dir is None:
         health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
     else:
@@ -203,7 +209,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     data_file = health_dir / f'{date_str}.json'
     
     if not data_file.exists():
-        print(f"Error: Data file not found: {data_file}", file=sys.stderr)
+        print(f"Warning: Data file not found: {data_file}", file=sys.stderr)
         return None
     
     try:
@@ -249,7 +255,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
     
-    # 睡眠数据 - V5.5.0-fix: 传递健康数据路径
+    # 睡眠数据 - V5.5.0: 传递健康数据路径
     sleep_records = parse_sleep_data_v5(date_str, health_dir)
     sleep_total = sum(r['total'] for r in sleep_records) if sleep_records else 0
     sleep_deep = sum(r['deep'] for r in sleep_records) if sleep_records else 0
@@ -297,22 +303,68 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     
     return result
 
+def extract_all_members_data(date_str):
+    """V5.7.0: 提取所有成员的数据"""
+    config = load_config()
+    members = config.get('members', [])
+    
+    if not members:
+        print("Error: No members configured in config.json", file=sys.stderr)
+        return None
+    
+    all_members_data = []
+    
+    for idx, _ in enumerate(members):
+        member_config = get_member_config(idx)
+        health_dir = member_config['health_dir']
+        workout_dir = member_config['workout_dir']
+        profile = member_config['profile']
+        
+        print(f"Extracting data for member {idx}: {profile.get('name', 'Unknown')}...", file=sys.stderr)
+        
+        data = extract_daily_data(date_str, health_dir, workout_dir, profile)
+        if data:
+            all_members_data.append(data)
+        else:
+            print(f"Warning: No data found for member {idx}", file=sys.stderr)
+    
+    if not all_members_data:
+        return None
+    
+    # 返回包含所有成员数据的结构
+    return {
+        'date': date_str,
+        'members_count': len(all_members_data),
+        'members': all_members_data
+    }
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("Usage: python extract_data_v5.py YYYY-MM-DD [member_index]", file=sys.stderr)
+        print("Usage: python extract_data_v5.py YYYY-MM-DD [member_index|all]", file=sys.stderr)
         print("Examples:", file=sys.stderr)
         print("  python extract_data_v5.py 2026-03-01       # 提取第一个成员数据（默认）", file=sys.stderr)
         print("  python extract_data_v5.py 2026-03-01 1     # 提取第二个成员数据", file=sys.stderr)
         print("  python extract_data_v5.py 2026-03-01 2     # 提取第三个成员数据", file=sys.stderr)
+        print("  python extract_data_v5.py 2026-03-01 all   # 提取所有成员数据（V5.7.0+）", file=sys.stderr)
         sys.exit(1)
     
     date_str = sys.argv[1]
-    member_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
     
-    # 获取指定成员的配置
-    HEALTH_DIR, WORKOUT_DIR, USER_PROFILE = get_health_dirs(member_idx)
-    
-    data = extract_daily_data(date_str, HEALTH_DIR, WORKOUT_DIR, USER_PROFILE)
+    # 检查是否使用 'all' 参数
+    if len(sys.argv) > 2 and sys.argv[2].lower() == 'all':
+        # 提取所有成员数据
+        data = extract_all_members_data(date_str)
+    else:
+        # 提取单个成员数据
+        member_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+        member_config = get_member_config(member_idx)
+        
+        data = extract_daily_data(
+            date_str, 
+            member_config['health_dir'], 
+            member_config['workout_dir'], 
+            member_config['profile']
+        )
     
     if data:
         print(json.dumps(data, ensure_ascii=False, indent=2))
