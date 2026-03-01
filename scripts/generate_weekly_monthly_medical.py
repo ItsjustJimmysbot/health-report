@@ -533,35 +533,9 @@ def main():
     raw_ai_analyses = json.load(sys.stdin)
     
     member_count = max(1, min(MEMBER_COUNT, 3))
-    all_ai_analyses = []
     
-    if isinstance(raw_ai_analyses, list):
-        all_ai_analyses = raw_ai_analyses
-    elif isinstance(raw_ai_analyses, dict):
-        if "members" in raw_ai_analyses:
-             all_ai_analyses = raw_ai_analyses["members"]
-        else:
-             all_ai_analyses = [raw_ai_analyses]
-    else:
-         print(f"❌ 错误: 传入的 AI 分析格式不正确")
-         sys.exit(1)
-         
-    if isinstance(all_ai_analyses, dict):
-        mapped_analyses = []
-        for idx in range(member_count):
-            member_cfg = get_member_config(idx)
-            member_name = member_cfg['name']
-            if member_name in all_ai_analyses:
-                mapped_analyses.append(all_ai_analyses[member_name])
-            elif "默认用户" in all_ai_analyses:
-                 mapped_analyses.append(all_ai_analyses["默认用户"])
-            else:
-                 mapped_analyses.append(list(all_ai_analyses.values())[0] if all_ai_analyses else {})
-        all_ai_analyses = mapped_analyses
-        
-    if len(all_ai_analyses) < member_count:
-        print(f"⚠️ 警告: 提供的数据可能不足 {member_count} 个成员")
-
+    if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
+        raw_ai_analyses = raw_ai_analyses["members"]
     
     # 根据语言选择模板
     template_suffix = "_EN" if LANGUAGE == "EN" else ""
@@ -582,7 +556,21 @@ def main():
         for idx in range(member_count):
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
-            ai_analysis = all_ai_analyses[idx] if idx < len(all_ai_analyses) else {}
+            
+            # 健壮的成员匹配逻辑
+            ai_analysis = {}
+            if isinstance(raw_ai_analyses, dict):
+                if member_name in raw_ai_analyses:
+                    ai_analysis = raw_ai_analyses[member_name]
+                elif "默认用户" in raw_ai_analyses:
+                    ai_analysis = raw_ai_analyses["默认用户"]
+                else:
+                    ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
+            elif isinstance(raw_ai_analyses, list):
+                if idx < len(raw_ai_analyses):
+                    ai_analysis = raw_ai_analyses[idx]
+            else:
+                ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
             
             print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             print(f"🧑 正在为成员 {idx+1}/{member_count} 生成周报: {member_name}")
@@ -632,7 +620,21 @@ def main():
         for idx in range(member_count):
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
-            ai_analysis = all_ai_analyses[idx] if idx < len(all_ai_analyses) else {}
+            
+            # 健壮的成员匹配逻辑
+            ai_analysis = {}
+            if isinstance(raw_ai_analyses, dict):
+                if member_name in raw_ai_analyses:
+                    ai_analysis = raw_ai_analyses[member_name]
+                elif "默认用户" in raw_ai_analyses:
+                    ai_analysis = raw_ai_analyses["默认用户"]
+                else:
+                    ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
+            elif isinstance(raw_ai_analyses, list):
+                if idx < len(raw_ai_analyses):
+                    ai_analysis = raw_ai_analyses[idx]
+            else:
+                ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
             
             print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             print(f"🧑 正在为成员 {idx+1}/{member_count} 生成月报: {member_name}")

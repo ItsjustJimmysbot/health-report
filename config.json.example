@@ -1,6 +1,9 @@
 {
   "version": "5.4.1",
   "language": "CN",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace-health/cache/daily",
   "members": [
     {
       "name": "默认用户",
@@ -16,9 +19,10 @@
     "action_max_words": 300
   },
   "email_config": {
-    "smtp_server": "",
+    "smtp_server": "smtp.office365.com",
     "smtp_port": 587,
-    "sender_email": "",
-    "password": ""
+    "sender_email": "your_smtp_email@example.com",
+    "password": "your_app_password",
+    "receiver_email": "target_email@example.com"
   }
 }

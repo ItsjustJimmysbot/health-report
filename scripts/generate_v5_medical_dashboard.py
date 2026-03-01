@@ -863,40 +863,11 @@ if __name__ == '__main__':
     print(f"   成员数: {member_count} (上限3人，控制token消耗)")
     print("")
     
-    # 读取所有成员的AI分析（支持单对象或字典）
+    # 读取所有成员的AI分析（支持单对象或字典或列表）
     raw_ai_analyses = json.load(sys.stdin)
     
-    all_ai_analyses = []
-    if isinstance(raw_ai_analyses, list):
-        all_ai_analyses = raw_ai_analyses
-    elif isinstance(raw_ai_analyses, dict):
-        if "members" in raw_ai_analyses:
-             all_ai_analyses = raw_ai_analyses["members"]
-        else:
-            # 可能是单成员字典，直接用
-             all_ai_analyses = [raw_ai_analyses]
-    else:
-         print(f"❌ 错误: 传入的 AI 分析格式不正确（期望对象、列表或包含 members 的对象）")
-         sys.exit(1)
-         
-    # 处理字典按成员名映射的情况
-    if isinstance(all_ai_analyses, dict):
-        mapped_analyses = []
-        for idx in range(member_count):
-            member_cfg = get_member_config(idx)
-            member_name = member_cfg['name']
-            if member_name in all_ai_analyses:
-                mapped_analyses.append(all_ai_analyses[member_name])
-            elif "默认用户" in all_ai_analyses:
-                 mapped_analyses.append(all_ai_analyses["默认用户"])
-            else:
-                 print(f"⚠️ 警告: 找不到成员 {member_name} 的分析数据，使用第一个可用数据")
-                 mapped_analyses.append(list(all_ai_analyses.values())[0] if all_ai_analyses else {})
-        all_ai_analyses = mapped_analyses
-    
-    if len(all_ai_analyses) < member_count:
-        print(f"❌ 错误: 需要 {member_count} 个成员的AI分析，但只提供了 {len(all_ai_analyses)} 个")
-        sys.exit(1)
+    if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
+        raw_ai_analyses = raw_ai_analyses["members"]
     
     # 为每个成员生成报告
     for idx in range(member_count):
@@ -905,7 +876,23 @@ if __name__ == '__main__':
         member_health_dir = Path(member_cfg['health_dir'])
         member_workout_dir = Path(member_cfg['workout_dir'])
         
-        ai_analysis = all_ai_analyses[idx]
+        # 健壮的成员匹配逻辑
+        ai_analysis = {}
+        if isinstance(raw_ai_analyses, dict):
+            if member_name in raw_ai_analyses:
+                ai_analysis = raw_ai_analyses[member_name]
+            elif "默认用户" in raw_ai_analyses:
+                ai_analysis = raw_ai_analyses["默认用户"]
+            else:
+                print(f"⚠️ 警告: 找不到成员 {member_name} 的分析数据，使用第一个可用数据")
+                ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
+        elif isinstance(raw_ai_analyses, list):
+            if idx < len(raw_ai_analyses):
+                ai_analysis = raw_ai_analyses[idx]
+            else:
+                print(f"⚠️ 警告: 找不到成员 {member_name} 的分析数据")
+        else:
+            ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
         
         print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print(f"🧑 正在为成员 {idx+1}/{member_count} 生成报告: {member_name}")

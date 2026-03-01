@@ -11,13 +11,30 @@
 import sys
 import subprocess
 import shutil
+import json
 from pathlib import Path
 from datetime import datetime
+
+def load_config():
+    config_paths = [
+        Path(__file__).parent.parent / "config.json",
+        Path.home() / '.openclaw' / 'workspace-health' / 'config.json',
+    ]
+    for config_path in config_paths:
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    return {}
+
+CONFIG = load_config()
+EMAIL_CONFIG = CONFIG.get("email_config", {})
+# 优先使用配置中的接收邮箱，没有则使用全局接收邮箱，没有则使用发件邮箱
+RECEIVER_EMAIL = CONFIG.get("members", [{}])[0].get("email") if CONFIG.get("members") else EMAIL_CONFIG.get("receiver_email", EMAIL_CONFIG.get("sender_email", ""))
 
 def send_with_mail_app(date_str, report_files, subject, body):
     """使用 macOS Mail.app 发送邮件"""
     
-    recipient = "revolutionljk@gmail.com"
+    recipient = RECEIVER_EMAIL
     
     # 构建 AppleScript
     # 转义特殊字符
@@ -69,14 +86,18 @@ end tell
 def send_with_outlook_smtp(date_str, report_files, subject, body):
     """使用 Outlook SMTP 直接发送"""
     
-    # Outlook SMTP 配置
-    smtp_server = "smtp.office365.com"
-    smtp_port = 587
-    sender_email = "revolutionljk@gmail.com"  # 或其他Outlook邮箱
-    receiver_email = "revolutionljk@gmail.com"
-    password = "fkvkbrttcrzkgnjw"  # Outlook 应用密码
+    # SMTP 配置
+    smtp_server = EMAIL_CONFIG.get("smtp_server", "smtp.office365.com")
+    smtp_port = int(EMAIL_CONFIG.get("smtp_port", 587))
+    sender_email = EMAIL_CONFIG.get("sender_email", "")
+    receiver_email = RECEIVER_EMAIL or sender_email
+    password = EMAIL_CONFIG.get("password", "")
     
-    print(f"   使用 Outlook SMTP: {smtp_server}:{smtp_port}")
+    if not sender_email or not password:
+        print(f"   ❌ SMTP 配置缺失，请在 config.json 中配置 email_config")
+        return False
+        
+    print(f"   使用 SMTP: {smtp_server}:{smtp_port}")
     
     try:
         import smtplib
@@ -188,13 +209,13 @@ def send_email(date_str, report_files):
     body = "\n".join(body_lines)
     
     print(f"📧 准备发送邮件")
-    print(f"   收件人: revolutionljk@gmail.com")
+    print(f"   收件人: {RECEIVER_EMAIL}")
     print(f"   主题: {subject}")
     print(f"   附件: {len(existing_files)} 个文件")
     print()
     
-    # 方式1: 使用 Outlook SMTP (已配置应用密码)
-    print("📋 方式1: 使用 Outlook SMTP...")
+    # 方式1: 使用 SMTP (已配置)
+    print("📋 方式1: 使用 SMTP...")
     if send_with_outlook_smtp(date_str, existing_files, subject, body):
         return True
     print()
