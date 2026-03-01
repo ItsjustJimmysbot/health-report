@@ -18,7 +18,9 @@ description: 基于 Apple Health 数据的 AI 健康分析报告生成工具。�
   "version": "5.5.0",
   "members": [
     {
-      "name": "默认用户",
+      "name": "Jimmy",
+      "age": 30,
+      "gender": "male",
       "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
       "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
       "email": "your-email@example.com"
@@ -28,8 +30,22 @@ description: 基于 Apple Health 数据的 AI 健康分析报告生成工具。�
     "metric_min_words": 150,
     "metric_max_words": 200,
     "action_min_words": 250,
-    "action_max_words": 300
-  }
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000
+  },
+  "email_config": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "your_email@gmail.com",
+    "password": "your_app_password"
+  },
+  "receiver_email": "target_email@example.com",
+  "language": "CN",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
 }
 ```
 
@@ -108,26 +124,31 @@ python3 scripts/generate_weekly_monthly_medical.py monthly 2026 2 < monthly_anal
   "version": "5.5.0",
   "members": [
     {
-      "name": "成员名称",
+      "name": "Jimmy",
+      "age": 30,
+      "gender": "male",
       "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
       "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
-      "email": "报告接收邮箱"
+      "email": "your-email@example.com"
     }
   ],
   "analysis_limits": {
     "metric_min_words": 150,
     "metric_max_words": 200,
     "action_min_words": 250,
-    "action_max_words": 300
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000
   },
   "email_config": {
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587,
-    "sender_email": "发送邮箱",
-    "password": "应用专用密码"
+    "sender_email": "your_email@gmail.com",
+    "password": "your_app_password"
   },
-  "language": "CN",
   "receiver_email": "target_email@example.com",
+  "language": "CN",
   "validation_mode": "strict",
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
   "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
@@ -144,6 +165,7 @@ python3 scripts/generate_weekly_monthly_medical.py monthly 2026 2 < monthly_anal
 
 ```json
 {
+  "version": "5.5.0",
   "members": [
     {
       "name": "成员1",
@@ -157,7 +179,27 @@ python3 scripts/generate_weekly_monthly_medical.py monthly 2026 2 < monthly_anal
       "workout_dir": "~/HealthData/Member2/Workout Data",
       "email": "member2@example.com"
     }
-  ]
+  ],
+  "analysis_limits": {
+    "metric_min_words": 150,
+    "metric_max_words": 200,
+    "action_min_words": 250,
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000
+  },
+  "email_config": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "your_email@gmail.com",
+    "password": "your_app_password"
+  },
+  "receiver_email": "target_email@example.com",
+  "language": "CN",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
 }
 ```
 
