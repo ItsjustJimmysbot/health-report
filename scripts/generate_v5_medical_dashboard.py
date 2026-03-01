@@ -16,6 +16,7 @@ V5.4.0 AI分析报告生成器 - Medical Dashboard 模板版
 """
 import json
 import sys
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -62,18 +63,7 @@ LANGUAGE = CONFIG.get("language", "CN")
 # 成员数量（最多3人）
 MEMBER_COUNT = min(len(MEMBERS), 3)
 
-# 获取成员配置
-def get_member_config(index: int):
-    """获取指定成员的配置"""
-    if index < len(MEMBERS):
-        member = MEMBERS[index]
-        return {
-            "name": member.get("name", f"成员{index+1}"),
-            "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
-            "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
-            "email": member.get("email", "")
-        }
-    return {"name": f"成员{index+1}", "health_dir": None, "workout_dir": None, "email": ""}
+
 
 # ==================== AI分析字数限制配置（从 config.json 读取） ====================
 # 指标分析字数限制（每项）
@@ -220,6 +210,15 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
         text = ai_analysis.get(key, '')
         if text and len(text) < min_len:
             errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
+            
+    # 验证语言
+    full_text = json.dumps(ai_analysis, ensure_ascii=False)
+    chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', full_text))
+    
+    if LANGUAGE == "EN" and chinese_chars > 20:
+        errors.append("❌ 语言配置不匹配: config.json 中设置为 EN(英文), 但 AI 分析结果中检测到大量中文字符。请让 AI 重新生成纯英文的 JSON。")
+    elif LANGUAGE == "CN" and chinese_chars < 20:
+        errors.append("❌ 语言配置不匹配: config.json 中设置为 CN(中文), 但 AI 分析结果中未检测到足够的中文字符。请让 AI 重新生成纯中文的 JSON。")
     
     return errors
 
