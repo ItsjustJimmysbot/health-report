@@ -1,46 +1,18 @@
-# Local data and caches
+# 配置文件（包含敏感信息）
+config.json
+
+# 缓存文件
 cache/
-data/
-logs/
-memory/
-output/
-reports/
-workspace/
-upload/
-
-# User-specific configuration and context
-USER.md
-SOUL.md
-MEMORY.md
-AGENT_ROLES.md
-AGENT_WORKFLOWS.md
-AGENT_SYSTEM_PROMPT.md
-HEALTH_AGENT_SYSTEM_PROMPT.md
-IDENTITY.md
-BOOTSTRAP.md
-HEARTBEAT.md
-AGENTS.md
-TOOLS.md
-.env*
-
-# Analysis and temporary files
-ai_analysis*.json
-temp_*.json
-*.html
-*.pdf
-*.png
-*.backup
-*.log
-
-# System files
-.DS_Store
-Thumbs.db
-
-# Python
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-.venv/
-env/
-venv/
-ENV/
+
+# 输出文件
+output/
+
+# 系统文件
+.DS_Store
+.openclaw/
+
+# 临时文件
+*.tmp
+*.log

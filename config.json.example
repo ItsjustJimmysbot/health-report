@@ -1,0 +1,23 @@
+{
+  "version": "5.3.0",
+  "members": [
+    {
+      "name": "默认用户",
+      "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
+      "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
+      "email": "your-email@example.com"
+    }
+  ],
+  "analysis_limits": {
+    "metric_min_words": 150,
+    "metric_max_words": 200,
+    "action_min_words": 250,
+    "action_max_words": 300
+  },
+  "email_config": {
+    "smtp_server": "",
+    "smtp_port": 587,
+    "sender_email": "",
+    "password": ""
+  }
+}
