@@ -38,7 +38,14 @@ playwright install chromium
     "metric_max_words": 200,
     "action_min_words": 250,
     "action_max_words": 300
-  }
+  },
+  "email_config": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "sender@example.com",
+    "password": "应用专用密码"
+  },
+  "language": "CN"
 }
 ```
 
@@ -46,6 +53,8 @@ playwright install chromium
 - `health_dir`: Apple Health 数据导出路径
 - `workout_dir`: 运动数据导出路径
 - `email`: 报告接收邮箱
+- `email_config`: 邮件发送配置（SMTP服务器、端口、发件邮箱、密码）
+- `language`: 报告界面语言（`CN`=中文, `EN`=英文）
 
 ### 4. 数据准备
 确保你的 [Health Auto Export](https://apps.apple.com/us/app/health-auto-export-json-csv/id111556706) 导出的 JSON 文件同步到了配置的路径中。
