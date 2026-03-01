@@ -6,8 +6,30 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-HEALTH_DIR = Path.home() / "我的云端硬盘" / "Health Auto Export" / "Health Data"
-WORKOUT_DIR = Path.home() / "我的云端硬盘" / "Health Auto Export" / "Workout Data"
+# V5.2.3-fix: 从 config.json 读取路径配置，如果不存在则使用默认值
+def load_config():
+    """加载配置文件"""
+    config_path = Path.home() / ".openclaw" / "workspace-health" / "config.json"
+    if config_path.exists():
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def get_health_dirs():
+    """获取Health数据目录，优先从config.json读取"""
+    config = load_config()
+    members = config.get('members', [])
+    if members and len(members) > 0:
+        member = members[0]
+        health_dir = member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data')
+        workout_dir = member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data')
+    else:
+        health_dir = '~/我的云端硬盘/Health Auto Export/Health Data'
+        workout_dir = '~/我的云端硬盘/Health Auto Export/Workout Data'
+    
+    return Path(health_dir).expanduser(), Path(workout_dir).expanduser()
+
+HEALTH_DIR, WORKOUT_DIR = get_health_dirs()
 
 def extract_metric_avg(metrics, metric_name):
     """提取平均值和数据点数"""
@@ -37,8 +59,12 @@ def parse_sleep_data_v5(date_str):
     if not filepath.exists():
         return None
     
-    with open(filepath, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"⚠️ 睡眠数据文件读取失败: {filepath} - {e}", file=sys.stderr)
+        return None
     
     metrics = {m['name']: m for m in data.get('data', {}).get('metrics', [])}
     sleep_metric = metrics.get('sleep_analysis', {})
