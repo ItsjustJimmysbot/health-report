@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-健康报告邮件发送脚本 V5.5 - 自动 fallback (Mail.app -> Gmail -> 通用SMTP -> 复制到本地)
+健康报告邮件发送脚本 V5.6 - 自动 fallback (Mail.app -> Gmail -> 通用SMTP -> 复制到本地)
 """
 
 import sys
