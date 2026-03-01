@@ -6,6 +6,29 @@
 
 ## 🚀 快速安装与 Skill 启用
 
+### 🔄 更新到最新版本（已安装用户）
+
+如果你已经安装了旧版本，可以通过以下方式更新：
+
+**方式 1：使用 Git 命令（推荐）**
+```bash
+cd ~/.openclaw/skills/health-report
+git pull origin main
+```
+
+**方式 2：让 OpenClaw Agent 帮你更新**
+直接在 OpenClaw 对话中告诉 Agent：
+> "请帮我更新 health-report skill"
+
+**方式 3：重新克隆（如果本地有修改冲突）**
+```bash
+cd ~/.openclaw/skills
+rm -rf health-report
+git clone https://github.com/ItsjustJimmysbot/health-report.git health-report
+cd health-report
+pip3 install -r requirements.txt
+```
+
 ### 1. 基础环境准备
 在你的 OpenClaw 运行环境中执行：
 ```bash
@@ -237,4 +260,229 @@ playwright install chromium
 ---
 
 ## 许可证
+MIT License
+
+---
+
+# Health Agent V5.6.0 - OpenClaw Professional Health Analysis Skill [English]
+
+A formally packaged **OpenClaw Skill** that transforms raw Apple Health data into in-depth, medical-grade personal health analysis reports.
+
+---
+
+## 🚀 Quick Installation & Skill Activation
+
+### 🔄 Updating to Latest Version (For Existing Users)
+
+If you have already installed a previous version, update using one of these methods:
+
+**Method 1: Using Git Commands (Recommended)**
+```bash
+cd ~/.openclaw/skills/health-report
+git pull origin main
+```
+
+**Method 2: Ask Your OpenClaw Agent**
+Simply tell your OpenClaw Agent in conversation:
+> "Please update the health-report skill for me"
+
+**Method 3: Re-clone (If Local Conflicts Exist)**
+```bash
+cd ~/.openclaw/skills
+rm -rf health-report
+git clone https://github.com/ItsjustJimmysbot/health-report.git health-report
+cd health-report
+pip3 install -r requirements.txt
+```
+
+### 1. Prerequisites
+Execute in your OpenClaw environment:
+```bash
+cd ~/.openclaw/skills
+git clone https://github.com/ItsjustJimmysbot/health-report.git health-report
+cd health-report
+pip3 install -r requirements.txt
+playwright install chromium
+```
+
+### 2. Skill Discovery
+After installation, OpenClaw will automatically discover and enable this Skill via `SKILL.md`.
+
+### 3. Configuration File (config.json)
+Before first use, edit `config.json` to configure your data paths:
+
+```json
+{
+  "version": "5.6.0",
+  "members": [
+    {
+      "name": "Jimmy",
+      "age": 30,
+      "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
+      "health_dir": "~/My Cloud Drive/Health Auto Export/Health Data",
+      "workout_dir": "~/My Cloud Drive/Health Auto Export/Workout Data",
+      "email": "your-email@example.com"
+    }
+  ],
+  "analysis_limits": {
+    "metric_min_words": 150,
+    "metric_max_words": 200,
+    "action_min_words": 250,
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000
+  },
+  "email_config": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "your_email@gmail.com",
+    "password": "your_app_password"
+  },
+  "receiver_email": "target_email@example.com",
+  "language": "EN",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
+}
+```
+
+**Configuration Notes:**
+- `health_dir`: Apple Health data export path
+- `workout_dir`: Workout data export path
+- `email`: Report recipient email
+- `email_config`: Email sending configuration (SMTP server, port, sender email, password)
+- `language`: Report interface language (`CN`=Chinese, `EN`=English)
+- `age`, `gender`, `height_cm`, `weight_kg`: Personal profile for AI analysis (BMI calculation, age/gender-specific heart rate references)
+
+### 4. Data Preparation
+Ensure your [Health Auto Export](https://apps.apple.com/us/app/health-auto-export-json-csv/id111556706) exported JSON files are synced to the configured paths.
+
+### 5. OpenClaw Scheduled Tasks (Cron) Configuration
+Add a daily report task in OpenClaw, recommended time `12:10` (to ensure daily data sync is complete).
+
+**Daily Report Task Template:**
+```text
+[Daily Health Report - V5.6.0 Standardized Process]
+1. Read config.json: Get configured Health path and language field (CN or EN)
+2. Extract Data: Extract daily data from Health path
+3. AI Analysis: Generate detailed analysis based on actual values (HRV, steps, etc.) with ≥150 words per metric. If language is EN, output must be in pure English; if CN, use pure Chinese.
+4. Critical Write: Use write tool to save JSON to ai_analysis.json
+5. Render Generation:
+   cd ~/.openclaw/workspace-health/scripts && \\
+   python3 generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ../ai_analysis.json
+6. Send Email:
+   python3 send_health_report_email.py $(date -v-1d +%Y-%m-%d)
+```
+
+### 6. Weekly Report Scheduled Task
+Recommended every Monday at 9:00 AM to generate last week's report, summarizing 7 days of data.
+
+**Cron Setting:**
+- Time: `0 9 * * 1` (Every Monday at 9:00)
+
+### 7. Monthly Report Scheduled Task
+Recommended on the 1st of each month at 10:00 AM to generate last month's report, summarizing the entire month.
+
+**Cron Setting:**
+- Time: `0 10 1 * *` (1st of each month at 10:00)
+
+---
+
+## ✨ V5.6.0 Core Features
+
+*   **Multi-language Support (New)**: Supports Chinese and English interface switching via `config.json` `language` field (CN/EN)
+*   **Profile Data (New)**: Support for `age`, `gender`, `height_cm`, `weight_kg` in member config for personalized AI analysis
+*   **Smart Email Fallback (New)**: Automatic cascade - Mail.app → Gmail SMTP → Generic SMTP → Local copy
+*   **Configuration-based Paths**: All scripts read data paths from `config.json`, no code modification needed
+*   **True Data Alignment**: Fixed Apple Health cross-day export offset issues. Daytime activities read from current day file, sleep data reads from next day file
+*   **Medical-grade UI**: New V2 Medical purple theme template with rating cards, 11 core metrics table, Chart.js dynamic heart rate curves, and deep sleep structure analysis
+*   **Atomic Workflow**: Upgraded from unstable `edit` partial replacement to full `write` JSON mode
+*   **Cross-night Sleep Attribution**: Improved sleep statistics logic, automatically captures sleep records from `20:00 current day` to `12:00 next day` and attributes to current day recovery metrics
+
+---
+
+## 🛠️ Common Commands
+
+*   **Test Data Extraction**: `python3 scripts/extract_data_v5.py YYYY-MM-DD`
+*   **Generate Daily Report**: `python3 scripts/generate_v5_medical_dashboard.py YYYY-MM-DD < ai_analysis.json`
+*   **Generate Weekly/Monthly Report**: `python3 scripts/generate_weekly_monthly_medical.py weekly|monthly ...`
+*   **Manual Email Resend**: `python3 scripts/send_health_report_email.py YYYY-MM-DD`
+*   **Verify Render Environment**: `python3 scripts/verify_v5_environment.py`
+
+---
+
+## 📝 Developer Specifications (V5.6.0)
+*   **Config Priority**: All paths must be read from `config.json`, no hardcoding
+*   **No Fabrication**: When data is missing, display `--`, strictly prohibit AI estimation
+*   **Word Count Requirements**: AI metric analysis paragraphs must be 150-200 words, core action recommendations 250-300 words
+*   **Single Day Single Source**: Each report must only rely on the current day's Data Cache JSON
+
+---
+
+## 📁 Configuration File Structure
+
+### config.json
+```json
+{
+  "version": "5.6.0",
+  "members": [
+    {
+      "name": "Jimmy",
+      "age": 30,
+      "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
+      "health_dir": "~/My Cloud Drive/Health Auto Export/Health Data",
+      "workout_dir": "~/My Cloud Drive/Health Auto Export/Workout Data",
+      "email": "your-email@example.com"
+    }
+  ],
+  "analysis_limits": {
+    "metric_min_words": 150,
+    "metric_max_words": 200,
+    "action_min_words": 250,
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000
+  },
+  "email_config": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "your_email@gmail.com",
+    "password": "your_app_password"
+  },
+  "receiver_email": "target_email@example.com",
+  "language": "EN",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
+}
+```
+
+### 🌐 Multi-language Support (V5.6.0)
+
+Switch report language via `language` field in `config.json`:
+
+- `"language": "CN"` - Chinese interface (Sleep Quality, Workout Records, ratings, etc.)
+- `"language": "EN"` - English interface (Sleep Quality / Workout Records / Excellent / Good, etc.)
+
+**Switch Steps:**
+1. Edit `config.json` to modify the `language` field
+2. Regenerate the report to automatically switch languages
+
+**Supported Translated Elements:**
+- All titles (Sleep Quality, Workout Records, 11 Core Metrics, etc.)
+- Rating levels (Excellent / Good / Average / Normal)
+- Workout status labels (Completed / 已完成)
+- Heart rate chart labels (Heart Rate / Avg / Max / Time)
+- Sleep status (Normal / Insufficient Data)
+- Date formats (2026年2月 / Feb 2026)
+
+---
+
+## License
 MIT License
