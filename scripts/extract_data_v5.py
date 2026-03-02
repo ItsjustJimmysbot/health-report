@@ -50,6 +50,18 @@ def get_member_config(member_idx=0):
         }
     }
 
+def get_sleep_config():
+    """获取睡眠配置"""
+    config = load_config()
+    sleep_config = config.get('sleep_config', {})
+    
+    return {
+        'read_mode': sleep_config.get('read_mode', 'next_day'),  # 'next_day' 或 'same_day'
+        'start_hour': sleep_config.get('start_hour', 20),
+        'end_hour': sleep_config.get('end_hour', 12)
+    }
+
+
 def get_all_members_count():
     """获取配置的成员总数"""
     config = load_config()
@@ -74,95 +86,118 @@ def extract_metric_sum(metrics, metric_name):
         return 0
     return sum(d.get('qty', 0) for d in data if d.get('qty') is not None)
 
-def parse_sleep_data_v5(date_str, health_dir=None):
-    """V5.0: 使用sleepStart字段，严格时间窗口筛选 - V5.7.0: 支持路径传入"""
-    date = datetime.strptime(date_str, '%Y-%m-%d')
-    next_date = date + timedelta(days=1)
+def parse_sleep_data_v5(date_str, health_dir=None, sleep_config=None):
+    """
+    V5.8.0: 支持可配置的睡眠读取逻辑
     
-    # V5.7.0: 使用传入的路径或全局默认路径
+    read_mode='next_day': 读取次日文件，筛选当天20:00-次日12:00（适合早上生成报告）
+    read_mode='same_day': 读取当天文件，筛选前一天20:00-当天12:00（适合晚上生成报告）
+    """
+    date = datetime.strptime(date_str, '%Y-%m-%d')
+    
+    # 获取睡眠配置
+    if sleep_config is None:
+        sleep_config = get_sleep_config()
+    
+    read_mode = sleep_config['read_mode']
+    start_hour = sleep_config['start_hour']
+    end_hour = sleep_config['end_hour']
+    
+    # 根据模式确定要读取的文件和日期范围
+    if read_mode == 'next_day':
+        # 当前逻辑：读取次日文件，筛选当天20:00-次日12:00
+        next_date = date + timedelta(days=1)
+        sleep_file_date = next_date
+        filter_start_date = date  # 当天20:00+
+        filter_end_date = next_date  # 次日12:00前
+    else:  # same_day
+        # 新逻辑：读取当天文件，筛选前一天20:00-当天12:00
+        prev_date = date - timedelta(days=1)
+        sleep_file_date = date  # 读取当天文件
+        filter_start_date = prev_date  # 前一天20:00+
+        filter_end_date = date  # 当天12:00前
+    
+    # 读取文件
     if health_dir is None:
         health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
     else:
         health_dir = Path(health_dir).expanduser()
     
-    # 尝试读取次日文件（睡眠数据存储在次日）
-    next_date_file = health_dir / f'HealthAutoExport-{next_date.strftime("%Y-%m-%d")}.json'
+    sleep_file = health_dir / f'HealthAutoExport-{sleep_file_date.strftime("%Y-%m-%d")}.json'
     
-    if not next_date_file.exists():
+    if not sleep_file.exists():
+        print(f"⚠️  睡眠数据文件不存在: {sleep_file} (mode={read_mode})", file=sys.stderr)
         return []
     
     try:
-        with open(next_date_file, 'r', encoding='utf-8') as f:
+        with open(sleep_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-    except:
+    except Exception as e:
+        print(f"❌ 读取睡眠数据失败: {e}", file=sys.stderr)
         return []
     
-    sleep_records = []
-    
-    # Try getting sleep_analysis from data directly
+    # 提取睡眠记录（兼容两种数据结构）
     sleep_data = data.get('data', {}).get('sleep_analysis')
-    
-    # If not there, try getting it from metrics array
     if not sleep_data:
-        metrics_list = data.get('data', {}).get('metrics', [])
-        metrics_dict = {m.get('name'): m for m in metrics_list if 'name' in m}
+        metrics = data.get('data', {}).get('metrics', [])
+        metrics_dict = {m.get('name'): m for m in metrics if 'name' in m}
         sleep_data = metrics_dict.get('sleep_analysis', {})
     
     if not sleep_data:
         return []
     
+    # 筛选符合条件的记录
+    sleep_records = []
     for record in sleep_data.get('data', []):
-        # V5.7.1: 处理两种 sleepStart 格式（时间戳或字符串）
         start_ts = record.get('sleepStart')
         end_ts = record.get('sleepEnd')
-        
         if not start_ts or not end_ts:
             continue
         
-        # 解析开始时间和结束时间
+        # 解析时间
         try:
-            # 尝试作为时间戳（毫秒）解析
             if isinstance(start_ts, (int, float)):
                 start_dt = datetime.fromtimestamp(start_ts / 1000)
                 end_dt = datetime.fromtimestamp(end_ts / 1000)
-                duration_hours = (end_ts - start_ts) / 1000 / 3600
             else:
-                # 作为字符串日期解析（如 '2026-03-02 02:23:55 +0800'）
-                start_str = start_ts[:19]  # 取前19字符 '2026-03-02 02:23:55'
+                start_str = start_ts[:19]  # '2026-03-02 02:23:55'
                 end_str = end_ts[:19]
                 start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
                 end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S')
-                duration_hours = (end_dt - start_dt).total_seconds() / 3600
         except (ValueError, TypeError) as e:
-            print(f"⚠️  睡眠记录时间解析失败: start={start_ts}, end={end_ts} - {e}", file=sys.stderr)
+            print(f"⚠️  睡眠记录时间解析失败: {e}", file=sys.stderr)
             continue
         
-        # 严格筛选：只保留属于目标日期的睡眠（当天20:00到次日12:00）
-        sleep_date = start_dt.strftime('%Y-%m-%d')
-        sleep_hour = start_dt.hour
+        # 筛选逻辑：检查是否落在目标时间窗口内
+        start_date = start_dt.strftime('%Y-%m-%d')
+        record_start_hour = start_dt.hour
         
-        # 归属逻辑：如果是当天20:00之后开始，属于当天
-        # 如果是次日12:00之前结束，也属于当天
-        belongs_to_date = False
-        
-        if sleep_date == date_str and sleep_hour >= 20:
-            # 当天20:00之后开始
-            belongs_to_date = True
-        elif sleep_date == next_date.strftime('%Y-%m-%d') and sleep_hour < 12:
-            # 次日12:00之前开始（跨夜睡眠）
-            belongs_to_date = True
+        if read_mode == 'next_day':
+            # 当天20:00之后开始，或次日12:00之前开始
+            belongs_to_date = (
+                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
+                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
+            )
+        else:  # same_day
+            # 前一天20:00之后开始，或当天12:00之前开始
+            belongs_to_date = (
+                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
+                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
+            )
         
         if belongs_to_date:
+            duration_hours = (end_dt - start_dt).total_seconds() / 3600
             sleep_records.append({
                 'start': start_dt.strftime('%H:%M'),
                 'end': end_dt.strftime('%H:%M'),
                 'total': duration_hours,
-                'deep': record.get('deep', 0) if isinstance(record.get('deep'), (int, float)) else 0,
-                'core': record.get('core', 0) if isinstance(record.get('core'), (int, float)) else 0,
-                'rem': record.get('rem', 0) if isinstance(record.get('rem'), (int, float)) else 0,
-                'awake': record.get('awake', 0) if isinstance(record.get('awake'), (int, float)) else 0,
+                'deep': record.get('deep', 0) or 0,
+                'core': record.get('core', 0) or 0,
+                'rem': record.get('rem', 0) or 0,
+                'awake': record.get('awake', 0) or 0,
             })
     
+    print(f"📊 睡眠模式 [{read_mode}] 找到 {len(sleep_records)} 条记录", file=sys.stderr)
     return sleep_records
 
 def extract_workout_data(date_str, workout_dir=None):
@@ -211,7 +246,7 @@ def extract_workout_data(date_str, workout_dir=None):
     
     return workouts
 
-def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None):
+def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None, sleep_config=None):
     """提取完整的一天数据 - V5.7.0: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
@@ -281,7 +316,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
     
     # 睡眠数据 - V5.5.0: 传递健康数据路径
-    sleep_records = parse_sleep_data_v5(date_str, health_dir)
+    sleep_records = parse_sleep_data_v5(date_str, health_dir, sleep_config)
     sleep_deep = sum(r['deep'] for r in sleep_records) if sleep_records else 0
     sleep_core = sum(r['core'] for r in sleep_records) if sleep_records else 0
     sleep_rem = sum(r['rem'] for r in sleep_records) if sleep_records else 0
@@ -334,6 +369,7 @@ def extract_all_members_data(date_str):
     """V5.7.0: 提取所有成员的数据"""
     config = load_config()
     members = config.get('members', [])
+    sleep_config = get_sleep_config()
     
     if not members:
         print("Error: No members configured in config.json", file=sys.stderr)
@@ -349,7 +385,7 @@ def extract_all_members_data(date_str):
         
         print(f"Extracting data for member {idx}: {profile.get('name', 'Unknown')}...", file=sys.stderr)
         
-        data = extract_daily_data(date_str, health_dir, workout_dir, profile)
+        data = extract_daily_data(date_str, health_dir, workout_dir, profile, sleep_config)
         if data:
             all_members_data.append(data)
         else:
@@ -385,12 +421,14 @@ if __name__ == '__main__':
         # 提取单个成员数据
         member_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
         member_config = get_member_config(member_idx)
+        sleep_config = get_sleep_config()
         
         data = extract_daily_data(
             date_str, 
             member_config['health_dir'], 
             member_config['workout_dir'], 
-            member_config['profile']
+            member_config['profile'],
+            sleep_config
         )
     
     if data:
