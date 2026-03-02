@@ -81,7 +81,7 @@ def parse_sleep_data_v5(date_str, health_dir=None):
         health_dir = Path(health_dir).expanduser()
     
     # 尝试读取次日文件（睡眠数据存储在次日）
-    next_date_file = health_dir / f'{next_date.strftime("%Y-%m-%d")}.json'
+    next_date_file = health_dir / f'HealthAutoExport-{next_date.strftime("%Y-%m-%d")}.json'
     
     if not next_date_file.exists():
         return []
@@ -93,7 +93,15 @@ def parse_sleep_data_v5(date_str, health_dir=None):
         return []
     
     sleep_records = []
-    sleep_data = data.get('data', {}).get('sleep_analysis', {})
+    
+    # Try getting sleep_analysis from data directly
+    sleep_data = data.get('data', {}).get('sleep_analysis')
+    
+    # If not there, try getting it from metrics array
+    if not sleep_data:
+        metrics_list = data.get('data', {}).get('metrics', [])
+        metrics_dict = {m.get('name'): m for m in metrics_list if 'name' in m}
+        sleep_data = metrics_dict.get('sleep_analysis', {})
     
     if not sleep_data:
         return []
@@ -206,7 +214,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         user_profile = {'name': '', 'age': None, 'gender': None, 'height_cm': None, 'weight_kg': None}
     
     # 读取当日数据文件
-    data_file = health_dir / f'{date_str}.json'
+    data_file = health_dir / f'HealthAutoExport-{date_str}.json'
     
     if not data_file.exists():
         print(f"Warning: Data file not found: {data_file}", file=sys.stderr)
@@ -220,7 +228,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         return None
     
     # 提取指标
-    metrics = data.get('data', {})
+    metrics_list = data.get('data', {}).get('metrics', [])
+    metrics = {m['name']: m for m in metrics_list if 'name' in m}
     
     # HRV (心率变异性)
     hrv_raw, hrv_points = extract_metric_avg(metrics, 'heart_rate_variability')
@@ -235,7 +244,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     distance = extract_metric_sum(metrics, 'walking_running_distance') / 1000
     
     # 活动能量 (kJ)
-    active_energy = extract_metric_sum(metrics, 'active_energy_burned')
+    active_energy = extract_metric_sum(metrics, 'active_energy')
     
     # 爬楼层数
     flights = extract_metric_sum(metrics, 'flights_climbed')

@@ -237,7 +237,11 @@ def _parse_metrics(date_str: str, health_dir: Path = None):
     except Exception as e:
         print(f"⚠️ 读取文件失败: {p} - {e}")
         return {}
-    return {m.get('name'): m for m in data.get('data', {}).get('metrics', [])}
+    
+    metrics = {m.get('name'): m for m in data.get('data', {}).get('metrics', [])}
+    if 'sleep_analysis' in data.get('data', {}):
+        metrics['sleep_analysis'] = data['data']['sleep_analysis']
+    return metrics
 
 
 def _values(metrics: dict, name: str, target_date: str = None):
@@ -334,7 +338,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     rhr_vals = _values(metrics, 'resting_heart_rate', date_str)
     steps_vals = _values(metrics, 'step_count', date_str)
     dist_vals = _values(metrics, 'walking_running_distance', date_str)
-    active_vals = _values(metrics, 'active_energy_burned', date_str)  # V5.1.1-fix: 正确的指标名
+    active_vals = _values(metrics, 'active_energy', date_str)  # V5.1.1-fix: 正确的指标名
     spo2_vals = _values(metrics, 'blood_oxygen_saturation', date_str)
     flights_vals = _values(metrics, 'flights_climbed', date_str)
     stand_vals = _values(metrics, 'apple_stand_time', date_str)
