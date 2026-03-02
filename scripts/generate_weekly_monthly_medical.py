@@ -101,8 +101,12 @@ def verify_ai_analysis_monthly(ai_analysis):
     return errors
 
 # ==================== 趋势计算函数 ====================
-def load_previous_period_data(current_dates, member_name="默认用户"):
-    """加载上一周期（7天前）的数据用于趋势对比"""
+def load_previous_week_data(current_dates, member_name="默认用户"):
+    """加载上周同期数据（用于周报趋势对比）- V5.7.2: 函数重命名以明确用途
+    
+    注意：此函数仅适用于周报，对比7天前的数据。
+    月报应使用 generate_monthly_report() 中的独立实现，对比上月同期。
+    """
     if not current_dates:
         return []
     
@@ -423,7 +427,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     
     # 加载上一周期数据用于趋势对比
     print(f"📊 计算趋势变化...")
-    previous_data = load_previous_period_data(week_dates, member_name)
+    previous_data = load_previous_week_data(week_dates, member_name)
     
     # 计算趋势变化
     if previous_data:

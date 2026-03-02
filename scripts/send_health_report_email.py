@@ -207,9 +207,20 @@ def send_email_to_all(date_str, report_files_pattern=None):
         print(f"📧 正在为成员 {idx+1}/{len(members)} 发送邮件: {member_name}")
         
         # 查找该成员的报告文件
+        # V5.7.2: 使用 safe_name 处理特殊字符，避免匹配问题
+        safe_name = member_name.replace(' ', '_').replace('/', '_').replace('\\', '_').replace('-', '_').replace('.', '_')
+        
         if report_files_pattern:
-            # 使用指定的文件模式
-            member_files = [f for f in report_files_pattern if member_name.replace(' ', '_') in f or f"-{member_name}-" in f or f"_{member_name}_" in f]
+            # 使用指定的文件模式 - 同时检查原始名称和 safe_name
+            member_files = []
+            for f in report_files_pattern:
+                f_safe = f.replace(' ', '_').replace('-', '_').replace('.', '_')
+                if (safe_name in f_safe or 
+                    member_name in f or
+                    f"-{safe_name}-" in f_safe or 
+                    f"_{safe_name}_" in f_safe):
+                    member_files.append(f)
+            
             if not member_files:
                 # 如果没有找到特定成员的文件，尝试使用通配模式
                 member_files = report_files_pattern
