@@ -23,3 +23,7 @@ output/
 # 临时文件
 *.tmp
 *.log
+# Cache files
+cache/
+__pycache__/
+*.pyc
