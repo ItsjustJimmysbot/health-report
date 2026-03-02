@@ -903,88 +903,62 @@ if __name__ == '__main__':
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]
     
-    # 为每个成员生成报告
+    # V5.8.1: 使用多成员处理器
+    from utils import MultiMemberProcessor, ValidationError, DataError
+    
+    processor = MultiMemberProcessor()
+    
     for idx in range(member_count):
         member_cfg = get_member_config(idx)
         member_name = member_cfg['name']
-        member_health_dir = Path(member_cfg['health_dir'])
-        member_workout_dir = Path(member_cfg['workout_dir'])
         
-        # 健壮的成员匹配逻辑 - V5.8.0: 使用 pick_member_ai_analysis
-        ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
-        
-        if not isinstance(ai_analysis, dict) or not ai_analysis:
-            print(f"⚠️ 警告: 找不到成员 {member_name} 的有效分析数据，跳过")
-            continue
-        
-        print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print(f"🧑 正在为成员 {idx+1}/{member_count} 生成报告: {member_name}")
-        print(f"   Health路径: {member_health_dir}")
-        print(f"   Workout路径: {member_workout_dir}")
-        print("")
-        
-        # 验证AI分析
-        if ai_analysis.get('generated_date') != date_str:
-            print(f"⚠️ 警告: AI分析日期标记不匹配")
-            print(f"   报告日期: {date_str}")
-            print(f"   AI分析日期: {ai_analysis.get('generated_date', '未标记')}")
-        
-        # 验证AI分析字数
-        print(f"📏 验证AI分析字数...")
-        validation_errors = verify_ai_analysis(ai_analysis)
-        if validation_errors:
-            print(f"⚠️  发现 {len(validation_errors)} 处字数不足:")
-            for error in validation_errors:
-                print(f"   {error}")
-            if VALIDATION_MODE == "strict":
-                print(f"❌ 严格模式: 字数验证失败，停止生成")
-                print(f"   请重新生成符合字数要求的AI分析")
-                print(f"   当前限制: HRV/睡眠等指标最低{MIN_LENGTH_HRV}字, 优先级建议最低{MIN_LENGTH_PRIORITY_PROBLEM}字")
-                continue
-            else:
-                print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
-        else:
-            print(f"   ✅ 字数验证通过")
-        
-        # 检查数据文件是否存在
-        data_file = member_health_dir / f'HealthAutoExport-{date_str}.json'
-        if not data_file.exists():
-            print(f"❌ 错误: 数据文件不存在: {data_file}")
-            print(f"   跳过成员 {member_name}")
-            continue
-        
-        print(f"📊 正在生成 {date_str} 健康日报...")
-        print("   数据提取: 实时从Apple Health文件读取")
-        print("   AI分析: 当前对话生成（已验证）")
-        
-        # 读取模板（根据语言选择）
-        template_file = 'DAILY_TEMPLATE_MEDICAL_V2_EN.html' if LANGUAGE == 'EN' else 'DAILY_TEMPLATE_MEDICAL_V2.html'
-        with open(TEMPLATE_DIR / template_file, 'r', encoding='utf-8') as f:
-            template = f.read()
-        
-        # 生成报告（需要修改generate_report以支持自定义health_dir）
-        # 临时方案：先修改全局变量再恢复
-        original_health_dir = DEFAULT_HEALTH_DIR
-        
-        try:
+        def process_single_member():
+            """处理单个成员的闭包函数"""
+            member_health_dir = Path(member_cfg['health_dir'])
+            member_workout_dir = Path(member_cfg['workout_dir'])
+            
+            # 健壮的成员匹配逻辑
+            ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+            
+            if not isinstance(ai_analysis, dict) or not ai_analysis:
+                print(f"⚠️  警告: 找不到成员 {member_name} 的有效分析数据")
+                return None
+            
+            # 验证AI分析
+            print(f"📏 验证AI分析字数...")
+            validation_errors = verify_ai_analysis(ai_analysis)
+            if validation_errors:
+                print(f"⚠️  发现 {len(validation_errors)} 处验证问题:")
+                for error in validation_errors:
+                    print(f"   {error}")
+                if VALIDATION_MODE == "strict":
+                    raise ValidationError(f"字数验证失败: {len(validation_errors)} 处不符合要求")
+                print(f"⚠️  警告模式: 继续生成")
+            
+            # 检查数据文件
+            data_file = member_health_dir / f'HealthAutoExport-{date_str}.json'
+            if not data_file.exists():
+                raise DataError(f"数据文件不存在: {data_file}")
+            
+            # 读取模板
+            template_file = 'DAILY_TEMPLATE_MEDICAL_V2_EN.html' if LANGUAGE == 'EN' else 'DAILY_TEMPLATE_MEDICAL_V2.html'
+            with open(TEMPLATE_DIR / template_file, 'r', encoding='utf-8') as f:
+                template = f.read()
+            
             # 重新加载该成员的数据
             data = load_data(date_str, member_health_dir, member_workout_dir)
             
             # 生成报告HTML
             html = generate_report(date_str, ai_analysis, template, member_health_dir, member_workout_dir)
             
-            # 计算评分 - V5.7.2: 使用提取的函数
-            member_cfg = get_member_config(idx)
-            recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
-            
-            # 生成文件名（包含成员标识）
+            # 保存HTML
             safe_name = safe_member_name(member_name)
             html_path = OUTPUT_DIR / f'{date_str}-daily-v5-medical-{safe_name}.html'
             pdf_path = OUTPUT_DIR / f'{date_str}-daily-v5-medical-{safe_name}.pdf'
             
             html_path.write_text(html, encoding='utf-8')
             
-            # V5.2.3-fix: 添加PDF生成重试机制
+            # 生成PDF
             max_retries = 3
             for attempt in range(max_retries):
                 try:
@@ -997,7 +971,7 @@ if __name__ == '__main__':
                                  margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
                                  display_header_footer=False)
                         browser.close()
-                    break  # 成功则跳出重试循环
+                    break
                 except Exception as e:
                     if attempt < max_retries - 1:
                         print(f'   ⚠️ PDF生成失败，第{attempt + 1}次重试...')
@@ -1007,8 +981,6 @@ if __name__ == '__main__':
                         raise Exception(f'PDF生成失败（已重试{max_retries}次）: {e}')
             
             print(f'✅ 报告已生成: {pdf_path}')
-            print(f'   大小: {pdf_path.stat().st_size / 1024:.0f} KB')
-            print(f'   成员: {member_name}')
             
             # 保存缓存
             try:
@@ -1018,7 +990,7 @@ if __name__ == '__main__':
                     'hrv': data['hrv'],
                     'resting_hr': data['resting_hr'],
                     'steps': data['steps'],
-                    'active_energy': data.get('active_energy') or 0,  # V5.2.3-fix: 统一使用 active_energy
+                    'active_energy': data.get('active_energy') or 0,
                     'spo2': data['spo2'],
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],
@@ -1030,15 +1002,15 @@ if __name__ == '__main__':
                 print(f'   数据缓存: {cache_path}')
             except Exception as e:
                 print(f'   缓存保存失败: {e}')
-                
-        except Exception as e:
-            print(f"❌ 生成失败: {e}")
-            import traceback
-            traceback.print_exc()
+            
+            return str(pdf_path)
         
-        print("")
+        # 处理单个成员（错误会被捕获，不影响其他成员）
+        processor.process_member(idx, member_name, process_single_member)
     
-    print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print(f"✅ 所有成员报告生成完成！")
-    print(f"   总计: {member_count} 份报告")
-    print(f"   输出目录: {OUTPUT_DIR}")
+    # 打印摘要
+    all_success = processor.print_summary()
+    
+    if not all_success:
+        print("⚠️  部分成员处理失败，请检查上述错误信息")
+        sys.exit(1)
