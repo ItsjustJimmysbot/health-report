@@ -282,11 +282,13 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     
     # 睡眠数据 - V5.5.0: 传递健康数据路径
     sleep_records = parse_sleep_data_v5(date_str, health_dir)
-    sleep_total = sum(r['total'] for r in sleep_records) if sleep_records else 0
     sleep_deep = sum(r['deep'] for r in sleep_records) if sleep_records else 0
     sleep_core = sum(r['core'] for r in sleep_records) if sleep_records else 0
     sleep_rem = sum(r['rem'] for r in sleep_records) if sleep_records else 0
     sleep_awake = sum(r['awake'] for r in sleep_records) if sleep_records else 0
+    
+    # V5.7.2: 总睡眠时间 = deep + core + rem + awake
+    sleep_total = sleep_deep + sleep_core + sleep_rem + sleep_awake
     
     # 运动数据
     workouts = extract_workout_data(date_str, workout_dir)
