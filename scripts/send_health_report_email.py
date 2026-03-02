@@ -157,6 +157,81 @@ def send_with_copy(date_str, report_files, target_dir):
         print(f"  - {c.name}")
     return True
 
+def find_reports_for_member(date_str, upload_dir, member_name):
+    """查找指定成员的报告文件"""
+    from datetime import datetime, timedelta
+    
+    upload_path = Path(upload_dir).expanduser()
+    if not upload_path.exists():
+        return []
+    
+    safe_name = member_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+    
+    # 查找日报
+    daily_reports = list(upload_path.glob(f"{date_str}-daily-v5-medical-{safe_name}.pdf"))
+    if not daily_reports:
+        # 尝试模糊匹配
+        daily_reports = list(upload_path.glob(f"{date_str}-daily-v5-medical-*.pdf"))
+    
+    # 查找周报（在当前周内）
+    date = datetime.strptime(date_str, '%Y-%m-%d')
+    # 找到本周一
+    monday = date - timedelta(days=date.weekday())
+    sunday = monday + timedelta(days=6)
+    weekly_pattern = f"{monday.strftime('%Y-%m-%d')}_to_{sunday.strftime('%Y-%m-%d')}-weekly-medical-{safe_name}.pdf"
+    weekly_reports = list(upload_path.glob(weekly_pattern))
+    if not weekly_reports:
+        weekly_reports = list(upload_path.glob(f"*_to_*-weekly-medical-{safe_name}.pdf"))
+    
+    # 查找月报
+    year_month = date_str[:7]
+    monthly_reports = list(upload_path.glob(f"{year_month}-monthly-medical-{safe_name}.pdf"))
+    if not monthly_reports:
+        monthly_reports = list(upload_path.glob(f"*-monthly-medical-{safe_name}.pdf"))
+    
+    return [str(r) for r in daily_reports + weekly_reports + monthly_reports]
+
+def send_email_to_all(date_str, report_files_pattern=None):
+    """发送健康报告邮件给所有成员"""
+    members = CONFIG.get("members", [])
+    if not members:
+        print("❌ 错误: 未配置任何成员")
+        return False
+    
+    upload_dir = CONFIG.get("output_dir", "~/.openclaw/workspace/shared/health-reports/upload")
+    
+    success_count = 0
+    for idx, member in enumerate(members):
+        member_name = member.get("name", f"成员{idx+1}")
+        print(f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print(f"📧 正在为成员 {idx+1}/{len(members)} 发送邮件: {member_name}")
+        
+        # 查找该成员的报告文件
+        if report_files_pattern:
+            # 使用指定的文件模式
+            member_files = [f for f in report_files_pattern if member_name.replace(' ', '_') in f or f"-{member_name}-" in f or f"_{member_name}_" in f]
+            if not member_files:
+                # 如果没有找到特定成员的文件，尝试使用通配模式
+                member_files = report_files_pattern
+        else:
+            # 自动查找该成员的报告
+            member_files = find_reports_for_member(date_str, upload_dir, member_name)
+        
+        if not member_files:
+            print(f"⚠️  未找到 {member_name} 的报告文件，跳过")
+            continue
+        
+        print(f"📊 找到 {len(member_files)} 个报告文件:")
+        for f in member_files:
+            print(f"  - {f}")
+        
+        if send_email(date_str, member_files, idx):
+            success_count += 1
+    
+    print(f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"✅ 邮件发送完成: {success_count}/{len(members)} 成功")
+    return success_count == len(members)
+
 def find_reports(date_str, upload_dir):
     upload_path = Path(upload_dir).expanduser()
     if not upload_path.exists():

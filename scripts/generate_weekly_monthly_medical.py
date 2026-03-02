@@ -43,11 +43,112 @@ def load_config():
 # 加载配置
 CONFIG = load_config()
 LANGUAGE = CONFIG.get("language", "CN")
+VALIDATION_MODE = CONFIG.get("validation_mode", "strict")
 
 OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path(__file__).parent.parent / 'output'))).expanduser()
 CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+# ==================== 验证函数 ====================
+def verify_ai_analysis_weekly(ai_analysis):
+    """验证周报AI分析字数"""
+    errors = []
+    total_text = ""
+    
+    # 收集所有文本
+    trend_analysis = ai_analysis.get('trend_analysis') or ai_analysis.get('weekly_analysis', '')
+    total_text += trend_analysis
+    
+    recommendations = ai_analysis.get('recommendations', [])
+    for rec in recommendations:
+        total_text += rec.get('title', '')
+        total_text += rec.get('content', '')
+    
+    # 检查周报总字数（要求≥800字）
+    if len(total_text) < 800:
+        errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥800字)")
+    
+    return errors
+
+def verify_ai_analysis_monthly(ai_analysis):
+    """验证月报AI分析字数"""
+    errors = []
+    total_text = ""
+    
+    # 收集所有文本
+    hrv_analysis = ai_analysis.get('hrv_analysis') or ai_analysis.get('monthly_analysis', '')
+    sleep_analysis = ai_analysis.get('sleep_analysis', '')
+    activity_analysis = ai_analysis.get('activity_analysis') or ai_analysis.get('key_findings', '')
+    trend_assessment = ai_analysis.get('trend_assessment') or ai_analysis.get('trend_forecast', '')
+    
+    total_text += hrv_analysis + sleep_analysis + activity_analysis + trend_assessment
+    
+    recommendations = ai_analysis.get('recommendations', [])
+    for rec in recommendations:
+        total_text += rec.get('title', '')
+        total_text += rec.get('content', '')
+    
+    # 检查月报总字数（要求≥1000字）
+    if len(total_text) < 1000:
+        errors.append(f"❌ 月报总字数不足: {len(total_text)}字 (要求≥1000字)")
+    
+    # 同时检查 trend_assessment 单独字数（原逻辑保留）
+    trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
+    if len(trend_text_clean) < 150:
+        errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥150字)")
+    
+    return errors
+
+# ==================== 趋势计算函数 ====================
+def load_previous_period_data(current_dates, member_name="默认用户"):
+    """加载上一周期（7天前）的数据用于趋势对比"""
+    if not current_dates:
+        return []
+    
+    # 计算7天前的对应日期
+    previous_dates = []
+    for date_str in current_dates:
+        date = datetime.strptime(date_str, '%Y-%m-%d')
+        prev_date = date - timedelta(days=7)
+        previous_dates.append(prev_date.strftime('%Y-%m-%d'))
+    
+    previous_data = []
+    for date in previous_dates:
+        data = load_cache(date, member_name)
+        if data:
+            previous_data.append(data)
+    
+    return previous_data
+
+def calculate_trend(current_values, previous_values):
+    """计算趋势变化（环比）"""
+    if not current_values or not previous_values:
+        return 0, 'stable'
+    
+    current_avg = sum(current_values) / len(current_values)
+    previous_avg = sum(previous_values) / len(previous_values)
+    
+    if previous_avg == 0:
+        return 0, 'stable'
+    
+    change_pct = ((current_avg - previous_avg) / previous_avg) * 100
+    
+    if change_pct > 5:
+        return change_pct, 'increase'
+    elif change_pct < -5:
+        return change_pct, 'decrease'
+    else:
+        return change_pct, 'stable'
+
+def get_trend_html(change_pct, trend_type):
+    """生成趋势变化HTML"""
+    if trend_type == 'increase':
+        return f"↑ {change_pct:+.1f}%", 'change-up'
+    elif trend_type == 'decrease':
+        return f"↓ {change_pct:+.1f}%", 'change-down'
+    else:
+        return "→ 持平", 'change-stable'
 
 # 多语言文本
 def get_text(key):
@@ -305,13 +406,53 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
     
+    # 验证AI分析字数
+    print(f"📏 验证AI分析字数...")
+    validation_errors = verify_ai_analysis_weekly(ai_analysis)
+    if validation_errors:
+        print(f"⚠️  发现 {len(validation_errors)} 处字数不足:")
+        for error in validation_errors:
+            print(f"   {error}")
+        if VALIDATION_MODE == "strict":
+            print(f"❌ 严格模式: 字数验证失败，停止生成")
+            return None
+        else:
+            print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
+    else:
+        print(f"   ✅ 字数验证通过")
+    
+    # 加载上一周期数据用于趋势对比
+    print(f"📊 计算趋势变化...")
+    previous_data = load_previous_period_data(week_dates, member_name)
+    
+    # 计算趋势变化
+    if previous_data:
+        prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
+        prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
+        prev_sleep = [d['sleep']['total'] for d in previous_data if d.get('sleep', {}).get('total')]
+        
+        hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
+        steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
+        sleep_change_pct, sleep_trend = calculate_trend(sleep_values, prev_sleep)
+        
+        hrv_change_html, hrv_class = get_trend_html(hrv_change_pct, hrv_trend)
+        steps_change_html, steps_class = get_trend_html(steps_change_pct, steps_trend)
+        sleep_change_html, sleep_class = get_trend_html(sleep_change_pct, sleep_trend)
+        
+        print(f"   HRV: {hrv_change_html}, 步数: {steps_change_html}, 睡眠: {sleep_change_html}")
+    else:
+        print(f"   ⚠️  未找到上一周期数据，趋势显示为持平")
+        hrv_change_html, hrv_class = get_trend_html(0, 'stable')
+        steps_change_html, steps_class = get_trend_html(0, 'stable')
+        sleep_change_html, sleep_class = get_trend_html(0, 'stable')
+    
     # 趋势变化
-    html = html.replace('{{HRV_CHANGE}}', '→ 持平')
-    html = html.replace('{{STEPS_CHANGE}}', '→ 持平')
-    html = html.replace('{{SLEEP_CHANGE}}', '→ 持平')
-    html = html.replace('{{HRV_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{STEPS_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{SLEEP_TREND_CLASS}}', 'change-stable')
+    html = html.replace('{{HRV_CHANGE}}', hrv_change_html)
+    html = html.replace('{{STEPS_CHANGE}}', steps_change_html)
+    html = html.replace('{{SLEEP_CHANGE}}', sleep_change_html)
+    html = html.replace('{{HRV_TREND_CLASS}}', hrv_class)
+    html = html.replace('{{STEPS_TREND_CLASS}}', steps_class)
+    html = html.replace('{{SLEEP_TREND_CLASS}}', sleep_class)
     
     # 表格和AI分析
     html = html.replace('{{DAILY_ROWS}}', '\n'.join(daily_rows))
@@ -393,6 +534,8 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     hrv_values = [d['hrv']['value'] for d in monthly_data if d.get('hrv', {}).get('value')]
     steps_values = [d['steps'] for d in monthly_data if d.get('steps')]
     sleep_values = [d['sleep']['total'] for d in monthly_data if d.get('sleep', {}).get('total')]
+    active_energy_values = [d.get('active_energy', 0) for d in monthly_data if d.get('active_energy')]
+    stand_time_values = [d.get('apple_stand_time', 0) for d in monthly_data if d.get('apple_stand_time')]
     workout_days = sum(1 for d in monthly_data if d.get('has_workout'))
     
     # 提取实际有数据的日期（用于图表X轴）
@@ -401,6 +544,8 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     avg_hrv = sum(hrv_values) / len(hrv_values) if hrv_values else 0
     avg_steps = sum(steps_values) / len(steps_values) if steps_values else 0
     avg_sleep = sum(sleep_values) / len(sleep_values) if sleep_values else 0
+    avg_calories = sum(active_energy_values) / len(active_energy_values) if active_energy_values else 0
+    avg_stand = sum(stand_time_values) / len(stand_time_values) / 60 if stand_time_values else 0  # 转换为小时
     
     # 填充模板
     html = template
@@ -415,20 +560,82 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_SLEEP}}', f"{avg_sleep:.1f}")
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(monthly_data)} {get_text('days')}")
-    html = html.replace('{{AVG_CALORIES}}', '2,100')
-    html = html.replace('{{AVG_STAND}}', '8.5')
+    html = html.replace('{{AVG_CALORIES}}', f"{int(avg_calories):,}")
+    html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
+    
+    # 验证AI分析字数
+    print(f"📏 验证AI分析字数...")
+    validation_errors = verify_ai_analysis_monthly(ai_analysis)
+    if validation_errors:
+        print(f"⚠️  发现 {len(validation_errors)} 处字数不足:")
+        for error in validation_errors:
+            print(f"   {error}")
+        if VALIDATION_MODE == "strict":
+            print(f"❌ 严格模式: 字数验证失败，停止生成")
+            return None
+        else:
+            print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
+    else:
+        print(f"   ✅ 字数验证通过")
+    
+    # 加载上一周期数据用于趋势对比（上月同期）
+    print(f"📊 计算趋势变化...")
+    # 计算上月日期范围
+    if month == 1:
+        prev_month = 12
+        prev_year = year - 1
+    else:
+        prev_month = month - 1
+        prev_year = year
+    
+    # 简化为加载上月同日的数据（大致范围）
+    prev_month_dates = [f"{prev_year}-{prev_month:02d}-{d['date'][8:10]}" for d in monthly_data if d.get('date')]
+    previous_data = []
+    for date in prev_month_dates:
+        data = load_cache(date, member_name)
+        if data:
+            previous_data.append(data)
+    
+    # 计算趋势变化
+    if previous_data:
+        prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
+        prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
+        prev_sleep = [d['sleep']['total'] for d in previous_data if d.get('sleep', {}).get('total')]
+        prev_calories = [d.get('active_energy', 0) for d in previous_data if d.get('active_energy')]
+        prev_stand = [d.get('apple_stand_time', 0) for d in previous_data if d.get('apple_stand_time')]
+        
+        hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
+        steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
+        sleep_change_pct, sleep_trend = calculate_trend(sleep_values, prev_sleep)
+        calories_change_pct, calories_trend = calculate_trend(active_energy_values, prev_calories)
+        stand_change_pct, stand_trend = calculate_trend(stand_time_values, prev_stand)
+        
+        hrv_change_html, hrv_class = get_trend_html(hrv_change_pct, hrv_trend)
+        steps_change_html, steps_class = get_trend_html(steps_change_pct, steps_trend)
+        sleep_change_html, sleep_class = get_trend_html(sleep_change_pct, sleep_trend)
+        calories_change_html, calories_class = get_trend_html(calories_change_pct, calories_trend)
+        stand_change_html, stand_class = get_trend_html(stand_change_pct, stand_trend)
+        
+        print(f"   HRV: {hrv_change_html}, 步数: {steps_change_html}, 睡眠: {sleep_change_html}")
+    else:
+        print(f"   ⚠️  未找到上月数据，趋势显示为持平")
+        hrv_change_html, hrv_class = get_trend_html(0, 'stable')
+        steps_change_html, steps_class = get_trend_html(0, 'stable')
+        sleep_change_html, sleep_class = get_trend_html(0, 'stable')
+        calories_change_html, calories_class = get_trend_html(0, 'stable')
+        stand_change_html, stand_class = get_trend_html(0, 'stable')
     
     # 趋势变化
-    html = html.replace('{{HRV_CHANGE}}', '→ 持平')
-    html = html.replace('{{STEPS_CHANGE}}', '→ 持平')
-    html = html.replace('{{SLEEP_CHANGE}}', '→ 持平')
-    html = html.replace('{{CALORIES_CHANGE}}', '→ 持平')
-    html = html.replace('{{STAND_CHANGE}}', '→ 持平')
-    html = html.replace('{{HRV_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{STEPS_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{SLEEP_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{CALORIES_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{STAND_TREND_CLASS}}', 'change-stable')
+    html = html.replace('{{HRV_CHANGE}}', hrv_change_html)
+    html = html.replace('{{STEPS_CHANGE}}', steps_change_html)
+    html = html.replace('{{SLEEP_CHANGE}}', sleep_change_html)
+    html = html.replace('{{CALORIES_CHANGE}}', calories_change_html)
+    html = html.replace('{{STAND_CHANGE}}', stand_change_html)
+    html = html.replace('{{HRV_TREND_CLASS}}', hrv_class)
+    html = html.replace('{{STEPS_TREND_CLASS}}', steps_class)
+    html = html.replace('{{SLEEP_TREND_CLASS}}', sleep_class)
+    html = html.replace('{{CALORIES_TREND_CLASS}}', calories_class)
+    html = html.replace('{{STAND_TREND_CLASS}}', stand_class)
     
     # 表格和AI分析
     html = html.replace('{{WEEKLY_ROWS}}', '\n'.join(weekly_rows))
