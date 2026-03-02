@@ -30,6 +30,10 @@ def get_email_providers(config: dict) -> list:
     default_priority = ['oauth2', 'smtp', 'mail_app', 'local']
     priority = email_config.get('provider_priority', default_priority)
     
+    # 全局重试配置
+    global_retries = email_config.get('max_retries', 3)
+    global_delay = email_config.get('retry_delay', 2)
+    
     providers = []
     for provider_name in priority:
         provider_class = PROVIDER_MAP.get(provider_name)
@@ -39,6 +43,10 @@ def get_email_providers(config: dict) -> list:
         
         # 获取 Provider 配置
         provider_config = email_config.get(provider_name, {})
+        
+        # 添加全局重试配置
+        provider_config['max_retries'] = provider_config.get('max_retries', global_retries)
+        provider_config['retry_delay'] = provider_config.get('retry_delay', global_delay)
         
         # 兼容旧配置：如果 smtp 没有独立配置，使用 email_config 顶层
         if provider_name == 'smtp' and not provider_config.get('sender_email'):
@@ -50,6 +58,8 @@ def get_email_providers(config: dict) -> list:
                 'server': email_config.get('smtp_server', ''),
                 'port': email_config.get('smtp_port', 587),
                 'use_tls': True,
+                'max_retries': global_retries,
+                'retry_delay': global_delay,
             }
             if legacy_config['enabled']:
                 provider_config = legacy_config
@@ -68,27 +78,34 @@ def get_email_providers(config: dict) -> list:
         
         if provider.is_available():
             providers.append(provider)
-            print(f"✅ {provider.get_name()} 已启用")
+            print(f"✅ {provider.get_name()} 已启用 (重试{provider.max_retries}次)")
         else:
             print(f"⏭️  {provider.get_name()} 未启用或配置不完整")
     
     return providers
 
 
-def get_member_email(config: dict, member_idx: int = 0) -> str:
-    """获取指定成员的邮箱 - V5.8.0: 索引越界时返回空字符串，不静默 fallback"""
-    members = config.get('members', [])
-    email_config = config.get('email_config', {})
+def get_member_email(config: dict, member_idx: int = 0, strict: bool = True) -> str:
+    """获取指定成员的邮箱 - V5.8.1 统一版本
     
-    # 边界检查 - 越界时返回空字符串并报错
-    if members and len(members) > member_idx:
-        member = members[member_idx]
-        return (member.get('email') or 
-                config.get('receiver_email') or 
-                email_config.get('receiver_email', ''))
-    else:
-        print(f"❌ 错误: 成员索引 {member_idx} 超出范围 (总成员数: {len(members)})")
-        return ''
+    参数:
+        config: 配置字典
+        member_idx: 成员索引
+        strict: 严格模式（True=越界时报错）
+    
+    返回:
+        邮箱地址字符串
+    
+    异常:
+        ConfigError: 严格模式下索引越界时抛出
+    """
+    from utils import get_member_config_unified, ConfigError
+    
+    try:
+        member = get_member_config_unified(config, member_idx, strict=strict)
+        return member['email'] or config.get('receiver_email', '')
+    except ConfigError:
+        raise
 
 
 def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) -> list:
@@ -140,13 +157,31 @@ def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) ->
 
 
 def send_email(date_str: str, report_files: list, member_idx: int = 0) -> bool:
-    """发送邮件给指定成员"""
+    """发送邮件给指定成员
+    
+    返回:
+        bool: 发送成功返回 True，失败返回 False
+    
+    异常:
+        ConfigError: 配置错误（成员索引越界等）
+    """
+    from utils import ConfigError, EmailError, handle_error
+    
     config = load_config()
     
     # 获取成员邮箱
-    receiver = get_member_email(config, member_idx)
+    try:
+        receiver = get_member_email(config, member_idx, strict=True)
+    except ConfigError as e:
+        handle_error(e, "获取成员邮箱", exit_on_fatal=False)
+        return False
+    
     if not receiver:
-        print("❌ 错误: 未配置接收邮箱")
+        handle_error(
+            ConfigError("未配置接收邮箱"),
+            f"成员索引 {member_idx}",
+            exit_on_fatal=False
+        )
         return False
     
     # 验证报告文件
@@ -178,7 +213,7 @@ def send_email(date_str: str, report_files: list, member_idx: int = 0) -> bool:
         print(f"📋 尝试方式 {i}/{len(providers)}: {provider.get_name()}")
         print('─' * 50)
         
-        if provider.send(receiver, existing_files, subject, body):
+        if provider.send_with_retry(receiver, existing_files, subject, body):
             print(f"\n✅ 邮件发送成功！")
             return True
         
