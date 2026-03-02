@@ -106,15 +106,15 @@ playwright install chromium
 ```text
 【每日健康日报 - V5.7.1 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
-2. 提取数据：从 Health 路径提取当日数据
-   python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d)
-3. AI 分析：基于当日真实数值（HRV、步数等）生成详细分析（每项≥150字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
+2. 提取数据：为所有成员提取当日数据
+   python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
+3. AI 分析：为每个成员基于当日真实数值生成详细分析（每项≥150字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
 4. 关键写入：使用 write 工具将 JSON 写入 ai_analysis.json
 5. 渲染生成：
    cd ~/.openclaw/workspace-health/scripts && \
    python3 generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ../ai_analysis.json
-6. 发送邮件：
-   python3 send_health_report_email.py $(date -v-1d +%Y-%m-%d)
+6. 发送邮件（给所有成员）：
+   python3 send_health_report_email.py $(date -v-1d +%Y-%m-%d) all
 ```
 
 ### 6. 周报定时任务 (Weekly Cron)
@@ -130,12 +130,13 @@ playwright install chromium
 2. 计算日期：获取上周一至上周日日期
    START_DATE=$(date -v-7d +%Y-%m-%d)
    END_DATE=$(date -v-1d +%Y-%m-%d)
-3. AI 分析：基于整周数据趋势生成周报分析。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
+3. AI 分析：基于整周数据趋势生成周报分析（总字数≥800字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
 4. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
 5. 渲染生成：
    cd ~/.openclaw/workspace-health/scripts && \
    python3 generate_weekly_monthly_medical.py weekly $START_DATE $END_DATE < ../weekly_analysis.json
-6. 发送邮件：发送周报 PDF 到配置邮箱
+6. 发送邮件（给所有成员）：
+   python3 send_health_report_email.py $END_DATE all
 ```
 
 ### 7. 月报定时任务 (Monthly Cron)
@@ -151,12 +152,14 @@ playwright install chromium
 2. 计算月份：获取上月年份和月份
    YEAR=$(date -v-1m +%Y)
    MONTH=$(date -v-1m +%m)
-3. AI 分析：基于整月数据趋势生成月报深度分析。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
+   LAST_DAY=$(date -v-1d +%Y-%m-%d)  # 上月最后一天
+3. AI 分析：基于整月数据趋势生成月报深度分析（总字数≥1000字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
 4. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
 5. 渲染生成：
    cd ~/.openclaw/workspace-health/scripts && \
    python3 generate_weekly_monthly_medical.py monthly $YEAR $MONTH < ../monthly_analysis.json
-6. 发送邮件：发送月报 PDF 到配置邮箱
+6. 发送邮件（给所有成员）：
+   python3 send_health_report_email.py $LAST_DAY all
 ```
 
 **注意：** 周报和月报的 AI 分析 JSON 需包含 `recommendations` 数组（优先级建议），格式如下：
