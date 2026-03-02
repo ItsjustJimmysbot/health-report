@@ -112,16 +112,30 @@ def parse_sleep_data_v5(date_str, health_dir=None):
         return []
     
     for record in sleep_data.get('data', []):
-        # V5.0: 使用 sleepStart 字段（UTC时间戳，毫秒）
+        # V5.7.1: 处理两种 sleepStart 格式（时间戳或字符串）
         start_ts = record.get('sleepStart')
         end_ts = record.get('sleepEnd')
         
         if not start_ts or not end_ts:
             continue
         
-        # 转换为本地时间（UTC+8）
-        start_dt = datetime.fromtimestamp(start_ts / 1000)
-        end_dt = datetime.fromtimestamp(end_ts / 1000)
+        # 解析开始时间和结束时间
+        try:
+            # 尝试作为时间戳（毫秒）解析
+            if isinstance(start_ts, (int, float)):
+                start_dt = datetime.fromtimestamp(start_ts / 1000)
+                end_dt = datetime.fromtimestamp(end_ts / 1000)
+                duration_hours = (end_ts - start_ts) / 1000 / 3600
+            else:
+                # 作为字符串日期解析（如 '2026-03-02 02:23:55 +0800'）
+                start_str = start_ts[:19]  # 取前19字符 '2026-03-02 02:23:55'
+                end_str = end_ts[:19]
+                start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
+                end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S')
+                duration_hours = (end_dt - start_dt).total_seconds() / 3600
+        except (ValueError, TypeError) as e:
+            print(f"⚠️  睡眠记录时间解析失败: start={start_ts}, end={end_ts} - {e}", file=sys.stderr)
+            continue
         
         # 严格筛选：只保留属于目标日期的睡眠（当天20:00到次日12:00）
         sleep_date = start_dt.strftime('%Y-%m-%d')
@@ -139,17 +153,14 @@ def parse_sleep_data_v5(date_str, health_dir=None):
             belongs_to_date = True
         
         if belongs_to_date:
-            # 转换毫秒到小时
-            duration_hours = (end_ts - start_ts) / 1000 / 3600
-            
             sleep_records.append({
                 'start': start_dt.strftime('%H:%M'),
-                'end': end_dt.strftime('%H-%M'),
+                'end': end_dt.strftime('%H:%M'),
                 'total': duration_hours,
-                'deep': record.get('sleep_deep', 0) / 3600 if record.get('sleep_deep') else 0,
-                'core': record.get('sleep_core', 0) / 3600 if record.get('sleep_core') else 0,
-                'rem': record.get('sleep_rem', 0) / 3600 if record.get('sleep_rem') else 0,
-                'awake': record.get('sleep_awake', 0) / 3600 if record.get('sleep_awake') else 0
+                'deep': record.get('deep', 0) if isinstance(record.get('deep'), (int, float)) else 0,
+                'core': record.get('core', 0) if isinstance(record.get('core'), (int, float)) else 0,
+                'rem': record.get('rem', 0) if isinstance(record.get('rem'), (int, float)) else 0,
+                'awake': record.get('awake', 0) if isinstance(record.get('awake'), (int, float)) else 0,
             })
     
     return sleep_records
@@ -254,8 +265,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 爬楼层数
     flights = extract_metric_sum(metrics, 'flights_climbed')
     
-    # 站立时间 (分钟)
-    stand_time = extract_metric_sum(metrics, 'apple_stand_time') / 60
+    # 站立时间 (分钟) - 保持分钟单位，不除以60
+    stand_time = extract_metric_sum(metrics, 'apple_stand_time')
     
     # 血氧 - V5.5.0: 修复百分比单位问题
     spo2_raw, _ = extract_metric_avg(metrics, 'blood_oxygen_saturation')
