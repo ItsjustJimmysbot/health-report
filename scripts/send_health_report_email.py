@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-健康报告邮件发送脚本 V5.7 - 自动 fallback (Mail.app -> Gmail -> 通用SMTP -> 复制到本地)
+健康报告邮件发送脚本 V5.7.1 - 自动 fallback (Mail.app -> Gmail -> 通用SMTP -> 复制到本地)
 支持多成员：可通过参数指定发送给哪个成员
 """
 
@@ -300,28 +300,36 @@ def send_email(date_str, report_files, member_idx=0):
 
 def main():
     if len(sys.argv) < 2:
-        print("用法: python3 send_health_report_email.py <日期> [member_index] [报告文件...]")
+        print("用法: python3 send_health_report_email.py <日期> [member_index|all] [报告文件...]")
         print("示例:")
         print("  python3 send_health_report_email.py 2026-03-01         # 发送给第一个成员")
         print("  python3 send_health_report_email.py 2026-03-01 1       # 发送给第二个成员")
+        print("  python3 send_health_report_email.py 2026-03-01 all     # 发送给所有成员")
         print("  python3 send_health_report_email.py 2026-03-01 0 file1.pdf file2.pdf")
         sys.exit(1)
         
     date_str = sys.argv[1]
     
-    # 解析参数：检查第二个参数是否为成员索引（数字）
+    # 解析参数：检查第二个参数是否为特殊关键字
     member_idx = 0
     report_files_start = 2
+    send_to_all = False
     
     if len(sys.argv) > 2:
-        try:
-            # 尝试解析为成员索引
-            member_idx = int(sys.argv[2])
+        second_arg = sys.argv[2]
+        if second_arg.lower() == 'all':
+            # 发送给所有成员
+            send_to_all = True
             report_files_start = 3
-        except ValueError:
-            # 不是数字，视为报告文件
-            member_idx = 0
-            report_files_start = 2
+        else:
+            try:
+                # 尝试解析为成员索引
+                member_idx = int(second_arg)
+                report_files_start = 3
+            except ValueError:
+                # 不是数字，视为报告文件
+                member_idx = 0
+                report_files_start = 2
     
     # 确定输出目录
     upload_dir = CONFIG.get("output_dir", "~/.openclaw/workspace/shared/health-reports/upload")
@@ -330,18 +338,24 @@ def main():
         report_files = sys.argv[report_files_start:]
     else:
         report_files = find_reports(date_str, upload_dir)
-        
-    if not report_files:
-        print(f"❌ 未找到 {date_str} 的报告文件")
-        sys.exit(1)
     
-    print(f"📊 找到 {len(report_files)} 个报告文件:")
-    for f in report_files:
-        print(f"  - {f}")
-    print()
+    if send_to_all:
+        # 发送给所有成员
+        success = send_email_to_all(date_str, report_files if report_files else None)
+        sys.exit(0 if success else 1)
+    else:
+        # 发送给单个成员
+        if not report_files:
+            print(f"❌ 未找到 {date_str} 的报告文件")
+            sys.exit(1)
         
-    success = send_email(date_str, report_files, member_idx)
-    sys.exit(0 if success else 1)
+        print(f"📊 找到 {len(report_files)} 个报告文件:")
+        for f in report_files:
+            print(f"  - {f}")
+        print()
+            
+        success = send_email(date_str, report_files, member_idx)
+        sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()

@@ -36,7 +36,7 @@ def load_config():
     
     # 默认配置
     return {
-        "version": "5.6.0",
+        "version": "5.7.1",
         "members": [{
             "name": "默认用户",
             "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
@@ -551,6 +551,89 @@ def generate_hr_svg(hr_data):
 </div>'''
 
 
+def calculate_scores(data, member_cfg=None):
+    """V5.7.2: 计算个性化评分（考虑年龄、性别、BMI）
+    
+    Returns:
+        tuple: (recovery, sleep_score, exercise)
+    """
+    sleep_hours = data.get('sleep', {}).get('total', 0) or 0
+    hrv_v = data['hrv']['value'] or 0
+    rhr_v = data['resting_hr']['value'] or 999
+    steps_v = data['steps'] or 0
+    active_v = data.get('active_energy') or 0
+    
+    # 获取成员档案信息
+    if member_cfg:
+        age = member_cfg.get("age", 30)
+        gender = member_cfg.get("gender", "male")
+        height_cm = member_cfg.get("height_cm", 175)
+        weight_kg = member_cfg.get("weight_kg", 70)
+    else:
+        age, gender, height_cm, weight_kg = 30, "male", 175, 70
+    
+    # 计算BMI
+    bmi = weight_kg / ((height_cm / 100) ** 2) if height_cm > 0 else 22
+    
+    # === 恢复度评分 (Recovery) ===
+    if age <= 25:
+        hrv_threshold, rhr_threshold = 55, 60
+    elif age <= 35:
+        hrv_threshold, rhr_threshold = 50, 65
+    elif age <= 45:
+        hrv_threshold, rhr_threshold = 45, 68
+    else:
+        hrv_threshold, rhr_threshold = 40, 70
+    
+    recovery_base = 60
+    recovery_hrv = 15 if hrv_v > hrv_threshold + 10 else (10 if hrv_v > hrv_threshold else (5 if hrv_v > hrv_threshold - 10 else 0))
+    recovery_rhr = 15 if rhr_v < rhr_threshold - 5 else (10 if rhr_v < rhr_threshold else (5 if rhr_v < rhr_threshold + 5 else 0))
+    recovery_sleep = 10 if sleep_hours >= 7.5 else (7 if sleep_hours >= 7 else (4 if sleep_hours >= 6 else 0))
+    recovery = min(100, recovery_base + recovery_hrv + recovery_rhr + recovery_sleep)
+    
+    # === 睡眠评分 (Sleep Score) ===
+    if age <= 25:
+        sleep_optimal, sleep_min = 8.0, 7.0
+    elif age <= 35:
+        sleep_optimal, sleep_min = 7.5, 6.5
+    else:
+        sleep_optimal, sleep_min = 7.0, 6.0
+    
+    if sleep_hours >= sleep_optimal:
+        sleep_score = 90 + min(10, int((sleep_hours - sleep_optimal) * 5))
+    elif sleep_hours >= sleep_min:
+        sleep_score = 70 + int((sleep_hours - sleep_min) / (sleep_optimal - sleep_min) * 20)
+    elif sleep_hours >= sleep_min - 1:
+        sleep_score = 50 + int((sleep_hours - (sleep_min - 1)) * 20)
+    else:
+        sleep_score = max(30, int(sleep_hours * 15))
+    sleep_score = min(100, sleep_score)
+    
+    # === 运动评分 (Exercise Score) ===
+    if bmi < 18.5:
+        steps_target, active_target = 7000, 350
+    elif bmi < 24:
+        steps_target, active_target = 8000, 450
+    elif bmi < 28:
+        steps_target, active_target = 10000, 550
+    else:
+        steps_target, active_target = 12000, 650
+    
+    if gender == "female":
+        steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
+    
+    if age > 40:
+        steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
+    
+    exercise_steps = min(40, int((steps_v / steps_target) * 40))
+    exercise_active = min(30, int((active_v / active_target) * 30))
+    exercise_workout = 20 if data.get('has_workout') else 0
+    exercise_consistency = 10 if steps_v >= steps_target * 0.5 else 5
+    exercise = min(100, exercise_steps + exercise_active + exercise_workout + exercise_consistency)
+    
+    return recovery, sleep_score, exercise
+
+
 def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None):
     data = load_data(date_str, health_dir, workout_dir)
     html = template
@@ -587,103 +670,11 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{HEADER_SUBTITLE}}', header_subtitle)
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
 
-    # 评分 - V5.7.2: 考虑年龄和性别的个性化评分
-    sleep_hours = data.get('sleep', {}).get('total', 0) or 0
-    hrv_v = data['hrv']['value'] or 0
-    rhr_v = data['resting_hr']['value'] or 999
-    steps_v = data['steps'] or 0
-    active_v = data.get('active_energy') or 0
-    
-    # 获取成员档案信息（年龄、性别）
-    member_idx = 0  # 默认第一个成员，多成员场景需要传入
+    # 评分 - V5.7.2: 使用提取的函数
+    member_idx = 0
     members = CONFIG.get("members", [])
-    if members:
-        member = members[member_idx] if member_idx < len(members) else members[0]
-        age = member.get("age", 30)
-        gender = member.get("gender", "male")
-        height_cm = member.get("height_cm", 175)
-        weight_kg = member.get("weight_kg", 70)
-    else:
-        age, gender, height_cm, weight_kg = 30, "male", 175, 70
-    
-    # 计算BMI
-    bmi = weight_kg / ((height_cm / 100) ** 2) if height_cm > 0 else 22
-    
-    # === 恢复度评分 (Recovery) ===
-    # 基于年龄调整HRV和心率阈值
-    # 年轻(20-25): HRV>60优秀, 心率<60优秀
-    # 中年(30-40): HRV>50优秀, 心率<65优秀  
-    # 老年(40+): HRV>40优秀, 心率<70优秀
-    if age <= 25:
-        hrv_threshold, rhr_threshold = 55, 60
-    elif age <= 35:
-        hrv_threshold, rhr_threshold = 50, 65
-    elif age <= 45:
-        hrv_threshold, rhr_threshold = 45, 68
-    else:
-        hrv_threshold, rhr_threshold = 40, 70
-    
-    # 恢复度 = 基础分 + HRV加分 + 心率加分 + 睡眠加分
-    recovery_base = 60
-    recovery_hrv = 15 if hrv_v > hrv_threshold + 10 else (10 if hrv_v > hrv_threshold else (5 if hrv_v > hrv_threshold - 10 else 0))
-    recovery_rhr = 15 if rhr_v < rhr_threshold - 5 else (10 if rhr_v < rhr_threshold else (5 if rhr_v < rhr_threshold + 5 else 0))
-    recovery_sleep = 10 if sleep_hours >= 7.5 else (7 if sleep_hours >= 7 else (4 if sleep_hours >= 6 else 0))
-    recovery = min(100, recovery_base + recovery_hrv + recovery_rhr + recovery_sleep)
-    
-    # === 睡眠评分 (Sleep Score) ===
-    # 基于年龄调整睡眠需求
-    # 年轻(20-25): 需要7.5-9h
-    # 中年(30-40): 需要7-8h
-    # 老年(40+): 需要6.5-7.5h
-    if age <= 25:
-        sleep_optimal, sleep_min = 8.0, 7.0
-    elif age <= 35:
-        sleep_optimal, sleep_min = 7.5, 6.5
-    else:
-        sleep_optimal, sleep_min = 7.0, 6.0
-    
-    if sleep_hours >= sleep_optimal:
-        sleep_score = 90 + min(10, int((sleep_hours - sleep_optimal) * 5))
-    elif sleep_hours >= sleep_min:
-        sleep_score = 70 + int((sleep_hours - sleep_min) / (sleep_optimal - sleep_min) * 20)
-    elif sleep_hours >= sleep_min - 1:
-        sleep_score = 50 + int((sleep_hours - (sleep_min - 1)) * 20)
-    else:
-        sleep_score = max(30, int(sleep_hours * 15))
-    sleep_score = min(100, sleep_score)
-    
-    # === 运动评分 (Exercise Score) ===
-    # 基于年龄、性别、BMI个性化目标
-    # 步数目标: 基础8000，根据BMI调整
-    if bmi < 18.5:  # 偏瘦
-        steps_target = 7000
-        active_target = 350
-    elif bmi < 24:  # 正常
-        steps_target = 8000
-        active_target = 450
-    elif bmi < 28:  # 超重
-        steps_target = 10000
-        active_target = 550
-    else:  # 肥胖
-        steps_target = 12000
-        active_target = 650
-    
-    # 性别调整: 女性目标略低
-    if gender == "female":
-        steps_target = int(steps_target * 0.9)
-        active_target = int(active_target * 0.9)
-    
-    # 年龄调整: 年龄越大目标略低
-    if age > 40:
-        steps_target = int(steps_target * 0.9)
-        active_target = int(active_target * 0.9)
-    
-    # 运动评分计算
-    exercise_steps = min(40, int((steps_v / steps_target) * 40))
-    exercise_active = min(30, int((active_v / active_target) * 30))
-    exercise_workout = 20 if data.get('has_workout') else 0
-    exercise_consistency = 10 if steps_v >= steps_target * 0.5 else 5  # 至少完成50%
-    exercise = min(100, exercise_steps + exercise_active + exercise_workout + exercise_consistency)
+    member_cfg = members[member_idx] if members and member_idx < len(members) else None
+    recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
 
     rc, rt = badge(recovery)
     sc, st = badge(sleep_score)
