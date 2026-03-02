@@ -42,7 +42,9 @@ def load_config():
 
 # 加载配置
 CONFIG = load_config()
-LANGUAGE = CONFIG.get("language", "CN")
+LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
+if LANGUAGE not in ("CN", "EN"):
+    LANGUAGE = "CN"
 VALIDATION_MODE = CONFIG.get("validation_mode", "strict")
 
 OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path(__file__).parent.parent / 'output'))).expanduser()
@@ -152,7 +154,10 @@ def get_trend_html(change_pct, trend_type):
     elif trend_type == 'decrease':
         return f"↓ {change_pct:+.1f}%", 'change-down'
     else:
-        return "→ 持平", 'change-stable'
+        if LANGUAGE == 'EN':
+            return "→ Stable", 'change-stable'
+        else:
+            return "→ 持平", 'change-stable'
 
 # 多语言文本
 def get_text(key):
@@ -195,17 +200,27 @@ def get_text(key):
     }
     return texts.get(LANGUAGE, texts["CN"]).get(key, key)
 
+
+def safe_member_name(name):
+    """生成安全的成员文件名（替换空格和特殊字符）"""
+    return name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+
+
 def load_cache(date_str, member_name="默认用户"):
-    """加载单日缓存数据"""
-    # 优先尝试带成员名的缓存
-    cache_path = CACHE_DIR / f'{date_str}_{member_name}.json'
-    if not cache_path.exists():
-        # 回退到无成员名的旧格式
-        cache_path = CACHE_DIR / f'{date_str}.json'
+    """加载单日缓存数据 - V5.8.0: 支持 safe_name 命名规则"""
+    safe_name = safe_member_name(member_name)
     
-    if cache_path.exists():
-        with open(cache_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+    # 三级读取顺序：safe_name -> 原始name -> 旧格式
+    cache_paths = [
+        CACHE_DIR / f'{date_str}_{safe_name}.json',
+        CACHE_DIR / f'{date_str}_{member_name}.json',
+        CACHE_DIR / f'{date_str}.json',  # 旧格式兜底
+    ]
+    
+    for cache_path in cache_paths:
+        if cache_path.exists():
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
     return None
 
 def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px):

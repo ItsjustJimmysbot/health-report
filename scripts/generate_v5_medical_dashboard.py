@@ -356,11 +356,18 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     else:
         spo2 = spo2_avg if spo2_avg > 1 else spo2_avg * 100
 
-    # 运动
+    # 运动 - 按顺序尝试多种文件名格式
     workouts = []
-    wp = workout_dir / f'HealthAutoExport-{date_str}.json'
-    if not wp.exists():
-        wp = health_dir / f'HealthAutoExport-{date_str}.json'
+    workout_paths = [
+        workout_dir / f'HealthAutoExport-{date_str}.json',
+        workout_dir / f'{date_str}.json',
+        health_dir / f'HealthAutoExport-{date_str}.json',
+    ]
+    wp = None
+    for p in workout_paths:
+        if p.exists():
+            wp = p
+            break
     if wp.exists():
         try:
             wd = json.loads(wp.read_text(encoding='utf-8'))
@@ -474,7 +481,7 @@ def generate_hr_svg(hr_data):
     avg = [h['avg'] for h in hr_data if h.get('avg') is not None]
     mx = [h['max'] for h in hr_data if h.get('max') is not None]
     if not avg and not mx:
-        return '<div style="color:#999;text-align:center;padding:20px;">无心率数据</div>'
+        return f'<div style="color:#999;text-align:center;padding:20px;">{no_data_text}</div>'
 
     vals = (avg + mx)
     y_min = int((min(vals) // 10 - 1) * 10)
@@ -634,7 +641,7 @@ def calculate_scores(data, member_cfg=None):
     return recovery, sleep_score, exercise
 
 
-def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None):
+def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None, member_cfg=None):
     data = load_data(date_str, health_dir, workout_dir)
     html = template
     
@@ -670,10 +677,10 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{HEADER_SUBTITLE}}', header_subtitle)
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
 
-    # 评分 - V5.7.2: 使用提取的函数
-    member_idx = 0
-    members = CONFIG.get("members", [])
-    member_cfg = members[member_idx] if members and member_idx < len(members) else None
+    # 评分 - V5.7.2: 使用提取的函数，传入 member_cfg
+    if member_cfg is None:
+        members = CONFIG.get("members", [])
+        member_cfg = members[0] if members else None
     recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
 
     rc, rt = badge(recovery)
@@ -724,14 +731,20 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         raise ValueError("❌ 错误: 缺少活动能量分析 - 必须在当前AI对话中生成")
     html = html.replace('{{METRIC5_VALUE}}', m5).replace('{{METRIC5_RATING_CLASS}}', c5).replace('{{METRIC5_RATING}}', t5).replace('{{METRIC5_ANALYSIS}}', active_analysis)
 
-    m6 = real_text(data['flights_climbed'], lambda v: f"{int(v)} 层")
+    if LANGUAGE == 'EN':
+        m6 = real_text(data['flights_climbed'], lambda v: f"{int(v)} floors")
+    else:
+        m6 = real_text(data['flights_climbed'], lambda v: f"{int(v)} 层")
     c6, t6 = gen_rating_from_value(m6)
     flights_analysis = ai_analysis.get('flights')
     if not flights_analysis:
         raise ValueError("❌ 错误: 缺少爬楼分析 - 必须在当前AI对话中生成")
     html = html.replace('{{METRIC6_VALUE}}', m6).replace('{{METRIC6_RATING_CLASS}}', c6).replace('{{METRIC6_RATING}}', t6).replace('{{METRIC6_ANALYSIS}}', flights_analysis)
 
-    m7 = real_text(data['apple_stand_time'], lambda v: f"{int(v)//60}h {int(v)%60}min")
+    if LANGUAGE == 'EN':
+        m7 = real_text(data['apple_stand_time'], lambda v: f"{int(v)//60}h {int(v)%60}min")
+    else:
+        m7 = real_text(data['apple_stand_time'], lambda v: f"{int(v)//60}h {int(v)%60}分钟")
     c7, t7 = gen_rating_from_value(m7)
     stand_analysis = ai_analysis.get('stand')
     if not stand_analysis:

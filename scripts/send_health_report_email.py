@@ -83,24 +83,19 @@ def get_email_providers(config: dict) -> list:
 
 
 def get_member_email(config: dict, member_idx: int = 0) -> str:
-    """获取指定成员的邮箱"""
+    """获取指定成员的邮箱 - V5.8.0: 索引越界时返回空字符串，不静默 fallback"""
     members = config.get('members', [])
     email_config = config.get('email_config', {})
     
-    # 边界检查
+    # 边界检查 - 越界时返回空字符串并报错
     if members and len(members) > member_idx:
         member = members[member_idx]
         return (member.get('email') or 
                 config.get('receiver_email') or 
                 email_config.get('receiver_email', ''))
-    elif members and len(members) > 0:
-        # fallback 到第一个成员
-        return (members[0].get('email') or 
-                config.get('receiver_email') or 
-                email_config.get('receiver_email', ''))
     else:
-        return (config.get('receiver_email') or 
-                email_config.get('receiver_email', ''))
+        print(f"❌ 错误: 成员索引 {member_idx} 超出范围 (总成员数: {len(members)})")
+        return ''
 
 
 def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) -> list:
@@ -112,10 +107,11 @@ def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) ->
     # 处理特殊字符
     safe_name = member_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
     
-    # 查找日报
+    # 查找日报 - V5.8.0: 严格匹配 safe_name，不匹配他人文件
     daily_reports = list(upload_path.glob(f"{date_str}-daily-v5-medical-{safe_name}.pdf"))
+    # 旧格式兼容（无成员名后缀）
     if not daily_reports:
-        daily_reports = list(upload_path.glob(f"{date_str}-daily-v5-medical-*.pdf"))
+        daily_reports = list(upload_path.glob(f"{date_str}-daily-v5-medical.pdf"))
     
     # 查找周报（在当前周内）
     date = datetime.strptime(date_str, '%Y-%m-%d')
@@ -206,7 +202,7 @@ def send_email_to_all(date_str: str, report_files_pattern: list = None) -> bool:
         print(f"👤 成员 {idx+1}/{len(members)}: {member_name}")
         print('━' * 60)
         
-        # 确定该成员的报告文件
+        # 确定该成员的报告文件 - V5.8.0: 删除 fallback，不匹配时不发送
         if report_files_pattern:
             # 从指定文件列表中筛选
             safe_name = member_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
@@ -215,8 +211,7 @@ def send_email_to_all(date_str: str, report_files_pattern: list = None) -> bool:
                 if (safe_name in f or member_name in f or 
                     f"-{safe_name}-" in f or f"_{safe_name}_" in f):
                     member_files.append(f)
-            if not member_files:
-                member_files = report_files_pattern
+            # 删除：不再 fallback 到全部文件
         else:
             # 自动查找
             member_files = find_reports_for_member(date_str, upload_dir, member_name)
