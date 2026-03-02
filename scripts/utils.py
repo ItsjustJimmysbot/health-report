@@ -240,6 +240,200 @@ def detect_language_mismatch(ai_analysis: Dict, expected_language: str,
     return None
 
 
+def detect_language_mismatch_v2(
+    ai_analysis: dict, 
+    expected_language: str,
+    metric_names_cn: list = None,
+    metric_names_en: list = None
+) -> list:
+    """改进的语言检测 - 排除指标名后检测 - V5.8.1
+    
+    参数:
+        ai_analysis: AI分析数据字典
+        expected_language: 期望语言 ("CN" 或 "EN")
+        metric_names_cn: 中文指标名白名单（这些词不计入中文统计）
+        metric_names_en: 英文指标名白名单（这些词不计入英文统计）
+    
+    返回:
+        错误信息列表（为空表示通过检测）
+    """
+    errors = []
+    
+    if expected_language not in ("CN", "EN"):
+        return errors
+    
+    # 默认指标名白名单
+    default_cn_metrics = [
+        "心率", "HRV", "静息心率", "步数", "距离", "活动能量", "血氧",
+        "爬楼", "站立", "基础代谢", "呼吸率", "睡眠", "运动", "千卡",
+        "公里", "小时", "分钟", "次", "层", "步", "毫秒", "bpm", "ms",
+        "深睡", "核心睡眠", "REM", "清醒", "优秀", "良好", "一般", "需改善",
+        "早餐", "午餐", "晚餐", "加餐", "苹果健康", "健康数据"
+    ]
+    
+    default_en_metrics = [
+        "HRV", "Resting HR", "Steps", "Distance", "Active Energy", "SpO2",
+        "Flights", "Stand", "Basal", "Respiratory", "Sleep", "Workout",
+        "kcal", "km", "hours", "minutes", "bpm", "ms", "floors",
+        "Deep", "Core", "REM", "Awake", "Excellent", "Good", "Average", "Poor",
+        "Breakfast", "Lunch", "Dinner", "Snack", "Apple Health"
+    ]
+    
+    metric_names_cn = metric_names_cn or default_cn_metrics
+    metric_names_en = metric_names_en or default_en_metrics
+    
+    # 提取所有文本内容
+    full_text = json.dumps(ai_analysis, ensure_ascii=False)
+    
+    if expected_language == "EN":
+        # 期望英文：移除英文指标名后，检测中文字符
+        text_for_check = full_text
+        for metric in metric_names_en:
+            text_for_check = text_for_check.replace(metric, "")
+        
+        # 也移除常见的中文指标名（这些是正常的）
+        for metric in metric_names_cn:
+            text_for_check = text_for_check.replace(metric, "")
+        
+        chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
+        
+        # 阈值提高到50个字符（允许少量中文引用）
+        if chinese_chars > 50:
+            # 提取违规的中文片段作为示例
+            chinese_segments = re.findall(r'[\u4e00-\u9fa5]{5,}', text_for_check)
+            examples = chinese_segments[:2] if chinese_segments else []
+            
+            error_msg = f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字"
+            if examples:
+                error_msg += f"（如: {'... '.join(examples)}...）"
+            error_msg += "。请确保AI分析使用纯英文输出。"
+            errors.append(error_msg)
+    
+    elif expected_language == "CN":
+        # 期望中文：检测中文字符数量是否足够
+        text_for_check = full_text
+        
+        # 移除英文指标名
+        for metric in metric_names_en:
+            text_for_check = text_for_check.replace(metric, "")
+        
+        chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
+        
+        # 要求至少100个中文字符（排除指标名后）
+        if chinese_chars < 100:
+            errors.append(
+                f"语言配置不匹配: 设置为 CN(中文), 但只检测到 {chinese_chars} 个中文字符 "
+                f"(要求至少100字，不含指标名)。请确保AI分析使用纯中文输出。"
+            )
+    
+    return errors
+
+
+# ==================== 模板选择 ====================
+
+def get_template_path(
+    template_type: str,
+    language: str,
+    template_dir: Path,
+    version: str = "V2"
+) -> Path:
+    """获取模板文件路径 - 支持多语言 - V5.8.1
+    
+    参数:
+        template_type: 模板类型 ("daily", "weekly", "monthly")
+        language: 语言代码 ("CN", "EN", "JP", etc.)
+        template_dir: 模板目录路径
+        version: 模板版本 (默认 "V2")
+    
+    返回:
+        模板文件的完整路径
+    
+    异常:
+        FileNotFoundError: 找不到模板文件时抛出
+    
+    模板命名约定:
+        {TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html
+        例如: DAILY_TEMPLATE_MEDICAL_V2_EN.html
+        
+        如果特定语言模板不存在，回退到默认模板（不带语言后缀）
+    """
+    template_dir = Path(template_dir)
+    
+    # 构建文件名（大写）
+    type_upper = template_type.upper()
+    lang_upper = language.upper()
+    
+    # 尝试特定语言模板
+    template_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}_{lang_upper}.html"
+    template_path = template_dir / template_name
+    
+    if template_path.exists():
+        return template_path
+    
+    # 回退到默认模板（不带语言后缀）
+    default_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}.html"
+    default_path = template_dir / default_name
+    
+    if default_path.exists():
+        print(f"⚠️  警告: 未找到 {language} 语言模板，使用默认模板")
+        return default_path
+    
+    # 再尝试不带版本的旧格式
+    legacy_name = f"{type_upper}_TEMPLATE_MEDICAL.html"
+    legacy_path = template_dir / legacy_name
+    
+    if legacy_path.exists():
+        print(f"⚠️  警告: 使用旧版模板 {legacy_name}")
+        return legacy_path
+    
+    raise FileNotFoundError(
+        f"找不到模板文件。尝试了以下路径:\n"
+        f"  1. {template_path}\n"
+        f"  2. {default_path}\n"
+        f"  3. {legacy_path}"
+    )
+
+
+def list_available_templates(template_dir: Path) -> dict:
+    """列出所有可用的模板
+    
+    返回:
+        {
+            "daily": ["CN", "EN"],
+            "weekly": ["CN", "EN"],
+            "monthly": ["CN", "EN"]
+        }
+    """
+    template_dir = Path(template_dir)
+    result = {"daily": [], "weekly": [], "monthly": []}
+    
+    if not template_dir.exists():
+        return result
+    
+    for template_type in ["daily", "weekly", "monthly"]:
+        type_upper = template_type.upper()
+        
+        # 查找所有匹配该类型的模板
+        for template_file in template_dir.glob(f"{type_upper}_TEMPLATE_MEDICAL*.html"):
+            name = template_file.stem  # 不含扩展名
+            
+            # 解析语言代码
+            # DAILY_TEMPLATE_MEDICAL_V2_EN -> EN
+            # DAILY_TEMPLATE_MEDICAL_V2 -> default
+            parts = name.split('_')
+            
+            if len(parts) >= 2 and parts[-1] in ['CN', 'EN', 'JP', 'KR', 'FR', 'DE']:
+                lang = parts[-1]
+                if lang not in result[template_type]:
+                    result[template_type].append(lang)
+            elif 'V2' in parts or 'V1' in parts:
+                # 默认模板（无语言后缀）
+                if 'default' not in result[template_type]:
+                    result[template_type].append('default')
+    
+    return result
+
+
 # ==================== 睡眠数据解析 ====================
 
 from datetime import datetime, timedelta
@@ -469,6 +663,108 @@ def get_member_config_unified(
         'workout_dir': member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data'),
         'email': member.get('email', ''),
     }
+
+
+# ==================== 日期格式化 ====================
+
+def get_ordinal_suffix(day: int) -> str:
+    """获取英文序数后缀 (1st, 2nd, 3rd, 4th...)"""
+    if 11 <= day <= 13:
+        return "th"
+    last_digit = day % 10
+    if last_digit == 1:
+        return "st"
+    elif last_digit == 2:
+        return "nd"
+    elif last_digit == 3:
+        return "rd"
+    else:
+        return "th"
+
+
+def format_date(date_str: str, format_type: str = "full", language: str = "CN") -> str:
+    """格式化日期 - V5.8.1
+    
+    参数:
+        date_str: 日期字符串 (YYYY-MM-DD) 或 datetime 对象
+        format_type: 格式类型
+            - "full": 完整日期 (如 "2026年3月1日" / "March 1, 2026")
+            - "month_year": 年月 (如 "2026年3月" / "Mar 2026")
+            - "day": 仅日期数字 (如 "1" / "1st")
+            - "short": 短格式 (如 "3/1" / "01/03")
+        language: 语言代码
+    
+    返回:
+        格式化后的日期字符串
+    """
+    if isinstance(date_str, str):
+        date = datetime.strptime(date_str, "%Y-%m-%d")
+    else:
+        date = date_str
+    
+    # 多语言配置
+    locales = {
+        "CN": {
+            "month_names": ['', '1月', '2月', '3月', '4月', '5月', '6月', 
+                           '7月', '8月', '9月', '10月', '11月', '12月'],
+            "month_names_full": ['', '一月', '二月', '三月', '四月', '五月', '六月',
+                                '七月', '八月', '九月', '十月', '十一月', '十二月'],
+            "format": {
+                "full": lambda d: f"{d.year}年{d.month}月{d.day}日",
+                "month_year": lambda d: f"{d.year}年{d.month}月",
+                "day": lambda d: str(d.day),
+                "short": lambda d: f"{d.month}/{d.day}",
+            }
+        },
+        "EN": {
+            "month_names": ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            "month_names_full": ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'],
+            "format": {
+                "full": lambda d: f"{locales['EN']['month_names_full'][d.month]} {d.day}, {d.year}",
+                "month_year": lambda d: f"{locales['EN']['month_names'][d.month]} {d.year}",
+                "day": lambda d: f"{d.day}{get_ordinal_suffix(d.day)}",
+                "short": lambda d: f"{d.day:02d}/{d.month:02d}",
+            }
+        },
+        "JP": {
+            "month_names": ['', '1月', '2月', '3月', '4月', '5月', '6月',
+                           '7月', '8月', '9月', '10月', '11月', '12月'],
+            "format": {
+                "full": lambda d: f"{d.year}年{d.month}月{d.day}日",
+                "month_year": lambda d: f"{d.year}年{d.month}月",
+                "day": lambda d: str(d.day),
+                "short": lambda d: f"{d.month}/{d.day}",
+            }
+        }
+    }
+    
+    # 默认使用英文
+    locale = locales.get(language, locales["EN"])
+    
+    formatter = locale["format"].get(format_type, locale["format"]["full"])
+    return formatter(date)
+
+
+def format_week_range(start_date: str, end_date: str, language: str = "CN") -> str:
+    """格式化周范围
+    
+    例如:
+        CN: "第9周"
+        EN: "Week 9"
+    """
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    week_num = start.isocalendar()[1]
+    
+    if language == "CN":
+        return f"第{week_num}周"
+    elif language == "EN":
+        return f"Week {week_num}"
+    elif language == "JP":
+        return f"第{week_num}週"
+    else:
+        return f"Week {week_num}"
 
 
 # ==================== 多成员处理结果 ====================

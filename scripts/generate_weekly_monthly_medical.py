@@ -401,11 +401,12 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = template
     html = html.replace('{{START_DATE}}', start_date)
     html = html.replace('{{END_DATE}}', end_date)
-    week_num = start.isocalendar()[1]
-    if LANGUAGE == "EN":
-        html = html.replace('{{WEEK_RANGE}}', f"Week {week_num}")
-    else:
-        html = html.replace('{{WEEK_RANGE}}', f"第{week_num}周")
+    
+    # V5.8.1: 使用统一的周范围格式化
+    from utils import format_week_range
+    week_range_text = format_week_range(start_date, end_date, LANGUAGE)
+    html = html.replace('{{WEEK_RANGE}}', week_range_text)
+    
     html = html.replace('{{DAYS_COUNT}}', str(len(weekly_data)))
     
     # 概览数据
@@ -777,9 +778,6 @@ def main():
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]
     
-    # 根据语言选择模板
-    template_suffix = "_EN" if LANGUAGE == "EN" else ""
-    
     if report_type == 'weekly':
         if len(sys.argv) < 4:
             print('Error: Weekly report requires start and end dates')
@@ -788,8 +786,11 @@ def main():
         start_date = sys.argv[2]
         end_date = sys.argv[3]
         
-        # 加载模板
-        template_path = TEMPLATE_DIR / f'WEEKLY_TEMPLATE_MEDICAL{template_suffix}.html'
+        # 加载模板 - V5.8.1: 使用灵活的模板选择
+        from utils import get_template_path
+        template_path = get_template_path("weekly", LANGUAGE, TEMPLATE_DIR)
+        print(f"📄 使用模板: {template_path.name}")
+        
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
             
@@ -843,8 +844,11 @@ def main():
         year = int(sys.argv[2])
         month = int(sys.argv[3])
         
-        # 加载模板
-        template_path = TEMPLATE_DIR / f'MONTHLY_TEMPLATE_MEDICAL{template_suffix}.html'
+        # 加载模板 - V5.8.1: 使用灵活的模板选择
+        from utils import get_template_path
+        template_path = get_template_path("monthly", LANGUAGE, TEMPLATE_DIR)
+        print(f"📄 使用模板: {template_path.name}")
+        
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
             

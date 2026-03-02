@@ -193,14 +193,11 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
         if text and len(text) < min_len:
             errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
             
-    # 验证语言
-    full_text = json.dumps(ai_analysis, ensure_ascii=False)
-    chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', full_text))
-    
-    if LANGUAGE == "EN" and chinese_chars > 20:
-        errors.append("❌ 语言配置不匹配: config.json 中设置为 EN(英文), 但 AI 分析结果中检测到大量中文字符。请让 AI 重新生成纯英文的 JSON。")
-    elif LANGUAGE == "CN" and chinese_chars < 20:
-        errors.append("❌ 语言配置不匹配: config.json 中设置为 CN(中文), 但 AI 分析结果中未检测到足够的中文字符。请让 AI 重新生成纯中文的 JSON。")
+    # 验证语言 - V5.8.1: 使用改进的检测逻辑
+    from utils import detect_language_mismatch_v2
+    lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
+    for error in lang_errors:
+        errors.append(f"❌ {error}")
     
     return errors
 
@@ -596,17 +593,17 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     
     ai_analysis = clean_dict(ai_analysis)
 
-    # 基础信息
+    # 基础信息 - V5.8.1: 使用统一的日期格式化
+    from utils import format_date
+    
     html = html.replace('{{DATE}}', date_str)
     html = html.replace('{{DAY}}', date_str.split('-')[2])
-    year_text = date_str.split('-')[0]
-    month_text = int(date_str.split('-')[1])
+    
+    month_year = format_date(date_str, "month_year", LANGUAGE)
+    
     if LANGUAGE == 'EN':
-        month_names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        month_year = f"{month_names[month_text]} {year_text}"
         header_subtitle = f'{date_str} · Apple Health · AI Analysis Edition'
     else:
-        month_year = f"{year_text}年{month_text}月"
         header_subtitle = f'{date_str} · Apple Health · AI分析版'
     html = html.replace('{{MONTH_YEAR}}', month_year)
     html = html.replace('{{HEADER_SUBTITLE}}', header_subtitle)
@@ -940,9 +937,12 @@ if __name__ == '__main__':
             if not data_file.exists():
                 raise DataError(f"数据文件不存在: {data_file}")
             
-            # 读取模板
-            template_file = 'DAILY_TEMPLATE_MEDICAL_V2_EN.html' if LANGUAGE == 'EN' else 'DAILY_TEMPLATE_MEDICAL_V2.html'
-            with open(TEMPLATE_DIR / template_file, 'r', encoding='utf-8') as f:
+            # 读取模板 - V5.8.1: 使用灵活的模板选择
+            from utils import get_template_path
+            template_path = get_template_path("daily", LANGUAGE, TEMPLATE_DIR, version="V2")
+            print(f"📄 使用模板: {template_path.name}")
+            
+            with open(template_path, 'r', encoding='utf-8') as f:
                 template = f.read()
             
             # 重新加载该成员的数据
