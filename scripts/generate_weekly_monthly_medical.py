@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V5.7.1 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V5.8.1 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly <start_date> <end_date> < ai_analysis.json
@@ -12,35 +12,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
+# V5.8.1: 使用共用工具函数
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import load_config, safe_member_name, pick_member_ai_analysis, is_single_analysis_dict
+
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
 
 # ==================== 配置加载 ====================
-def load_config():
-    """从 config.json 加载配置"""
-    config_paths = [
-        Path(__file__).parent.parent / "config.json",
-        HOME / '.openclaw' / 'workspace-health' / 'config.json',
-    ]
-    
-    for config_path in config_paths:
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    
-    # 默认配置
-    return {
-        "version": "5.7.1",
-        "members": [{
-            "name": "默认用户",
-            "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
-            "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
-            "email": ""
-        }],
-        "language": "CN"
-    }
-
-# 加载配置
 CONFIG = load_config()
 LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
 if LANGUAGE not in ("CN", "EN"):
@@ -104,21 +83,37 @@ def verify_ai_analysis_monthly(ai_analysis):
 
 # ==================== 趋势计算函数 ====================
 def load_previous_week_data(current_dates, member_name="默认用户"):
-    """加载上周同期数据（用于周报趋势对比）- V5.7.2: 函数重命名以明确用途
+    """加载上一周完整数据（周一至周日）- V5.8.1 修复版
     
-    注意：此函数仅适用于周报，对比7天前的数据。
-    月报应使用 generate_monthly_report() 中的独立实现，对比上月同期。
+    正确的趋势对比逻辑：
+    - 当前周：本周一至本周日（7天）
+    - 对比周：上周一至上周日（7天）
+    - 计算两周平均值的环比变化
+    
+    参数:
+        current_dates: 当前周的日期列表，如 ['2026-03-01', '2026-03-02', ...]
+        member_name: 成员名称
     """
     if not current_dates:
         return []
     
-    # 计算7天前的对应日期
-    previous_dates = []
-    for date_str in current_dates:
-        date = datetime.strptime(date_str, '%Y-%m-%d')
-        prev_date = date - timedelta(days=7)
-        previous_dates.append(prev_date.strftime('%Y-%m-%d'))
+    # 找到当前周的起始日（周一）
+    current_dates_sorted = sorted(current_dates)
+    current_start = datetime.strptime(current_dates_sorted[0], '%Y-%m-%d')
     
+    # 计算上周的起始日（再往前推7天）
+    prev_week_start = current_start - timedelta(days=7)
+    
+    # 生成上周的7天日期（周一至周日）
+    previous_dates = [
+        (prev_week_start + timedelta(days=i)).strftime('%Y-%m-%d') 
+        for i in range(7)
+    ]
+    
+    print(f"📊 趋势对比: 本周 {current_dates_sorted[0]} 至 {current_dates_sorted[-1]}")
+    print(f"   对比上周 {previous_dates[0]} 至 {previous_dates[-1]}")
+    
+    # 加载上周数据
     previous_data = []
     for date in previous_dates:
         data = load_cache(date, member_name)
@@ -199,63 +194,6 @@ def get_text(key):
         }
     }
     return texts.get(LANGUAGE, texts["CN"]).get(key, key)
-
-
-def safe_member_name(name):
-    """生成安全的成员文件名（替换空格和特殊字符）"""
-    return name.replace(' ', '_').replace('/', '_').replace('\\', '_')
-
-
-def is_single_analysis_dict(obj) -> bool:
-    if not isinstance(obj, dict):
-        return False
-    signal_keys = {
-        'trend_analysis', 'weekly_analysis',
-        'hrv_analysis', 'sleep_analysis', 'activity_analysis',
-        'trend_assessment', 'recommendations'
-    }
-    return bool(signal_keys.intersection(obj.keys()))
-
-
-def pick_member_ai_analysis(raw_ai_analyses, member_name: str, idx: int) -> dict:
-    data = raw_ai_analyses
-
-    if isinstance(data, dict) and 'members' in data:
-        data = data['members']
-
-    # 单对象
-    if is_single_analysis_dict(data):
-        return data
-
-    # dict 映射
-    if isinstance(data, dict):
-        candidates = [
-            member_name,
-            safe_member_name(member_name),
-            '默认用户',
-            'default',
-            str(idx),
-            f'member_{idx}',
-            f'member_{idx+1}'
-        ]
-        for k in candidates:
-            v = data.get(k)
-            if isinstance(v, dict):
-                return v
-        for v in data.values():
-            if isinstance(v, dict):
-                return v
-        return {}
-
-    # list
-    if isinstance(data, list):
-        if 0 <= idx < len(data) and isinstance(data[idx], dict):
-            return data[idx]
-        for v in data:
-            if isinstance(v, dict):
-                return v
-
-    return {}
 
 
 def load_cache(date_str, member_name="默认用户"):
@@ -649,8 +587,9 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     else:
         print(f"   ✅ 字数验证通过")
     
-    # 加载上一周期数据用于趋势对比（上月同期）
-    print(f"📊 计算趋势变化...")
+    # 加载上一周期数据用于趋势对比（V5.8.1 修复版：对比整月平均值）
+    print(f"📊 计算趋势变化（对比整月平均值）...")
+    
     # 计算上月日期范围
     if month == 1:
         prev_month = 12
@@ -659,16 +598,33 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
         prev_month = month - 1
         prev_year = year
     
-    # 简化为加载上月同日的数据（大致范围）
-    prev_month_dates = [f"{prev_year}-{prev_month:02d}-{d['date'][8:10]}" for d in monthly_data if d.get('date')]
+    # 获取上月总天数
+    if prev_month == 12:
+        next_month_date = datetime(prev_year + 1, 1, 1)
+    else:
+        next_month_date = datetime(prev_year, prev_month + 1, 1)
+    prev_month_last_day = (next_month_date - timedelta(days=1)).day
+    
+    # 生成上月所有日期
+    prev_month_dates = [
+        f"{prev_year}-{prev_month:02d}-{day:02d}"
+        for day in range(1, prev_month_last_day + 1)
+    ]
+    
+    # 加载上月所有可用数据
     previous_data = []
     for date in prev_month_dates:
         data = load_cache(date, member_name)
         if data:
             previous_data.append(data)
     
-    # 计算趋势变化
     if previous_data:
+        print(f"   上月数据: {len(previous_data)}/{len(prev_month_dates)} 天")
+    else:
+        print(f"   ⚠️  未找到上月数据，趋势显示为持平")
+    
+    # 计算趋势变化（使用整月平均值，至少15天数据才计算趋势）
+    if previous_data and len(previous_data) >= 15:
         prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
         prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
         prev_sleep = [d['sleep']['total'] for d in previous_data if d.get('sleep', {}).get('total')]
@@ -681,20 +637,25 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
         calories_change_pct, calories_trend = calculate_trend(active_energy_values, prev_calories)
         stand_change_pct, stand_trend = calculate_trend(stand_time_values, prev_stand)
         
-        hrv_change_html, hrv_class = get_trend_html(hrv_change_pct, hrv_trend)
-        steps_change_html, steps_class = get_trend_html(steps_change_pct, steps_trend)
-        sleep_change_html, sleep_class = get_trend_html(sleep_change_pct, sleep_trend)
-        calories_change_html, calories_class = get_trend_html(calories_change_pct, calories_trend)
-        stand_change_html, stand_class = get_trend_html(stand_change_pct, stand_trend)
-        
-        print(f"   HRV: {hrv_change_html}, 步数: {steps_change_html}, 睡眠: {sleep_change_html}")
+        print(f"   HRV: {hrv_change_pct:+.1f}%, 步数: {steps_change_pct:+.1f}%, 睡眠: {sleep_change_pct:+.1f}%")
     else:
-        print(f"   ⚠️  未找到上月数据，趋势显示为持平")
-        hrv_change_html, hrv_class = get_trend_html(0, 'stable')
-        steps_change_html, steps_class = get_trend_html(0, 'stable')
-        sleep_change_html, sleep_class = get_trend_html(0, 'stable')
-        calories_change_html, calories_class = get_trend_html(0, 'stable')
-        stand_change_html, stand_class = get_trend_html(0, 'stable')
+        if previous_data:
+            print(f"   ⚠️  上月数据不足（仅{len(previous_data)}天），不计算趋势")
+        else:
+            print(f"   ⚠️  未找到上月数据，趋势显示为持平")
+        # 设置为持平
+        hrv_change_pct, hrv_trend = 0, 'stable'
+        steps_change_pct, steps_trend = 0, 'stable'
+        sleep_change_pct, sleep_trend = 0, 'stable'
+        calories_change_pct, calories_trend = 0, 'stable'
+        stand_change_pct, stand_trend = 0, 'stable'
+    
+    # 生成趋势 HTML
+    hrv_change_html, hrv_class = get_trend_html(hrv_change_pct, hrv_trend)
+    steps_change_html, steps_class = get_trend_html(steps_change_pct, steps_trend)
+    sleep_change_html, sleep_class = get_trend_html(sleep_change_pct, sleep_trend)
+    calories_change_html, calories_class = get_trend_html(calories_change_pct, calories_trend)
+    stand_change_html, stand_class = get_trend_html(stand_change_pct, stand_trend)
     
     # 趋势变化
     html = html.replace('{{HRV_CHANGE}}', hrv_change_html)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康报告邮件发送脚本 V5.8.0
+"""健康报告邮件发送脚本 V5.8.1
 
 功能:
     - 支持可配置的 Provider 优先级 (OAuth2/SMTP/Mail.app/Local)
@@ -12,23 +12,14 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta
 
+# V5.8.1: 使用共用工具函数
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import load_config, safe_member_name
+
 # 导入 Provider
 from email_providers import PROVIDER_MAP
 
 MAX_MEMBERS = 3
-
-
-def load_config():
-    """加载配置文件"""
-    config_paths = [
-        Path(__file__).parent.parent / "config.json",
-        Path.home() / '.openclaw' / 'workspace-health' / 'config.json',
-    ]
-    for config_path in config_paths:
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    return {}
 
 
 def get_email_providers(config: dict) -> list:
@@ -101,32 +92,51 @@ def get_member_email(config: dict, member_idx: int = 0) -> str:
 
 
 def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) -> list:
-    """查找指定成员的报告文件"""
+    """查找指定成员的报告文件 - V5.8.1 严格匹配版
+    
+    匹配规则（按优先级）：
+    1. 严格匹配文件名: {date}-daily-v5-medical-{safe_name}.pdf
+    2. 旧格式兼容: {date}-daily-v5-medical.pdf（仅当该成员是默认/第一个成员）
+    """
     upload_path = Path(upload_dir).expanduser()
     if not upload_path.exists():
         return []
     
-    # 处理特殊字符
-    safe_name = member_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+    safe_name = safe_member_name(member_name)
+    reports = []
     
-    # 查找日报 - V5.8.0: 严格匹配 safe_name，不匹配他人文件
-    daily_reports = list(upload_path.glob(f"{date_str}-daily-v5-medical-{safe_name}.pdf"))
-    # 旧格式兼容（无成员名后缀）
-    if not daily_reports:
-        daily_reports = list(upload_path.glob(f"{date_str}-daily-v5-medical.pdf"))
+    # 1. 日报 - 严格匹配文件名格式
+    daily_pattern = f"{date_str}-daily-v5-medical-{safe_name}.pdf"
+    daily_reports = list(upload_path.glob(daily_pattern))
+    reports.extend(daily_reports)
     
-    # 查找周报（在当前周内）
+    # 2. 周报 - 严格匹配
     date = datetime.strptime(date_str, '%Y-%m-%d')
     monday = date - timedelta(days=date.weekday())
     sunday = monday + timedelta(days=6)
     weekly_pattern = f"{monday.strftime('%Y-%m-%d')}_to_{sunday.strftime('%Y-%m-%d')}-weekly-medical-{safe_name}.pdf"
     weekly_reports = list(upload_path.glob(weekly_pattern))
+    reports.extend(weekly_reports)
     
-    # 查找月报
+    # 3. 月报 - 严格匹配
     year_month = date_str[:7]
-    monthly_reports = list(upload_path.glob(f"{year_month}-monthly-medical-{safe_name}.pdf"))
+    monthly_pattern = f"{year_month}-monthly-medical-{safe_name}.pdf"
+    monthly_reports = list(upload_path.glob(monthly_pattern))
+    reports.extend(monthly_reports)
     
-    return [str(r) for r in daily_reports + weekly_reports + monthly_reports]
+    # 4. 旧格式兜底（仅当没有找到任何报告时，且成员名为空或默认）
+    if not reports and member_name in ['', '默认用户', 'User']:
+        old_daily = list(upload_path.glob(f"{date_str}-daily-v5-medical.pdf"))
+        reports.extend(old_daily)
+    
+    if reports:
+        print(f"   找到 {len(reports)} 个报告文件:")
+        for r in reports:
+            print(f"      - {r.name}")
+    else:
+        print(f"   ⚠️  未找到 {member_name} 的报告文件")
+    
+    return [str(r) for r in reports]
 
 
 def send_email(date_str: str, report_files: list, member_idx: int = 0) -> bool:
@@ -209,16 +219,16 @@ def send_email_to_all(date_str: str, report_files_pattern: list = None) -> bool:
         print(f"👤 成员 {idx+1}/{len(members)}: {member_name}")
         print('━' * 60)
         
-        # 确定该成员的报告文件 - V5.8.0: 删除 fallback，不匹配时不发送
+        # 确定该成员的报告文件 - V5.8.1 严格匹配版
         if report_files_pattern:
-            # 从指定文件列表中筛选
-            safe_name = member_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+            # 从指定文件列表中严格筛选
+            safe_name = safe_member_name(member_name)
             member_files = []
             for f in report_files_pattern:
-                if (safe_name in f or member_name in f or 
-                    f"-{safe_name}-" in f or f"_{safe_name}_" in f):
+                filename = Path(f).name
+                # 严格匹配: 文件名必须包含 -{safe_name}.pdf
+                if f"-{safe_name}.pdf" in filename:
                     member_files.append(f)
-            # 删除：不再 fallback 到全部文件
         else:
             # 自动查找
             member_files = find_reports_for_member(date_str, upload_dir, member_name)

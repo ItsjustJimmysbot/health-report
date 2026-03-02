@@ -21,39 +21,17 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-# ==================== 配置加载 ====================
-def load_config():
-    """从 config.json 加载配置"""
-    config_paths = [
-        Path(__file__).parent.parent / "config.json",  # 脚本同级目录
-        Path.home() / ".openclaw" / "workspace-health" / "config.json",  # 工作空间
-    ]
-    
-    for config_path in config_paths:
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    
-    # 默认配置
-    return {
-        "version": "5.7.1",
-        "members": [{
-            "name": "默认用户",
-            "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
-            "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
-            "email": ""
-        }],
-        "analysis_limits": {
-            "metric_min_words": 150,
-            "metric_max_words": 200,
-            "action_min_words": 250,
-            "action_max_words": 300
-        },
-        "language": "CN"
-    }
+# V5.8.1: 使用共用工具函数
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).parent))
+from utils import load_config, safe_member_name, pick_member_ai_analysis, is_single_analysis_dict
 
-# 加载配置
+# ==================== 全局配置（从 config.json 加载）====================
 CONFIG = load_config()
+LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
+if LANGUAGE not in ("CN", "EN"):
+    LANGUAGE = "CN"
 MEMBERS = CONFIG.get("members", [{}])
 ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 
@@ -140,65 +118,6 @@ def get_member_config(index: int):
         "workout_dir": DEFAULT_WORKOUT_DIR,
         "email": ""
     }
-
-
-def safe_member_name(name: str) -> str:
-    return (name or "member").strip().replace(' ', '_').replace('/', '_').replace('\\', '_')
-
-
-def is_single_analysis_dict(obj) -> bool:
-    if not isinstance(obj, dict):
-        return False
-    signal_keys = {
-        'hrv', 'resting_hr', 'steps', 'distance', 'active_energy',
-        'sleep', 'workout', 'priority', 'recommendations',
-        'trend_analysis', 'hrv_analysis'
-    }
-    return bool(signal_keys.intersection(obj.keys()))
-
-
-def pick_member_ai_analysis(raw_ai_analyses, member_name: str, idx: int) -> dict:
-    data = raw_ai_analyses
-
-    # 支持 {"members": ...} 包裹格式
-    if isinstance(data, dict) and 'members' in data:
-        data = data['members']
-
-    # 情况 1：单成员单对象（本次修复关键）
-    if is_single_analysis_dict(data):
-        return data
-
-    # 情况 2：按成员名映射的 dict
-    if isinstance(data, dict):
-        candidates = [
-            member_name,
-            safe_member_name(member_name),
-            '默认用户',
-            'default',
-            str(idx),
-            f'member_{idx}',
-            f'member_{idx+1}'
-        ]
-        for k in candidates:
-            v = data.get(k)
-            if isinstance(v, dict):
-                return v
-
-        # 兜底：取第一个 dict value
-        for v in data.values():
-            if isinstance(v, dict):
-                return v
-        return {}
-
-    # 情况 3：list（按顺序）
-    if isinstance(data, list):
-        if 0 <= idx < len(data) and isinstance(data[idx], dict):
-            return data[idx]
-        for v in data:
-            if isinstance(v, dict):
-                return v
-
-    return {}
 
 
 def verify_ai_analysis(ai_analysis: dict) -> list:
