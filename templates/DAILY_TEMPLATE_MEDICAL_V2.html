@@ -1,6 +1,6 @@
 <!-- 
   日报模板 - Medical Dashboard V2
-  字体：本地Noto Serif SC（确保渲染一致性）
+  字体：Google Fonts CDN Noto Serif SC
   配色：中等饱和度（居中）
 -->
 <!DOCTYPE html>
@@ -9,42 +9,15 @@
 <meta charset="UTF-8">
 <title>{{DATE}} 健康日报</title>
 <style>
-/* 本地字体定义 */
-@font-face {
-  font-family: 'Noto Serif SC';
-  src: url('fonts/NotoSerifSC-Regular.otf') format('opentype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Noto Serif SC';
-  src: url('fonts/NotoSerifSC-Medium.otf') format('opentype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Noto Serif SC';
-  src: url('fonts/NotoSerifSC-SemiBold.otf') format('opentype');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Noto Serif SC';
-  src: url('fonts/NotoSerifSC-Bold.otf') format('opentype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* Google Fonts CDN */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
 
 @page { size: A4; margin: 10mm; }
 * { 
   margin: 0; 
   padding: 0; 
   box-sizing: border-box;
-  font-family: 'Noto Serif SC', serif;
+  font-family: 'Noto Serif SC', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 :root {
