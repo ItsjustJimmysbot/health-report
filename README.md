@@ -36,7 +36,7 @@ cd ~/.openclaw/skills
 git clone https://github.com/ItsjustJimmysbot/health-report.git health-report
 cd health-report
 pip3 install -r requirements.txt
-playwright install chromium
+python3 -m playwright install chromium
 ```
 
 ### 2. Skill 发现
@@ -99,6 +99,12 @@ playwright install chromium
 - 活动数据（步数、心率等）存储在当日文件中
 - 睡眠数据存储在次日文件中（系统会自动读取）
 
+**路径配置说明：**
+- `~/我的云端硬盘/` 是 Google Drive 的默认中文名称
+- 如使用 iCloud Drive：`~/Library/Mobile Documents/com~apple~CloudDocs/Health Data`
+- 如使用 OneDrive：`~/OneDrive/Health Data`
+- 如使用本地目录：`~/Documents/Health Data`
+
 ### 5. OpenClaw 定时任务 (Cron) 配置
 在 OpenClaw 中添加日报任务，建议时间 `12:10`（确保当日数据已同步完成）。
 
@@ -122,10 +128,10 @@ playwright install chromium
    - ✅ 正确："以您22岁、身高174cm、体重62kg（BMI 20.5）的年轻体型，建议每日8,000-10,000步，约对应5-6公里"
 4. 关键写入：使用 write 工具将 JSON 写入 ai_analysis.json
 5. 渲染生成：
-   cd ~/.openclaw/workspace-health/scripts && \
+   cd ~/.openclaw/skills/health-report/scripts && \
    python3 generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ../ai_analysis.json
 6. 发送邮件（给所有成员）：
-   python3 send_health_report_email.py $(date -v-1d +%Y-%m-%d) all
+   python3 scripts/send_health_report_email.py $(date -v-1d +%Y-%m-%d) all
 ```
 
 ### 6. 周报定时任务 (Weekly Cron)
@@ -144,10 +150,10 @@ playwright install chromium
 3. AI 分析：基于整周数据趋势生成周报分析（总字数≥800字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
 4. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
 5. 渲染生成：
-   cd ~/.openclaw/workspace-health/scripts && \
-   python3 generate_weekly_monthly_medical.py weekly $START_DATE $END_DATE < ../weekly_analysis.json
+   cd ~/.openclaw/skills/health-report/scripts && \
+   python3 generate_weekly_monthly_medical.py weekly "$START_DATE" "$END_DATE" < ../weekly_analysis.json
 6. 发送邮件（给所有成员）：
-   python3 send_health_report_email.py $END_DATE all
+   python3 scripts/send_health_report_email.py $END_DATE all
 ```
 
 ### 7. 月报定时任务 (Monthly Cron)
@@ -167,10 +173,10 @@ playwright install chromium
 3. AI 分析：基于整月数据趋势生成月报深度分析（总字数≥1000字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
 4. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
 5. 渲染生成：
-   cd ~/.openclaw/workspace-health/scripts && \
-   python3 generate_weekly_monthly_medical.py monthly $YEAR $MONTH < ../monthly_analysis.json
+   cd ~/.openclaw/skills/health-report/scripts && \
+   python3 generate_weekly_monthly_medical.py monthly "$YEAR" "$MONTH" < ../monthly_analysis.json
 6. 发送邮件（给所有成员）：
-   python3 send_health_report_email.py $LAST_DAY all
+   python3 scripts/send_health_report_email.py $LAST_DAY all
 ```
 
 **注意：** 周报和月报的 AI 分析 JSON 需包含 `recommendations` 数组（优先级建议），格式如下：
@@ -184,12 +190,31 @@ playwright install chromium
 }
 ```
 
+**字数验证说明：**
+- 设置 `validation_mode: strict` 时，字数不足会报错退出
+- 设置 `validation_mode: warn` 时，字数不足仅警告，继续生成
+
+**邮件发送参数：**
+```bash
+# 发送给特定成员（索引从0开始）
+python3 scripts/send_health_report_email.py 2026-03-01 0    # 第一个成员
+python3 scripts/send_health_report_email.py 2026-03-01 1    # 第二个成员
+
+# 发送给所有成员
+python3 scripts/send_health_report_email.py 2026-03-01 all
+
+# 发送指定报告文件
+python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
+```
+
 ---
 
 ## ✨ V5.7.1 核心特性
 
 *   **数据字段修复 (V5.7.1)**：修复了 `active_energy` 字段名（原 `active_energy_burned`），确保活动能量数据正确提取
 *   **睡眠数据结构兼容 (V5.7.1)**：增强睡眠数据解析，同时兼容 `data.sleep_analysis` 和 `data.metrics[].sleep_analysis` 两种数据结构
+*   **评分算法个性化 (V5.7.1)**：健康得分基于年龄、性别、BMI 计算，同一体征对不同人群评分不同
+*   **字数验证 (V5.7.1)**：支持 strict/warn 两种模式，确保 AI 分析内容质量
 *   **多语言支持**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）
 *   **个人档案数据**：支持 `age`, `gender`, `height_cm`, `weight_kg` 个人档案配置，AI 分析时参考这些数据生成个性化建议
 *   **智能邮件回退**：自动级联 - Mail.app → Gmail SMTP → 通用 SMTP → 本地副本
@@ -262,7 +287,7 @@ playwright install chromium
 
 ### 👥 多成员配置（最多3人）
 
-支持为家庭成员分别生成健康报告，只需在 `members` 数组中添加多个成员：
+支持为家庭成员分别生成健康报告。**注意：硬编码限制最多3人。**
 
 ```json
 {
@@ -359,6 +384,18 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 - 睡眠状态（Normal / Insufficient Data）
 - 日期格式（2026年2月 / Feb 2026）
 
+**重要：** AI 分析的语言必须与 `language` 配置严格一致：
+- `CN` 模式：AI 必须输出纯中文
+- `EN` 模式：AI 必须输出纯英文
+
+**严格模式验证：**
+当 `validation_mode: strict` 时，脚本会检查：
+1. AI 分析语言与配置是否匹配
+2. 各字段字数是否达标
+3. 必填字段是否齐全
+
+任一检查失败将报错退出，不会生成报告。
+
 ---
 
 ## 🔧 故障排除
@@ -385,6 +422,18 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 ### 多成员数据提取失败
 - **原因**：成员索引超出配置范围
 - **解决**：V5.7.1+ 已添加边界检查，会自动回退到第一个成员
+
+### 报告生成成功但内容为空/太少
+- **原因**：AI 分析字数未达到 `analysis_limits` 要求，或 `validation_mode` 为 `strict`
+- **解决**：
+  - 检查 `config.json` 中的 `validation_mode` 设置
+  - 改为 `warn` 模式可跳过字数检查（不推荐长期使用）
+  - 或重新生成足够字数的 AI 分析
+
+### 评分与预期不符
+- **原因**：评分算法基于固定公式，会考虑年龄/性别/BMI 差异
+- **示例**：同样的 HRV 50ms，22岁男性评为"一般"，35岁男性可能评为"良好"
+- **检查**：确认 `config.json` 中的个人档案数据（age/gender/height/weight）正确
 
 ---
 
