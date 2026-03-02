@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 # 导入 Provider
 from email_providers import PROVIDER_MAP
 
+MAX_MEMBERS = 3
+
 
 def load_config():
     """加载配置文件"""
@@ -181,6 +183,11 @@ def send_email_to_all(date_str: str, report_files_pattern: list = None) -> bool:
     """发送邮件给所有成员"""
     config = load_config()
     members = config.get('members', [])
+    
+    # 限制最多 MAX_MEMBERS 位成员
+    if len(members) > MAX_MEMBERS:
+        print(f"⚠️ 成员数 {len(members)} 超过上限 {MAX_MEMBERS}，批量发送仅处理前 {MAX_MEMBERS} 位")
+        members = members[:MAX_MEMBERS]
     
     if not members:
         print("❌ 错误: 未配置任何成员")

@@ -206,6 +206,58 @@ def safe_member_name(name):
     return name.replace(' ', '_').replace('/', '_').replace('\\', '_')
 
 
+def is_single_analysis_dict(obj) -> bool:
+    if not isinstance(obj, dict):
+        return False
+    signal_keys = {
+        'trend_analysis', 'weekly_analysis',
+        'hrv_analysis', 'sleep_analysis', 'activity_analysis',
+        'trend_assessment', 'recommendations'
+    }
+    return bool(signal_keys.intersection(obj.keys()))
+
+
+def pick_member_ai_analysis(raw_ai_analyses, member_name: str, idx: int) -> dict:
+    data = raw_ai_analyses
+
+    if isinstance(data, dict) and 'members' in data:
+        data = data['members']
+
+    # 单对象
+    if is_single_analysis_dict(data):
+        return data
+
+    # dict 映射
+    if isinstance(data, dict):
+        candidates = [
+            member_name,
+            safe_member_name(member_name),
+            '默认用户',
+            'default',
+            str(idx),
+            f'member_{idx}',
+            f'member_{idx+1}'
+        ]
+        for k in candidates:
+            v = data.get(k)
+            if isinstance(v, dict):
+                return v
+        for v in data.values():
+            if isinstance(v, dict):
+                return v
+        return {}
+
+    # list
+    if isinstance(data, list):
+        if 0 <= idx < len(data) and isinstance(data[idx], dict):
+            return data[idx]
+        for v in data:
+            if isinstance(v, dict):
+                return v
+
+    return {}
+
+
 def load_cache(date_str, member_name="默认用户"):
     """加载单日缓存数据 - V5.8.0: 支持 safe_name 命名规则"""
     safe_name = safe_member_name(member_name)
@@ -727,7 +779,8 @@ def generate_recommendations_html(recommendations):
 
 # 成员数量（最多3人）
 MEMBERS = CONFIG.get("members", [{}])
-MEMBER_COUNT = min(len(MEMBERS), 3)
+MAX_MEMBERS = 3
+MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
 def get_member_config(index: int):
     """获取指定成员的配置"""
@@ -758,7 +811,7 @@ def main():
     # 读取AI分析
     raw_ai_analyses = json.load(sys.stdin)
     
-    member_count = max(1, min(MEMBER_COUNT, 3))
+    member_count = max(1, min(MEMBER_COUNT, MAX_MEMBERS))
     
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]
@@ -783,20 +836,11 @@ def main():
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
             
-            # 健壮的成员匹配逻辑
-            ai_analysis = {}
-            if isinstance(raw_ai_analyses, dict):
-                if member_name in raw_ai_analyses:
-                    ai_analysis = raw_ai_analyses[member_name]
-                elif "默认用户" in raw_ai_analyses:
-                    ai_analysis = raw_ai_analyses["默认用户"]
-                else:
-                    ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
-            elif isinstance(raw_ai_analyses, list):
-                if idx < len(raw_ai_analyses):
-                    ai_analysis = raw_ai_analyses[idx]
-            else:
-                ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
+            # 健壮的成员匹配逻辑 - V5.8.0: 使用 pick_member_ai_analysis
+            ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+            if not isinstance(ai_analysis, dict) or not ai_analysis:
+                print(f"⚠️ 未找到成员 {member_name} 的有效周报分析，跳过")
+                continue
             
             print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             print(f"🧑 正在为成员 {idx+1}/{member_count} 生成周报: {member_name}")
@@ -806,7 +850,7 @@ def main():
             if not html:
                 continue
             
-            safe_name = member_name.replace('/', '_').replace('\\', '_')
+            safe_name = safe_member_name(member_name)
             
             # 保存HTML
             html_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.html'
@@ -817,7 +861,7 @@ def main():
             with sync_playwright() as p:
                 browser = p.chromium.launch()
                 page = browser.new_page()
-                page.goto(f'file://{html_path}')
+                page.goto(html_path.resolve().as_uri())
                 page.wait_for_timeout(2500)
                 page.pdf(path=str(pdf_path), format='A4', print_background=True,
                          margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
@@ -847,20 +891,11 @@ def main():
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
             
-            # 健壮的成员匹配逻辑
-            ai_analysis = {}
-            if isinstance(raw_ai_analyses, dict):
-                if member_name in raw_ai_analyses:
-                    ai_analysis = raw_ai_analyses[member_name]
-                elif "默认用户" in raw_ai_analyses:
-                    ai_analysis = raw_ai_analyses["默认用户"]
-                else:
-                    ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
-            elif isinstance(raw_ai_analyses, list):
-                if idx < len(raw_ai_analyses):
-                    ai_analysis = raw_ai_analyses[idx]
-            else:
-                ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
+            # 健壮的成员匹配逻辑 - V5.8.0: 使用 pick_member_ai_analysis
+            ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+            if not isinstance(ai_analysis, dict) or not ai_analysis:
+                print(f"⚠️ 未找到成员 {member_name} 的有效月报分析，跳过")
+                continue
             
             print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             print(f"🧑 正在为成员 {idx+1}/{member_count} 生成月报: {member_name}")
@@ -870,7 +905,7 @@ def main():
             if not html:
                 continue
             
-            safe_name = member_name.replace('/', '_').replace('\\', '_')
+            safe_name = safe_member_name(member_name)
             
             # 保存HTML
             html_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.html'
@@ -881,7 +916,7 @@ def main():
             with sync_playwright() as p:
                 browser = p.chromium.launch()
                 page = browser.new_page()
-                page.goto(f'file://{html_path}')
+                page.goto(html_path.resolve().as_uri())
                 page.wait_for_timeout(2500)
                 page.pdf(path=str(pdf_path), format='A4', print_background=True,
                          margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})

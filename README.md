@@ -209,7 +209,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每日健康日报 - V5.7.1 标准化流程】
+【每日健康日报 - V5.8.0 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
 2. 提取数据：为所有成员提取当日数据
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
@@ -241,7 +241,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每周健康周报 - V5.7.1 标准化流程】
+【每周健康周报 - V5.8.0 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算日期：获取上周一至上周日日期
    START_DATE=$(date -v-7d +%Y-%m-%d)
@@ -263,7 +263,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每月健康月报 - V5.7.1 标准化流程】
+【每月健康月报 - V5.8.0 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算月份：获取上月年份和月份
    YEAR=$(date -v-1m +%Y)
@@ -308,7 +308,9 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-## ✨ V5.7.1 核心特性
+## ✨ V5.8.0 核心特性（含 V5.7.1 兼容修复）
+
+> 版本说明：当前发布主版本为 **V5.8.0**。文中保留的 "V5.7.1" 标识表示该功能在 V5.7.1 首次引入，并在 V5.8.0 继续兼容。
 
 *   **数据字段修复 (V5.7.1)**：修复了 `active_energy` 字段名（原 `active_energy_burned`），确保活动能量数据正确提取
 *   **睡眠数据结构兼容 (V5.7.1)**：增强睡眠数据解析，同时兼容 `data.sleep_analysis` 和 `data.metrics[].sleep_analysis` 两种数据结构
@@ -335,7 +337,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-## 📝 开发者规范 (V5.7.1)
+## 📝 开发者规范 (V5.8.0)
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
 *   **字数红线**：AI 指标分析段落必须在 150-200 字，核心行动建议 250-300 字
@@ -421,6 +423,8 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 **✅ V5.7.1+ 完整多成员支持：**
 
+> 当前实现上限：最多处理前 3 位成员（提取 / 生成 / 发送保持一致）。超过 3 位时会打印 warning 并自动截断。
+
 现在支持一次提取所有成员的数据！
 
 **提取单个成员：**
@@ -437,8 +441,10 @@ python3 scripts/extract_data_v5.py 2026-03-01 2
 
 **提取所有成员（V5.7.0+）：**
 ```bash
-# 使用 all 参数提取所有成员的数据
+# 使用 all 参数提取所有成员的数据（最多前 3 位）
 python3 scripts/extract_data_v5.py 2026-03-01 all
+
+注意：all 模式最多处理前 3 位成员。
 
 # 输出将包含每个成员的数据，格式如下：
 # {
@@ -455,7 +461,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 **在定时任务中使用（推荐）：**
 在 OpenClaw 定时任务指令中使用 `all` 参数，一次生成所有成员的报告：
 ```text
-【每日健康日报 - V5.7.1 全成员流程】
+【每日健康日报 - V5.8.0 全成员流程】
 1. 读取 config.json：获取所有成员配置
 2. 提取数据：为每个成员分别提取数据
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all

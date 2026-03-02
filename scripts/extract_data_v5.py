@@ -6,6 +6,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+MAX_MEMBERS = 3
+
 # V5.7.1: 从 config.json 读取路径配置，支持多语言和多成员
 def load_config():
     """加载配置文件 - 尝试多个可能的路径"""
@@ -63,9 +65,10 @@ def get_sleep_config():
 
 
 def get_all_members_count():
-    """获取配置的成员总数"""
+    """获取配置的成员总数（最多 MAX_MEMBERS）"""
     config = load_config()
-    return len(config.get('members', []))
+    members = config.get('members', [])
+    return min(len(members), MAX_MEMBERS)
 
 def extract_metric_avg(metrics, metric_name):
     """提取平均值和数据点数"""
@@ -405,6 +408,11 @@ def extract_all_members_data(date_str):
     config = load_config()
     members = config.get('members', [])
     sleep_config = get_sleep_config()
+    
+    # 限制最多 MAX_MEMBERS 位成员
+    if len(members) > MAX_MEMBERS:
+        print(f"⚠️ 成员数 {len(members)} 超过上限 {MAX_MEMBERS}，仅处理前 {MAX_MEMBERS} 位", file=sys.stderr)
+        members = members[:MAX_MEMBERS]
     
     if not members:
         print("Error: No members configured in config.json", file=sys.stderr)

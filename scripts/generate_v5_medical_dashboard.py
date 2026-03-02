@@ -58,10 +58,13 @@ MEMBERS = CONFIG.get("members", [{}])
 ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 
 # 语言配置 (CN=中文, EN=英文)
-LANGUAGE = CONFIG.get("language", "CN")
+LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
+if LANGUAGE not in ("CN", "EN"):
+    LANGUAGE = "CN"
 
 # 成员数量（最多3人）
-MEMBER_COUNT = min(len(MEMBERS), 3)
+MAX_MEMBERS = 3
+MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
 
 
@@ -137,6 +140,65 @@ def get_member_config(index: int):
         "workout_dir": DEFAULT_WORKOUT_DIR,
         "email": ""
     }
+
+
+def safe_member_name(name: str) -> str:
+    return (name or "member").strip().replace(' ', '_').replace('/', '_').replace('\\', '_')
+
+
+def is_single_analysis_dict(obj) -> bool:
+    if not isinstance(obj, dict):
+        return False
+    signal_keys = {
+        'hrv', 'resting_hr', 'steps', 'distance', 'active_energy',
+        'sleep', 'workout', 'priority', 'recommendations',
+        'trend_analysis', 'hrv_analysis'
+    }
+    return bool(signal_keys.intersection(obj.keys()))
+
+
+def pick_member_ai_analysis(raw_ai_analyses, member_name: str, idx: int) -> dict:
+    data = raw_ai_analyses
+
+    # 支持 {"members": ...} 包裹格式
+    if isinstance(data, dict) and 'members' in data:
+        data = data['members']
+
+    # 情况 1：单成员单对象（本次修复关键）
+    if is_single_analysis_dict(data):
+        return data
+
+    # 情况 2：按成员名映射的 dict
+    if isinstance(data, dict):
+        candidates = [
+            member_name,
+            safe_member_name(member_name),
+            '默认用户',
+            'default',
+            str(idx),
+            f'member_{idx}',
+            f'member_{idx+1}'
+        ]
+        for k in candidates:
+            v = data.get(k)
+            if isinstance(v, dict):
+                return v
+
+        # 兜底：取第一个 dict value
+        for v in data.values():
+            if isinstance(v, dict):
+                return v
+        return {}
+
+    # 情况 3：list（按顺序）
+    if isinstance(data, list):
+        if 0 <= idx < len(data) and isinstance(data[idx], dict):
+            return data[idx]
+        for v in data:
+            if isinstance(v, dict):
+                return v
+
+    return {}
 
 
 def verify_ai_analysis(ai_analysis: dict) -> list:
@@ -947,7 +1009,7 @@ if __name__ == '__main__':
         print('')
         print('当前配置：')
         print(f'  MEMBER_COUNT = {MEMBER_COUNT}')
-        for i in range(min(MEMBER_COUNT, 3)):
+        for i in range(min(MEMBER_COUNT, MAX_MEMBERS)):
             cfg = get_member_config(i)
             print(f'  成员{i+1}: {cfg["name"]} -> {cfg["health_dir"]}')
         sys.exit(1)
@@ -955,7 +1017,7 @@ if __name__ == '__main__':
     date_str = sys.argv[1]
     
     # 限制成员数量在1-3之间（控制token消耗）
-    member_count = max(1, min(MEMBER_COUNT, 3))
+    member_count = max(1, min(MEMBER_COUNT, MAX_MEMBERS))
     
     print(f"📊 多成员报告生成模式")
     print(f"   日期: {date_str}")
@@ -975,23 +1037,12 @@ if __name__ == '__main__':
         member_health_dir = Path(member_cfg['health_dir'])
         member_workout_dir = Path(member_cfg['workout_dir'])
         
-        # 健壮的成员匹配逻辑
-        ai_analysis = {}
-        if isinstance(raw_ai_analyses, dict):
-            if member_name in raw_ai_analyses:
-                ai_analysis = raw_ai_analyses[member_name]
-            elif "默认用户" in raw_ai_analyses:
-                ai_analysis = raw_ai_analyses["默认用户"]
-            else:
-                print(f"⚠️ 警告: 找不到成员 {member_name} 的分析数据，使用第一个可用数据")
-                ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
-        elif isinstance(raw_ai_analyses, list):
-            if idx < len(raw_ai_analyses):
-                ai_analysis = raw_ai_analyses[idx]
-            else:
-                print(f"⚠️ 警告: 找不到成员 {member_name} 的分析数据")
-        else:
-            ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
+        # 健壮的成员匹配逻辑 - V5.8.0: 使用 pick_member_ai_analysis
+        ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+        
+        if not isinstance(ai_analysis, dict) or not ai_analysis:
+            print(f"⚠️ 警告: 找不到成员 {member_name} 的有效分析数据，跳过")
+            continue
         
         print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print(f"🧑 正在为成员 {idx+1}/{member_count} 生成报告: {member_name}")
@@ -1054,7 +1105,7 @@ if __name__ == '__main__':
             recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
             
             # 生成文件名（包含成员标识）
-            safe_name = member_name.replace(' ', '_').replace('/', '_')
+            safe_name = safe_member_name(member_name)
             html_path = OUTPUT_DIR / f'{date_str}-daily-v5-medical-{safe_name}.html'
             pdf_path = OUTPUT_DIR / f'{date_str}-daily-v5-medical-{safe_name}.pdf'
             
@@ -1067,7 +1118,7 @@ if __name__ == '__main__':
                     with sync_playwright() as p:
                         browser = p.chromium.launch()
                         page = browser.new_page()
-                        page.goto(f'file://{html_path}')
+                        page.goto(html_path.resolve().as_uri())
                         page.wait_for_timeout(2500)
                         page.pdf(path=str(pdf_path), format='A4', print_background=True,
                                  margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
