@@ -250,62 +250,6 @@ def _sum(vals):
     return (sum(vals)) if vals else None
 
 
-def _extract_sleep_hours(date_str: str, health_dir: Path = None):
-    health_dir = health_dir or DEFAULT_HEALTH_DIR
-    date = datetime.strptime(date_str, '%Y-%m-%d')
-    next_date = (date + timedelta(days=1)).strftime('%Y-%m-%d')
-    m1 = _parse_metrics(date_str, health_dir)
-    m2 = _parse_metrics(next_date, health_dir)
-
-    deep = core = rem = awake = 0.0
-    bedtime = None
-    waketime = None
-
-    def consume(metrics):
-        nonlocal deep, core, rem, awake, bedtime, waketime
-        recs = metrics.get('sleep_analysis', {}).get('data', []) if metrics else []
-        for row in recs:
-            st = row.get('sleepStart') or row.get('startDate')
-            if not st:
-                continue
-            try:
-                dt = datetime.strptime(st[:19], '%Y-%m-%d %H:%M:%S')
-            except Exception:
-                continue
-            if not (dt >= date.replace(hour=20, minute=0, second=0) and dt <= (date + timedelta(days=1)).replace(hour=12, minute=0, second=0)):
-                continue
-
-            # 单位 hr，严格使用真实字段
-            deep += float(row.get('deep') or 0)
-            core += float(row.get('core') or 0)
-            rem += float(row.get('rem') or 0)
-            awake += float(row.get('awake') or 0)
-            
-            # V5.1.1-fix: 提取入睡和起床时间
-            sleep_start = row.get('sleepStart')
-            sleep_end = row.get('sleepEnd')
-            if sleep_start:
-                bedtime = sleep_start[11:16]  # Extract HH:MM
-            if sleep_end:
-                waketime = sleep_end[11:16]  # Extract HH:MM
-
-    consume(m1)
-    consume(m2)
-
-    # 睡眠总时长 = 深睡 + 核心睡眠 + REM + 清醒时间
-    total = deep + core + rem + awake
-
-    return {
-        'total': round(total, 2) if total > 0 else 0,
-        'deep': round(deep, 2) if deep > 0 else 0,
-        'core': round(core, 2) if core > 0 else 0,
-        'rem': round(rem, 2) if rem > 0 else 0,
-        'awake': round(awake, 2) if awake > 0 else 0,
-        'bedtime': bedtime or '--',
-        'waketime': waketime or '--',
-    }
-
-
 def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     health_dir = health_dir or DEFAULT_HEALTH_DIR
     workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
@@ -410,6 +354,16 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         total_active_kcal = active_kcal + workout_energy_total
     else:
         total_active_kcal = workout_energy_total if workout_energy_total > 0 else None
+    
+    # 睡眠数据 - V5.8.1: 使用统一解析函数
+    from utils import parse_sleep_data_unified
+    sleep_config = CONFIG.get('sleep_config', {})
+    sleep_result = parse_sleep_data_unified(
+        date_str, health_dir,
+        read_mode=sleep_config.get('read_mode', 'next_day'),
+        start_hour=sleep_config.get('start_hour', 20),
+        end_hour=sleep_config.get('end_hour', 12)
+    )
 
     data = {
         'date': date_str,
@@ -423,7 +377,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         'apple_stand_time': int(_sum(stand_vals)) if stand_vals else None,  # 分钟
         'basal_energy_burned': int(round(basal_kcal)) if basal_kcal is not None else None,
         'respiratory_rate': round(_avg(resp_vals), 1) if resp_vals else None,
-        'sleep': _extract_sleep_hours(date_str, health_dir),
+        'sleep': sleep_result,
         'workouts': workouts,
         'has_workout': len(workouts) > 0,
     }

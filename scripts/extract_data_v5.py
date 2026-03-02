@@ -79,119 +79,6 @@ def extract_metric_sum(metrics, metric_name):
         return 0
     return sum(d.get('qty', 0) for d in data if d.get('qty') is not None)
 
-def parse_sleep_data_v5(date_str, health_dir=None, sleep_config=None):
-    """
-    V5.8.0: 支持可配置的睡眠读取逻辑
-    
-    read_mode='next_day': 读取次日文件，筛选当天20:00-次日12:00（适合早上生成报告）
-    read_mode='same_day': 读取当天文件，筛选前一天20:00-当天12:00（适合晚上生成报告）
-    """
-    date = datetime.strptime(date_str, '%Y-%m-%d')
-    
-    # 获取睡眠配置
-    if sleep_config is None:
-        sleep_config = get_sleep_config()
-    
-    read_mode = sleep_config['read_mode']
-    start_hour = sleep_config['start_hour']
-    end_hour = sleep_config['end_hour']
-    
-    # 根据模式确定要读取的文件和日期范围
-    if read_mode == 'next_day':
-        # 当前逻辑：读取次日文件，筛选当天20:00-次日12:00
-        next_date = date + timedelta(days=1)
-        sleep_file_date = next_date
-        filter_start_date = date  # 当天20:00+
-        filter_end_date = next_date  # 次日12:00前
-    else:  # same_day
-        # 新逻辑：读取当天文件，筛选前一天20:00-当天12:00
-        prev_date = date - timedelta(days=1)
-        sleep_file_date = date  # 读取当天文件
-        filter_start_date = prev_date  # 前一天20:00+
-        filter_end_date = date  # 当天12:00前
-    
-    # 读取文件
-    if health_dir is None:
-        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
-    else:
-        health_dir = Path(health_dir).expanduser()
-    
-    sleep_file = health_dir / f'HealthAutoExport-{sleep_file_date.strftime("%Y-%m-%d")}.json'
-    
-    if not sleep_file.exists():
-        print(f"⚠️  睡眠数据文件不存在: {sleep_file} (mode={read_mode})", file=sys.stderr)
-        return []
-    
-    try:
-        with open(sleep_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    except Exception as e:
-        print(f"❌ 读取睡眠数据失败: {e}", file=sys.stderr)
-        return []
-    
-    # 提取睡眠记录（兼容两种数据结构）
-    sleep_data = data.get('data', {}).get('sleep_analysis')
-    if not sleep_data:
-        metrics = data.get('data', {}).get('metrics', [])
-        metrics_dict = {m.get('name'): m for m in metrics if 'name' in m}
-        sleep_data = metrics_dict.get('sleep_analysis', {})
-    
-    if not sleep_data:
-        return []
-    
-    # 筛选符合条件的记录
-    sleep_records = []
-    for record in sleep_data.get('data', []):
-        start_ts = record.get('sleepStart')
-        end_ts = record.get('sleepEnd')
-        if not start_ts or not end_ts:
-            continue
-        
-        # 解析时间
-        try:
-            if isinstance(start_ts, (int, float)):
-                start_dt = datetime.fromtimestamp(start_ts / 1000)
-                end_dt = datetime.fromtimestamp(end_ts / 1000)
-            else:
-                start_str = start_ts[:19]  # '2026-03-02 02:23:55'
-                end_str = end_ts[:19]
-                start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
-                end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S')
-        except (ValueError, TypeError) as e:
-            print(f"⚠️  睡眠记录时间解析失败: {e}", file=sys.stderr)
-            continue
-        
-        # 筛选逻辑：检查是否落在目标时间窗口内
-        start_date = start_dt.strftime('%Y-%m-%d')
-        record_start_hour = start_dt.hour
-        
-        if read_mode == 'next_day':
-            # 当天20:00之后开始，或次日12:00之前开始
-            belongs_to_date = (
-                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
-                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
-            )
-        else:  # same_day
-            # 前一天20:00之后开始，或当天12:00之前开始
-            belongs_to_date = (
-                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
-                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
-            )
-        
-        if belongs_to_date:
-            duration_hours = (end_dt - start_dt).total_seconds() / 3600
-            sleep_records.append({
-                'start': start_dt.strftime('%H:%M'),
-                'end': end_dt.strftime('%H:%M'),
-                'total': duration_hours,
-                'deep': record.get('deep', 0) or 0,
-                'core': record.get('core', 0) or 0,
-                'rem': record.get('rem', 0) or 0,
-                'awake': record.get('awake', 0) or 0,
-            })
-    
-    print(f"📊 睡眠模式 [{read_mode}] 找到 {len(sleep_records)} 条记录", file=sys.stderr)
-    return sleep_records
 
 def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     """
@@ -296,14 +183,29 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     data_file = health_dir / f'HealthAutoExport-{date_str}.json'
     
     if not data_file.exists():
-        print(f"Warning: Data file not found: {data_file}", file=sys.stderr)
+        from utils import DataError, handle_error
+        handle_error(
+            DataError(f"数据文件不存在: {data_file}"),
+            f"提取成员数据"
+        )
         return None
     
     try:
         with open(data_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
+    except json.JSONDecodeError as e:
+        from utils import DataError, handle_error
+        handle_error(
+            DataError(f"JSON解析失败: {e}"),
+            f"读取 {data_file}"
+        )
+        return None
     except Exception as e:
-        print(f"Error reading data file: {e}", file=sys.stderr)
+        from utils import DataError, handle_error
+        handle_error(
+            DataError(f"读取数据文件失败: {e}"),
+            f"读取 {data_file}"
+        )
         return None
     
     # 提取指标
@@ -343,15 +245,21 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
     
-    # 睡眠数据 - V5.5.0: 传递健康数据路径
-    sleep_records = parse_sleep_data_v5(date_str, health_dir, sleep_config)
-    sleep_deep = sum(r['deep'] for r in sleep_records) if sleep_records else 0
-    sleep_core = sum(r['core'] for r in sleep_records) if sleep_records else 0
-    sleep_rem = sum(r['rem'] for r in sleep_records) if sleep_records else 0
-    sleep_awake = sum(r['awake'] for r in sleep_records) if sleep_records else 0
+    # 睡眠数据 - V5.8.1: 使用统一解析函数
+    from utils import parse_sleep_data_unified
+    sleep_result = parse_sleep_data_unified(
+        date_str, health_dir, 
+        read_mode=sleep_config.get('read_mode', 'next_day'),
+        start_hour=sleep_config.get('start_hour', 20),
+        end_hour=sleep_config.get('end_hour', 12)
+    )
     
-    # V5.7.2: 总睡眠时间 = deep + core + rem + awake
-    sleep_total = sleep_deep + sleep_core + sleep_rem + sleep_awake
+    sleep_records = sleep_result['records']
+    sleep_total = sleep_result['total_hours']
+    sleep_deep = sleep_result['deep_hours']
+    sleep_core = sleep_result['core_hours']
+    sleep_rem = sleep_result['rem_hours']
+    sleep_awake = sleep_result['awake_hours']
     
     # 运动数据
     workouts = extract_workout_data(date_str, workout_dir)

@@ -3,8 +3,66 @@
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Union
+
+# ==================== 统一异常类 ====================
+
+class HealthReportError(Exception):
+    """健康报告基础异常类"""
+    pass
+
+class ConfigError(HealthReportError):
+    """配置错误（配置文件缺失、格式错误等）"""
+    pass
+
+class DataError(HealthReportError):
+    """数据错误（数据文件缺失、格式错误、指标缺失等）"""
+    pass
+
+class ValidationError(HealthReportError):
+    """验证错误（AI分析字数不足、语言不匹配等）"""
+    pass
+
+class RenderError(HealthReportError):
+    """渲染错误（PDF生成失败等）"""
+    pass
+
+class EmailError(HealthReportError):
+    """邮件发送错误"""
+    pass
+
+
+def handle_error(error: Exception, context: str = "", exit_on_fatal: bool = True) -> None:
+    """统一错误处理函数
+    
+    参数:
+        error: 异常对象
+        context: 错误上下文描述
+        exit_on_fatal: 致命错误时是否退出程序
+    
+    使用示例:
+        try:
+            data = load_data(date_str)
+        except FileNotFoundError as e:
+            handle_error(DataError(f"数据文件不存在: {e}"), "加载数据")
+    """
+    error_type = type(error).__name__
+    error_msg = str(error)
+    
+    # 打印格式化的错误信息
+    print(f"\n{'='*60}", file=sys.stderr)
+    print(f"❌ 错误类型: {error_type}", file=sys.stderr)
+    if context:
+        print(f"📍 上下文: {context}", file=sys.stderr)
+    print(f"📝 错误信息: {error_msg}", file=sys.stderr)
+    print(f"{'='*60}\n", file=sys.stderr)
+    
+    # 根据错误类型决定是否退出
+    if exit_on_fatal and isinstance(error, (ConfigError, DataError)):
+        sys.exit(1)
+
 
 # ==================== 配置加载 ====================
 
@@ -180,3 +238,322 @@ def detect_language_mismatch(ai_analysis: Dict, expected_language: str,
         return f"语言配置不匹配: 设置为 CN(中文), 但未检测到足够中文字符"
     
     return None
+
+
+# ==================== 睡眠数据解析 ====================
+
+from datetime import datetime, timedelta
+from typing import List
+
+def parse_sleep_data_unified(
+    date_str: str, 
+    health_dir: Path,
+    read_mode: str = 'next_day',
+    start_hour: int = 20,
+    end_hour: int = 12
+) -> Dict[str, Any]:
+    """统一睡眠数据解析函数 - V5.8.1
+    
+    参数:
+        date_str: 目标日期 (YYYY-MM-DD)
+        health_dir: Health数据目录路径
+        read_mode: 读取模式
+            - 'next_day': 读取次日文件，筛选当天20:00-次日12:00
+            - 'same_day': 读取当天文件，筛选前一天20:00-当天12:00
+        start_hour: 睡眠窗口开始小时（默认20点）
+        end_hour: 睡眠窗口结束小时（默认次日12点）
+    
+    返回:
+        {
+            'records': [...],  # 原始睡眠记录列表
+            'total_hours': float,  # 总睡眠时长
+            'deep_hours': float,
+            'core_hours': float,
+            'rem_hours': float,
+            'awake_hours': float,
+            'bedtime': str,  # 入睡时间 (HH:MM)
+            'waketime': str,  # 起床时间 (HH:MM)
+        }
+    """
+    date = datetime.strptime(date_str, '%Y-%m-%d')
+    
+    # 根据模式确定要读取的文件和日期范围
+    if read_mode == 'next_day':
+        next_date = date + timedelta(days=1)
+        sleep_file_date = next_date
+        filter_start_date = date
+        filter_end_date = next_date
+    else:  # same_day
+        prev_date = date - timedelta(days=1)
+        sleep_file_date = date
+        filter_start_date = prev_date
+        filter_end_date = date
+    
+    # 读取文件
+    health_dir = Path(health_dir).expanduser()
+    sleep_file = health_dir / f'HealthAutoExport-{sleep_file_date.strftime("%Y-%m-%d")}.json'
+    
+    if not sleep_file.exists():
+        return {
+            'records': [],
+            'total_hours': 0,
+            'deep_hours': 0,
+            'core_hours': 0,
+            'rem_hours': 0,
+            'awake_hours': 0,
+            'bedtime': '--',
+            'waketime': '--',
+        }
+    
+    try:
+        with open(sleep_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception:
+        return {
+            'records': [],
+            'total_hours': 0,
+            'deep_hours': 0,
+            'core_hours': 0,
+            'rem_hours': 0,
+            'awake_hours': 0,
+            'bedtime': '--',
+            'waketime': '--',
+        }
+    
+    # 提取睡眠记录（兼容两种数据结构）
+    sleep_data = data.get('data', {}).get('sleep_analysis')
+    if not sleep_data:
+        metrics = data.get('data', {}).get('metrics', [])
+        metrics_dict = {m.get('name'): m for m in metrics if 'name' in m}
+        sleep_data = metrics_dict.get('sleep_analysis', {})
+    
+    if not sleep_data:
+        return {
+            'records': [],
+            'total_hours': 0,
+            'deep_hours': 0,
+            'core_hours': 0,
+            'rem_hours': 0,
+            'awake_hours': 0,
+            'bedtime': '--',
+            'waketime': '--',
+        }
+    
+    # 筛选符合条件的记录
+    sleep_records = []
+    bedtime = None
+    waketime = None
+    
+    for record in sleep_data.get('data', []):
+        start_ts = record.get('sleepStart')
+        end_ts = record.get('sleepEnd')
+        if not start_ts or not end_ts:
+            continue
+        
+        # 解析时间
+        try:
+            if isinstance(start_ts, (int, float)):
+                start_dt = datetime.fromtimestamp(start_ts / 1000)
+                end_dt = datetime.fromtimestamp(end_ts / 1000)
+            else:
+                start_str = start_ts[:19]  # '2026-03-02 02:23:55'
+                end_str = end_ts[:19]
+                start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
+                end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError):
+            continue
+        
+        # 筛选逻辑
+        start_date = start_dt.strftime('%Y-%m-%d')
+        record_start_hour = start_dt.hour
+        
+        if read_mode == 'next_day':
+            belongs_to_date = (
+                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
+                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
+            )
+        else:  # same_day
+            belongs_to_date = (
+                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
+                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
+            )
+        
+        if belongs_to_date:
+            duration_hours = (end_dt - start_dt).total_seconds() / 3600
+            sleep_records.append({
+                'start': start_dt.strftime('%H:%M'),
+                'end': end_dt.strftime('%H:%M'),
+                'total': duration_hours,
+                'deep': record.get('deep', 0) or 0,
+                'core': record.get('core', 0) or 0,
+                'rem': record.get('rem', 0) or 0,
+                'awake': record.get('awake', 0) or 0,
+            })
+            
+            # 记录入睡和起床时间
+            if bedtime is None or start_dt.hour < int(bedtime.split(':')[0]):
+                bedtime = start_dt.strftime('%H:%M')
+            if waketime is None or end_dt.hour > int(waketime.split(':')[0]):
+                waketime = end_dt.strftime('%H:%M')
+    
+    # 计算总时长
+    deep = sum(r['deep'] for r in sleep_records)
+    core = sum(r['core'] for r in sleep_records)
+    rem = sum(r['rem'] for r in sleep_records)
+    awake = sum(r['awake'] for r in sleep_records)
+    total = deep + core + rem + awake
+    
+    return {
+        'records': sleep_records,
+        'total_hours': round(total, 2),
+        'deep_hours': round(deep, 2),
+        'core_hours': round(core, 2),
+        'rem_hours': round(rem, 2),
+        'awake_hours': round(awake, 2),
+        'bedtime': bedtime or '--',
+        'waketime': waketime or '--',
+    }
+
+
+# ==================== 成员配置获取 ====================
+
+def get_member_config_unified(
+    config: dict, 
+    member_idx: int,
+    strict: bool = True
+) -> Dict[str, Any]:
+    """统一获取成员配置
+    
+    参数:
+        config: 配置字典
+        member_idx: 成员索引（从0开始）
+        strict: 严格模式（True=越界时报错，False=越界时回退到第一个）
+    
+    返回:
+        成员配置字典
+    
+    异常:
+        ConfigError: 严格模式下索引越界时抛出
+    """
+    members = config.get('members', [])
+    MAX_MEMBERS = 3
+    
+    # 限制最大成员数
+    if len(members) > MAX_MEMBERS:
+        members = members[:MAX_MEMBERS]
+    
+    if not members:
+        raise ConfigError("config.json 中未配置任何成员")
+    
+    # 检查索引范围
+    if member_idx < 0 or member_idx >= len(members):
+        if strict:
+            raise ConfigError(
+                f"成员索引 {member_idx} 超出范围 (有效范围: 0-{len(members)-1}, "
+                f"总成员数: {len(members)})"
+            )
+        else:
+            # 非严格模式：记录警告并回退到第一个成员
+            print(f"⚠️  警告: 成员索引 {member_idx} 超出范围，回退到第一个成员")
+            member_idx = 0
+    
+    member = members[member_idx]
+    
+    return {
+        'name': member.get('name', f'成员{member_idx+1}'),
+        'age': member.get('age'),
+        'gender': member.get('gender'),
+        'height_cm': member.get('height_cm'),
+        'weight_kg': member.get('weight_kg'),
+        'health_dir': member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data'),
+        'workout_dir': member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data'),
+        'email': member.get('email', ''),
+    }
+
+
+# ==================== 多成员处理结果 ====================
+
+from dataclasses import dataclass, field
+
+@dataclass
+class MemberResult:
+    """单个成员的处理结果"""
+    index: int
+    name: str
+    success: bool = False
+    error_message: str = ""
+    output_files: List[str] = field(default_factory=list)
+    
+    def __str__(self):
+        status = "✅ 成功" if self.success else "❌ 失败"
+        return f"成员 {self.index+1} ({self.name}): {status}"
+
+
+class MultiMemberProcessor:
+    """多成员处理器 - 确保一个成员失败不影响其他成员"""
+    
+    def __init__(self):
+        self.results: List[MemberResult] = []
+    
+    def process_member(self, index: int, name: str, process_func) -> MemberResult:
+        """处理单个成员，捕获所有异常
+        
+        参数:
+            index: 成员索引
+            name: 成员名称
+            process_func: 处理函数，接收 () 参数，返回输出文件列表或 None
+        
+        返回:
+            MemberResult 对象
+        """
+        result = MemberResult(index=index, name=name)
+        
+        try:
+            print(f"\n{'='*60}")
+            print(f"🧑 处理成员 {index+1}: {name}")
+            print(f"{'='*60}")
+            
+            output = process_func()
+            
+            if output:
+                if isinstance(output, list):
+                    result.output_files = output
+                else:
+                    result.output_files = [output]
+                result.success = True
+                print(f"✅ 成员 {name} 处理成功")
+            else:
+                result.error_message = "处理函数返回空"
+                print(f"⚠️  成员 {name} 处理返回空")
+                
+        except Exception as e:
+            result.error_message = str(e)
+            print(f"❌ 成员 {name} 处理失败: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        self.results.append(result)
+        return result
+    
+    def print_summary(self):
+        """打印处理摘要"""
+        print(f"\n{'='*60}")
+        print("📊 多成员处理摘要")
+        print(f"{'='*60}")
+        
+        success_count = sum(1 for r in self.results if r.success)
+        total_count = len(self.results)
+        
+        print(f"总计: {success_count}/{total_count} 成功\n")
+        
+        for result in self.results:
+            print(f"  {result}")
+            if not result.success:
+                print(f"     错误: {result.error_message}")
+            if result.output_files:
+                for f in result.output_files:
+                    print(f"     输出: {f}")
+        
+        print(f"{'='*60}\n")
+        
+        return success_count == total_count
