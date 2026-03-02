@@ -763,6 +763,10 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     sleep_analysis = ai_analysis.get('sleep')
     if not sleep_analysis:
         raise ValueError("❌ 错误: 缺少睡眠分析 - 必须在当前AI对话中生成")
+    
+    # 获取睡眠总时长
+    sleep_hours = data.get('sleep', {}).get('total', 0) or 0
+    
     sleep_status_text = 'Severely Insufficient' if LANGUAGE == 'EN' else '严重不足'
     sleep_status_normal = 'Normal' if LANGUAGE == 'EN' else '正常'
     html = html.replace('{{SLEEP_STATUS}}', sleep_status_text if sleep_hours < 3 else sleep_status_normal)
@@ -1035,8 +1039,6 @@ if __name__ == '__main__':
             # 计算评分 - V5.7.2: 使用提取的函数
             member_cfg = get_member_config(idx)
             recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
-            exercise_consistency = 10 if steps_v >= steps_target * 0.5 else 5
-            exercise = min(100, exercise_steps + exercise_active + exercise_workout + exercise_consistency)
             
             # 生成文件名（包含成员标识）
             safe_name = member_name.replace(' ', '_').replace('/', '_')
