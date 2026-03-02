@@ -1,4 +1,4 @@
-# Health Agent V5.7.1 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.8.0 - OpenClaw 专业健康分析 Skill
 
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
 
@@ -43,11 +43,11 @@ python3 -m playwright install chromium
 安装完成后，OpenClaw 会自动通过 `SKILL.md` 发现并启用此 Skill。
 
 ### 3. 配置文件 (config.json)
-首次使用前，请编辑 `config.json` 配置你的数据路径：
+首次使用前，请编辑 `config.json` 配置你的数据路径（V5.8.0 新版配置结构）：
 
 ```json
 {
-  "version": "5.7.1",
+  "version": "5.8.0",
   "members": [
     {
       "name": "Jimmy",
@@ -70,16 +70,41 @@ python3 -m playwright install chromium
     "monthly_min_words": 1000
   },
   "email_config": {
-    "smtp_server": "smtp.gmail.com",
-    "smtp_port": 587,
-    "sender_email": "your_email@gmail.com",
-    "password": "your_app_password"
+    "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
+    "oauth2": {
+      "enabled": false,
+      "provider": "gmail",
+      "client_id": "your-client-id.apps.googleusercontent.com",
+      "client_secret": "your-client-secret",
+      "refresh_token": "your-refresh-token",
+      "sender_email": "your-email@gmail.com"
+    },
+    "smtp": {
+      "enabled": false,
+      "server": "smtp.gmail.com",
+      "port": 587,
+      "sender_email": "your-email@gmail.com",
+      "password": "your-app-password",
+      "use_tls": true
+    },
+    "mail_app": {
+      "enabled": true
+    },
+    "local": {
+      "enabled": true,
+      "output_dir": "~/.openclaw/workspace/shared/health-reports/upload"
+    }
   },
-  "receiver_email": "target_email@example.com",
+  "receiver_email": "target-email@example.com",
   "language": "CN",
   "validation_mode": "strict",
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
-  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache",
+  "sleep_config": {
+    "read_mode": "next_day",
+    "start_hour": 20,
+    "end_hour": 12
+  }
 }
 ```
 
@@ -87,11 +112,85 @@ python3 -m playwright install chromium
 - `health_dir`: Apple Health 数据导出路径（需包含 `HealthAutoExport-YYYY-MM-DD.json` 文件）
 - `workout_dir`: 运动数据导出路径
 - `email`: 报告接收邮箱
-- `email_config`: 邮件发送配置（SMTP服务器、端口、发件邮箱、密码）
+- `email_config`: 邮件发送配置（V5.8.0 新版 Provider 架构）
+  - `provider_priority`: 发送方式优先级，默认 `['oauth2', 'smtp', 'mail_app', 'local']`
+  - `oauth2`: Gmail OAuth2 认证（推荐，最安全）
+  - `smtp`: SMTP 服务器发送
+  - `mail_app`: macOS Mail.app 发送（仅 Mac）
+  - `local`: 保存到本地目录（不发送邮件）
 - `language`: 报告界面语言（`CN`=中文, `EN`=英文）
-- `age`, `gender`, `height_cm`, `weight_kg`: 个人档案数据，用于 AI 生成个性化分析（BMI计算、年龄/性别特定的心率参考范围等）
+- `sleep_config`: 睡眠数据读取配置
+  - `read_mode`: `next_day`（读取次日文件，适合早上生成报告）或 `same_day`（读取当天文件，适合晚上生成报告）
+- `age`, `gender`, `height_cm`, `weight_kg`: 个人档案数据，用于 AI 生成个性化分析
 
-### 4. 数据准备
+### 4. 邮件发送配置（OAuth2 推荐）
+
+V5.8.0 支持多种邮件发送方式，推荐优先级：**OAuth2 > SMTP > Mail.app > Local**
+
+#### 方式 A：Gmail OAuth2 认证（推荐，最安全）
+
+运行交互式配置脚本：
+
+```bash
+cd ~/.openclaw/skills/health-report
+python3 scripts/setup_oauth2.py
+```
+
+**步骤说明：**
+1. 访问 https://console.cloud.google.com/apis/credentials 创建 OAuth2 凭证
+2. 启用 Gmail API，创建 Desktop app 类型的 OAuth client ID
+3. 输入 Client ID 和 Client Secret
+4. 浏览器完成授权，复制回调 URL 粘贴回终端
+5. 配置完成，refresh_token 会自动保存到 config.json
+
+**常见报错及解决：**
+
+| 报错信息 | 原因 | 解决方法 |
+|---------|------|---------|
+| `未获取到 refresh_token` | 用户之前已授权过，Google 不再提供 | 访问 https://myaccount.google.com/permissions 撤销权限后重试 |
+| `授权失败: access_denied` | 用户点击了拒绝 | 重新运行脚本，确保点击"允许" |
+| `无法从 URL 中提取授权码` | 复制了错误的 URL | 确保复制的是浏览器地址栏的完整 URL（包含 `code=` 参数） |
+| `连接超时` | 网络问题 | 检查网络连接，或尝试使用代理 |
+
+#### 方式 B：SMTP 配置（传统方式）
+
+编辑 `config.json` 中的 `email_config.smtp` 部分：
+
+```json
+"smtp": {
+  "enabled": true,
+  "server": "smtp.gmail.com",
+  "port": 587,
+  "sender_email": "your-email@gmail.com",
+  "password": "your-app-password",
+  "use_tls": true
+}
+```
+
+**注意：** Gmail 需要使用「应用专用密码」，不是登录密码。
+
+#### 方式 C：macOS Mail.app（仅 Mac）
+
+```json
+"mail_app": {
+  "enabled": true
+}
+```
+
+系统会自动打开 Mail.app 发送邮件。
+
+#### 方式 D：本地保存（不发送邮件）
+
+```json
+"local": {
+  "enabled": true,
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload"
+}
+```
+
+报告将保存到指定目录，不发送邮件。
+
+### 5. 数据准备
 确保你的 [Health Auto Export](https://apps.apple.com/us/app/health-auto-export-json-csv/id111556706) 导出的 JSON 文件同步到了配置的路径中。
 
 **数据文件格式要求：**
@@ -105,7 +204,7 @@ python3 -m playwright install chromium
 - 如使用 OneDrive：`~/OneDrive/Health Data`
 - 如使用本地目录：`~/Documents/Health Data`
 
-### 5. OpenClaw 定时任务 (Cron) 配置
+### 6. OpenClaw 定时任务 (Cron) 配置
 在 OpenClaw 中添加日报任务，建议时间 `12:10`（确保当日数据已同步完成）。
 
 **指令内容模板：**

@@ -1,15 +1,45 @@
 #!/usr/bin/env python3
+"""Health Agent V5.8.0 环境检查脚本"""
 import sys
 import os
 import json
 from pathlib import Path
 
+
+def load_config():
+    """加载配置文件"""
+    config_paths = [
+        Path(__file__).parent.parent / "config.json",
+        Path.home() / '.openclaw' / 'workspace-health' / 'config.json',
+    ]
+    for config_path in config_paths:
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    return {}
+
+
 def verify():
-    print("🔍 开始 Health Agent V5.7.1 环境检查...\n")
+    print("🔍 开始 Health Agent V5.8.0 环境检查...\n")
     
     home = Path.home()
     workspace = Path(__file__).parent.parent
     
+    # 加载配置获取路径
+    config = load_config()
+    members = config.get('members', [])
+    
+    # 使用第一成员的路径，或默认路径
+    if members and len(members) > 0:
+        first_member = members[0]
+        health_dir_str = first_member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data')
+        print(f"📋 使用配置成员: {first_member.get('name', '默认')}")
+    else:
+        health_dir_str = '~/我的云端硬盘/Health Auto Export/Health Data'
+        print("⚠️  未找到配置成员，使用默认路径")
+    
+    health_dir = Path(health_dir_str).expanduser()
+
     # 1. 检查核心脚本
     scripts = ['extract_data_v5.py', 'generate_v5_medical_dashboard.py', 'generate_weekly_monthly_medical.py', 'send_health_report_email.py']
     for s in scripts:
@@ -28,14 +58,13 @@ def verify():
         else:
             print(f"❌ 模板缺失: {t}")
 
-    # 3. 检查数据目录 (根据脚本默认路径)
-    health_dir = home / "我的云端硬盘" / "Health Auto Export" / "Health Data"
+    # 3. 检查数据目录 (从 config.json 读取)
     if health_dir.exists():
         print(f"✅ 数据目录: {health_dir} 可访问")
         files = list(health_dir.glob("HealthAutoExport-*.json"))
         print(f"   找到 {len(files)} 个健康数据文件")
     else:
-        print(f"⚠️ 数据目录: {health_dir} 未找到。请确保 Health Auto Export 已同步到该路径，或在脚本中修改 DEFAULT_HEALTH_DIR")
+        print(f"⚠️ 数据目录: {health_dir} 未找到。请确保 Health Auto Export 已同步到该路径，或在 config.json 中修改 health_dir")
 
     # 4. 检查渲染依赖
     try:
@@ -48,6 +77,15 @@ def verify():
     cache_dir = workspace / 'cache' / 'daily'
     cache_dir.mkdir(parents=True, exist_ok=True)
     print(f"✅ 缓存目录: {cache_dir} 已就绪")
+    
+    # 6. 检查邮件配置
+    email_config = config.get('email_config', {})
+    if email_config:
+        print("✅ 邮件配置: 已配置")
+        providers = email_config.get('provider_priority', [])
+        print(f"   Provider 优先级: {', '.join(providers)}")
+    else:
+        print("⚠️  邮件配置: 未配置，将使用本地保存模式")
 
     print("\n🚀 检查完成！如果看到 ❌ 请先修复再运行报告生成。")
 

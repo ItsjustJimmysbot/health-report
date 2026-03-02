@@ -200,45 +200,80 @@ def parse_sleep_data_v5(date_str, health_dir=None, sleep_config=None):
     print(f"📊 睡眠模式 [{read_mode}] 找到 {len(sleep_records)} 条记录", file=sys.stderr)
     return sleep_records
 
-def extract_workout_data(date_str, workout_dir=None):
-    """提取运动数据 - V5.7.0: 支持路径传入"""
+def extract_workout_data(date_str, workout_dir=None, health_dir=None):
+    """
+    提取运动数据 - V5.8.0: 
+    1. 支持双文件名: YYYY-MM-DD.json 和 HealthAutoExport-YYYY-MM-DD.json
+    2. 兼容 workout 结构: data.workouts.data 和 data.workouts
+    """
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.7.0: 使用传入的路径或全局默认路径
+    # V5.8.0: 使用传入的路径或全局默认路径
     if workout_dir is None:
         workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
     else:
         workout_dir = Path(workout_dir).expanduser()
     
-    workout_file = workout_dir / f'{date_str}.json'
+    if health_dir is None:
+        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
+    else:
+        health_dir = Path(health_dir).expanduser()
     
-    if not workout_file.exists():
+    # 尝试两种文件名（按优先级）
+    workout_paths = [
+        workout_dir / f'{date_str}.json',
+        workout_dir / f'HealthAutoExport-{date_str}.json',
+        health_dir / f'HealthAutoExport-{date_str}.json',
+    ]
+    
+    workout_file = None
+    for p in workout_paths:
+        if p.exists():
+            workout_file = p
+            break
+    
+    if not workout_file:
         return []
     
     try:
         with open(workout_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-    except:
+    except Exception as e:
+        print(f"⚠️  读取运动文件失败: {workout_file} - {e}", file=sys.stderr)
         return []
     
+    # V5.8.0: 兼容两种 workout 结构
     workouts = []
+    
+    # 尝试结构1: data.workouts.data
     workout_data = data.get('data', {}).get('workouts', {})
+    if workout_data and 'data' in workout_data:
+        workout_list = workout_data.get('data', [])
+    else:
+        # 尝试结构2: data.workouts (直接是数组)
+        workout_list = data.get('workouts', [])
+        if not workout_list and 'data' in data:
+            workout_list = data['data'].get('workouts', [])
     
-    if not workout_data:
-        return []
-    
-    for workout in workout_data.get('data', []):
+    for workout in workout_list:
         # 解析开始时间
         start_ts = workout.get('start')
         if not start_ts:
             continue
         
-        start_dt = datetime.fromtimestamp(start_ts)
+        try:
+            if isinstance(start_ts, (int, float)):
+                start_dt = datetime.fromtimestamp(start_ts)
+            else:
+                # 字符串时间戳
+                start_dt = datetime.fromtimestamp(float(start_ts))
+        except (ValueError, TypeError):
+            continue
         
         workouts.append({
             'type': workout.get('name', 'Unknown'),
             'start_time': start_dt.strftime('%H:%M'),
-            'duration_min': workout.get('duration', 0) / 60,
+            'duration_min': workout.get('duration', 0) / 60 if workout.get('duration') else 0,
             'energy_kcal': workout.get('energy', 0) / 4.184 if workout.get('energy') else 0,
             'avg_hr': workout.get('avg_hr'),
             'max_hr': workout.get('max_hr')
