@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 def verify():
-    print("🔍 开始 Health Agent V5.1 环境检查...\n")
+    print("🔍 开始 Health Agent V5.7.1 环境检查...\n")
     
     home = Path.home()
     workspace = Path(__file__).parent.parent

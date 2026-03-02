@@ -1,5 +1,5 @@
 {
-  "version": "5.5.0",
+  "version": "5.7.1",
   "language": "CN",
   "validation_mode": "strict",
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
@@ -20,7 +20,10 @@
     "metric_min_words": 150,
     "metric_max_words": 200,
     "action_min_words": 250,
-    "action_max_words": 300
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000
   },
   "email_config": {
     "smtp_server": "smtp.office365.com",

@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V5.7.0报告生成 - 支持多成员"""
+"""提取Apple Health数据用于V5.7.1报告生成 - 支持多成员"""
 
 import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# V5.7.0: 从 config.json 读取路径配置，支持多语言和多成员
+# V5.7.1: 从 config.json 读取路径配置，支持多语言和多成员
 def load_config():
-    """加载配置文件"""
-    config_path = Path.home() / ".openclaw" / "workspace-health" / "config.json"
-    if config_path.exists():
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+    """加载配置文件 - 尝试多个可能的路径"""
+    config_paths = [
+        Path(__file__).parent.parent / "config.json",  # skill目录
+        Path.home() / ".openclaw" / "workspace-health" / "config.json",  # 兼容旧路径
+    ]
+    
+    for config_path in config_paths:
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
     return {}
 
 def get_member_config(member_idx=0):
