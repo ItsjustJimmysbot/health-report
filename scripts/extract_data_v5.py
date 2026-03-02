@@ -256,8 +256,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 步数
     steps = extract_metric_sum(metrics, 'step_count')
     
-    # 距离 (km)
-    distance = extract_metric_sum(metrics, 'walking_running_distance') / 1000
+    # 距离 (km) - 数据单位已经是km，不需要再转换
+    distance = extract_metric_sum(metrics, 'walking_running_distance')
     
     # 活动能量 (kJ)
     active_energy = extract_metric_sum(metrics, 'active_energy')
