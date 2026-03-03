@@ -20,7 +20,190 @@
       "type": "array",
       "minItems": 1,
       "maxItems": 3,
-      "description": "成员配置列表，最多3人"
+      "description": "成员配置列表，最多3人",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "health_dir",
+          "workout_dir",
+          "email"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 130
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "other"
+            ]
+          },
+          "height_cm": {
+            "type": "number",
+            "minimum": 50,
+            "maximum": 250
+          },
+          "weight_kg": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 400
+          },
+          "health_dir": {
+            "type": "string",
+            "minLength": 1
+          },
+          "workout_dir": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "analysis_limits": {
+      "type": "object",
+      "properties": {
+        "metric_min_words": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "metric_max_words": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action_min_words": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action_max_words": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "daily_min_words": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "weekly_min_words": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "monthly_min_words": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "email_config": {
+      "type": "object",
+      "properties": {
+        "provider_priority": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "oauth2",
+              "smtp",
+              "mail_app",
+              "local"
+            ]
+          }
+        },
+        "oauth2": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "provider": {
+              "type": "string"
+            },
+            "client_id": {
+              "type": "string"
+            },
+            "client_secret": {
+              "type": "string"
+            },
+            "refresh_token": {
+              "type": "string"
+            },
+            "sender_email": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "smtp": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "server": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer"
+            },
+            "sender_email": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            },
+            "use_tls": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
+        },
+        "mail_app": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
+        },
+        "local": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "output_dir": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retry_delay": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "receiver_email": {
+      "type": "string"
     },
     "language": {
       "type": "string",
@@ -30,6 +213,44 @@
       ],
       "description": "报告语言",
       "default": "CN"
+    },
+    "validation_mode": {
+      "type": "string",
+      "enum": [
+        "strict",
+        "warn"
+      ],
+      "default": "strict"
+    },
+    "output_dir": {
+      "type": "string"
+    },
+    "cache_dir": {
+      "type": "string"
+    },
+    "sleep_config": {
+      "type": "object",
+      "properties": {
+        "read_mode": {
+          "type": "string",
+          "enum": [
+            "next_day",
+            "same_day"
+          ]
+        },
+        "start_hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23
+        },
+        "end_hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23
+        }
+      },
+      "additionalProperties": true
     }
-  }
+  },
+  "additionalProperties": true
 }

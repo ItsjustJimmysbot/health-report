@@ -25,6 +25,9 @@ LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
 if LANGUAGE not in ("CN", "EN"):
     LANGUAGE = "CN"
 VALIDATION_MODE = CONFIG.get("validation_mode", "strict")
+ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
+WEEKLY_MIN_WORDS = ANALYSIS_LIMITS.get("weekly_min_words", 800)
+MONTHLY_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_min_words", 1000)
 
 OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path(__file__).parent.parent / 'output'))).expanduser()
 CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
@@ -47,8 +50,8 @@ def verify_ai_analysis_weekly(ai_analysis):
         total_text += rec.get('content', '')
     
     # 检查周报总字数（要求≥800字）
-    if len(total_text) < 800:
-        errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥800字)")
+    if len(total_text) < WEEKLY_MIN_WORDS:
+        errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥{WEEKLY_MIN_WORDS}字)")
     
     # 语言一致性校验
     lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
@@ -76,8 +79,8 @@ def verify_ai_analysis_monthly(ai_analysis):
         total_text += rec.get('content', '')
     
     # 检查月报总字数（要求≥1000字）
-    if len(total_text) < 1000:
-        errors.append(f"❌ 月报总字数不足: {len(total_text)}字 (要求≥1000字)")
+    if len(total_text) < MONTHLY_MIN_WORDS:
+        errors.append(f"❌ 月报总字数不足: {len(total_text)}字 (要求≥{MONTHLY_MIN_WORDS}字)")
     
     # 同时检查 trend_assessment 单独字数（原逻辑保留）
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')

@@ -54,12 +54,13 @@ MIN_LENGTH_BASAL = ANALYSIS_LIMITS.get("metric_min_words", 150)
 MIN_LENGTH_RESPIRATORY = ANALYSIS_LIMITS.get("metric_min_words", 150)
 MIN_LENGTH_SLEEP = ANALYSIS_LIMITS.get("metric_min_words", 150)
 MIN_LENGTH_WORKOUT = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MAX_LENGTH_METRIC = ANALYSIS_LIMITS.get("metric_max_words", 200)
 
 # 优先级建议字数限制
-action_min = ANALYSIS_LIMITS.get("action_min_words", 250)
 MIN_LENGTH_PRIORITY_TITLE = 10
 MIN_LENGTH_PRIORITY_PROBLEM = 80
-MIN_LENGTH_PRIORITY_ACTION = 100
+MIN_LENGTH_PRIORITY_ACTION = ANALYSIS_LIMITS.get("action_min_words", 250)
+MAX_LENGTH_PRIORITY_ACTION = ANALYSIS_LIMITS.get("action_max_words", 300)
 MIN_LENGTH_PRIORITY_EXPECTATION = 70
 MIN_LENGTH_AI2_TITLE = 10
 MIN_LENGTH_AI2_PROBLEM = 80
@@ -75,6 +76,9 @@ MIN_LENGTH_BREAKFAST = 30      # 早餐最低字数
 MIN_LENGTH_LUNCH = 30          # 午餐最低字数
 MIN_LENGTH_DINNER = 30         # 晚餐最低字数
 MIN_LENGTH_SNACK = 30          # 加餐最低字数
+
+# 每日分析总字数下限
+DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 500)
 
 # 验证模式：strict=严格模式(不满足则报错), warn=警告模式(只提示)
 VALIDATION_MODE = CONFIG.get("validation_mode", "strict")  # 可选值: "strict", "warn"
@@ -128,62 +132,87 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
     返回错误列表（为空表示验证通过）
     """
     errors = []
-    
-    # 定义需要验证的字段及其最低字数
+    total_text_len = 0
+
+    # 指标字段：校验最小+最大字数
     validations = [
-        # 指标分析
-        ('hrv', MIN_LENGTH_HRV, 'HRV分析'),
-        ('resting_hr', MIN_LENGTH_RESTING_HR, '静息心率分析'),
-        ('steps', MIN_LENGTH_STEPS, '步数分析'),
-        ('distance', MIN_LENGTH_DISTANCE, '距离分析'),
-        ('active_energy', MIN_LENGTH_ACTIVE_ENERGY, '活动能量分析'),
-        ('spo2', MIN_LENGTH_SPO2, '血氧分析'),
-        ('flights', MIN_LENGTH_FLIGHTS, '爬楼分析'),
-        ('stand', MIN_LENGTH_STAND, '站立分析'),
-        ('basal', MIN_LENGTH_BASAL, '基础代谢分析'),
-        ('respiratory', MIN_LENGTH_RESPIRATORY, '呼吸率分析'),
-        # 睡眠分析
-        ('sleep', MIN_LENGTH_SLEEP, '睡眠分析'),
-        # 运动分析
-        ('workout', MIN_LENGTH_WORKOUT, '运动分析'),
+        ('hrv', MIN_LENGTH_HRV, MAX_LENGTH_METRIC, 'HRV分析'),
+        ('resting_hr', MIN_LENGTH_RESTING_HR, MAX_LENGTH_METRIC, '静息心率分析'),
+        ('steps', MIN_LENGTH_STEPS, MAX_LENGTH_METRIC, '步数分析'),
+        ('distance', MIN_LENGTH_DISTANCE, MAX_LENGTH_METRIC, '距离分析'),
+        ('active_energy', MIN_LENGTH_ACTIVE_ENERGY, MAX_LENGTH_METRIC, '活动能量分析'),
+        ('spo2', MIN_LENGTH_SPO2, MAX_LENGTH_METRIC, '血氧分析'),
+        ('flights', MIN_LENGTH_FLIGHTS, MAX_LENGTH_METRIC, '爬楼分析'),
+        ('stand', MIN_LENGTH_STAND, MAX_LENGTH_METRIC, '站立分析'),
+        ('basal', MIN_LENGTH_BASAL, MAX_LENGTH_METRIC, '基础代谢分析'),
+        ('respiratory', MIN_LENGTH_RESPIRATORY, MAX_LENGTH_METRIC, '呼吸率分析'),
+        ('sleep', MIN_LENGTH_SLEEP, MAX_LENGTH_METRIC, '睡眠分析'),
+        ('workout', MIN_LENGTH_WORKOUT, MAX_LENGTH_METRIC, '运动分析'),
     ]
-    
-    # 验证指标分析
-    for key, min_len, name in validations:
+
+    for key, min_len, max_len, name in validations:
         text = ai_analysis.get(key, '')
-        if text and len(text) < min_len:
-            errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
-    
-    # 验证优先级建议
+        if text:
+            total_text_len += len(text)
+            if len(text) < min_len:
+                errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
+            if len(text) > max_len:
+                errors.append(f"❌ {name} 字数超限: {len(text)}字 (要求最多{max_len}字)")
+
+    # 最高优先级建议
     priority = ai_analysis.get('priority', {})
-    priority_checks = [
-        ('title', MIN_LENGTH_PRIORITY_TITLE, '最高优先级标题'),
-        ('problem', MIN_LENGTH_PRIORITY_PROBLEM, '问题识别'),
-        ('action', MIN_LENGTH_PRIORITY_ACTION, '行动计划'),
-        ('expectation', MIN_LENGTH_PRIORITY_EXPECTATION, '预期效果'),
-    ]
-    for key, min_len, name in priority_checks:
-        text = priority.get(key, '')
-        if text and len(text) < min_len:
-            errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
-    
+    title = priority.get('title', '')
+    problem = priority.get('problem', '')
+    action = priority.get('action', '')
+    expectation = priority.get('expectation', '')
+
+    if title:
+        total_text_len += len(title)
+        if len(title) < MIN_LENGTH_PRIORITY_TITLE:
+            errors.append(f"❌ 最高优先级标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_PRIORITY_TITLE}字)")
+
+    if problem:
+        total_text_len += len(problem)
+        if len(problem) < MIN_LENGTH_PRIORITY_PROBLEM:
+            errors.append(f"❌ 问题识别 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}字)")
+
+    if action:
+        total_text_len += len(action)
+        if len(action) < MIN_LENGTH_PRIORITY_ACTION:
+            errors.append(f"❌ 行动计划 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_PRIORITY_ACTION}字)")
+        if len(action) > MAX_LENGTH_PRIORITY_ACTION:
+            errors.append(f"❌ 行动计划 字数超限: {len(action)}字 (要求最多{MAX_LENGTH_PRIORITY_ACTION}字)")
+
+    if expectation:
+        total_text_len += len(expectation)
+        if len(expectation) < MIN_LENGTH_PRIORITY_EXPECTATION:
+            errors.append(f"❌ 预期效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}字)")
+
     # 验证次级建议
     for prefix, label in [('ai2', '第二优先级'), ('ai3', '第三优先级')]:
         title = ai_analysis.get(f'{prefix}_title', '')
         problem = ai_analysis.get(f'{prefix}_problem', '')
         action = ai_analysis.get(f'{prefix}_action', '')
         expectation = ai_analysis.get(f'{prefix}_expectation', '')
-        
-        if title and len(title) < MIN_LENGTH_AI2_TITLE:
-            errors.append(f"❌ {label}标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_AI2_TITLE}字)")
-        if problem and len(problem) < MIN_LENGTH_AI2_PROBLEM:
-            errors.append(f"❌ {label}问题 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_AI2_PROBLEM}字)")
-        if action and len(action) < MIN_LENGTH_AI2_ACTION:
-            errors.append(f"❌ {label}行动 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_AI2_ACTION}字)")
-        if expectation and len(expectation) < MIN_LENGTH_AI2_EXPECTATION:
-            errors.append(f"❌ {label}效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_AI2_EXPECTATION}字)")
-    
-    # 验证饮食方案
+
+        if title:
+            total_text_len += len(title)
+            if len(title) < MIN_LENGTH_AI2_TITLE:
+                errors.append(f"❌ {label}标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_AI2_TITLE}字)")
+        if problem:
+            total_text_len += len(problem)
+            if len(problem) < MIN_LENGTH_AI2_PROBLEM:
+                errors.append(f"❌ {label}问题 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_AI2_PROBLEM}字)")
+        if action:
+            total_text_len += len(action)
+            if len(action) < MIN_LENGTH_AI2_ACTION:
+                errors.append(f"❌ {label}行动 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_AI2_ACTION}字)")
+        if expectation:
+            total_text_len += len(expectation)
+            if len(expectation) < MIN_LENGTH_AI2_EXPECTATION:
+                errors.append(f"❌ {label}效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_AI2_EXPECTATION}字)")
+
+    # 饮食方案
     diet_checks = [
         ('breakfast', MIN_LENGTH_BREAKFAST, '早餐'),
         ('lunch', MIN_LENGTH_LUNCH, '午餐'),
@@ -192,15 +221,21 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
     ]
     for key, min_len, name in diet_checks:
         text = ai_analysis.get(key, '')
-        if text and len(text) < min_len:
-            errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
-            
-    # 验证语言 - V5.8.1: 使用改进的检测逻辑
+        if text:
+            total_text_len += len(text)
+            if len(text) < min_len:
+                errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
+
+    # 每日总字数下限（来自 analysis_limits.daily_min_words）
+    if total_text_len < DAILY_MIN_WORDS:
+        errors.append(f"❌ 日报AI总字数不足: {total_text_len}字 (要求至少{DAILY_MIN_WORDS}字)")
+
+    # 语言一致性
     from utils import detect_language_mismatch_v2
     lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
     for error in lang_errors:
         errors.append(f"❌ {error}")
-    
+
     return errors
 
 

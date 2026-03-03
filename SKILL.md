@@ -74,6 +74,7 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 
 ## 5) 必须遵守
 - `language` 与 AI 输出语言必须一致（CN/EN）
+- `analysis_limits` 阈值会被脚本实际校验（strict 模式不满足将失败）。
 - 多成员默认最多处理前 3 位
 - 详细规则、限制与排障请查 `README.md`
 

@@ -910,62 +910,151 @@ class MultiMemberProcessor:
 # ==================== JSON Schema 验证 ====================
 
 def validate_config_schema(config: dict) -> list:
-    """验证配置是否符合 JSON Schema
-    
-    返回错误列表（为空表示验证通过）
-    """
+    """验证配置是否符合基础约束（不依赖外部 jsonschema 库）"""
     errors = []
-    
-    # 加载 schema
-    schema_path = Path(__file__).parent.parent / "config.schema.json"
-    if not schema_path.exists():
-        # 如果 schema 文件不存在，跳过验证
-        return errors
-    
-    try:
-        with open(schema_path, 'r', encoding='utf-8') as f:
-            schema = json.load(f)
-    except Exception as e:
-        errors.append(f"无法加载 schema 文件: {e}")
-        return errors
-    
-    # 基础验证
+
+    # 基础类型
     if not isinstance(config, dict):
         errors.append("配置必须是 JSON 对象")
         return errors
-    
-    # 检查必填字段
-    required = schema.get('required', [])
+
+    # 必填字段
+    required = ["version", "members", "language"]
     for field in required:
         if field not in config:
             errors.append(f"缺少必填字段: {field}")
-    
-    # 检查成员数量
+
+    # version
+    version = config.get('version')
+    if version is not None and version != '5.8.1':
+        errors.append(f"version '{version}' 无效，当前仅支持 '5.8.1'")
+
+    # members
     members = config.get('members', [])
-    if len(members) > 3:
-        errors.append(f"成员数量 {len(members)} 超过最大限制 3")
-    
+    if not isinstance(members, list):
+        errors.append("members 必须是数组")
+        members = []
+
     if len(members) == 0:
         errors.append("至少需要配置 1 个成员")
-    
-    # 检查语言设置
+    if len(members) > 3:
+        errors.append(f"成员数量 {len(members)} 超过最大限制 3")
+
+    for i, member in enumerate(members[:3]):
+        if not isinstance(member, dict):
+            errors.append(f"members[{i}] 必须是对象")
+            continue
+
+        for k in ['name', 'health_dir', 'workout_dir', 'email']:
+            if not member.get(k):
+                errors.append(f"members[{i}] 缺少成员必填字段: {k}")
+
+        age = member.get('age')
+        if age is not None and (not isinstance(age, (int, float)) or age <= 0 or age > 130):
+            errors.append(f"members[{i}].age 无效: {age}")
+
+        height_cm = member.get('height_cm')
+        if height_cm is not None and (not isinstance(height_cm, (int, float)) or height_cm <= 50 or height_cm > 250):
+            errors.append(f"members[{i}].height_cm 无效: {height_cm}")
+
+        weight_kg = member.get('weight_kg')
+        if weight_kg is not None and (not isinstance(weight_kg, (int, float)) or weight_kg <= 10 or weight_kg > 400):
+            errors.append(f"members[{i}].weight_kg 无效: {weight_kg}")
+
+    # language
     language = config.get('language', 'CN')
     if language not in ['CN', 'EN']:
         errors.append(f"语言设置 '{language}' 无效，必须是 'CN' 或 'EN'")
-    
-    # 检查验证模式
+
+    # validation_mode
     validation_mode = config.get('validation_mode', 'strict')
     if validation_mode not in ['strict', 'warn']:
         errors.append(f"validation_mode '{validation_mode}' 无效，必须是 'strict' 或 'warn'")
-    
-    # 检查 email_config 中的 provider_priority
+
+    # analysis_limits
+    limits = config.get('analysis_limits', {})
+    if limits and not isinstance(limits, dict):
+        errors.append("analysis_limits 必须是对象")
+    elif isinstance(limits, dict):
+        int_keys = [
+            'metric_min_words', 'metric_max_words',
+            'action_min_words', 'action_max_words',
+            'daily_min_words', 'weekly_min_words', 'monthly_min_words'
+        ]
+        for k in int_keys:
+            if k in limits:
+                v = limits.get(k)
+                if not isinstance(v, int) or v <= 0:
+                    errors.append(f"analysis_limits.{k} 必须是正整数")
+
+        metric_min = limits.get('metric_min_words', 150)
+        metric_max = limits.get('metric_max_words', 200)
+        action_min = limits.get('action_min_words', 250)
+        action_max = limits.get('action_max_words', 300)
+        daily_min = limits.get('daily_min_words', 500)
+        weekly_min = limits.get('weekly_min_words', 800)
+        monthly_min = limits.get('monthly_min_words', 1000)
+
+        if metric_min > metric_max:
+            errors.append("analysis_limits.metric_min_words 不能大于 metric_max_words")
+        if action_min > action_max:
+            errors.append("analysis_limits.action_min_words 不能大于 action_max_words")
+        if weekly_min < daily_min:
+            errors.append("analysis_limits.weekly_min_words 不能小于 daily_min_words")
+        if monthly_min < weekly_min:
+            errors.append("analysis_limits.monthly_min_words 不能小于 weekly_min_words")
+
+    # sleep_config
+    sleep_config = config.get('sleep_config', {})
+    if sleep_config and not isinstance(sleep_config, dict):
+        errors.append("sleep_config 必须是对象")
+    elif isinstance(sleep_config, dict) and sleep_config:
+        read_mode = sleep_config.get('read_mode', 'next_day')
+        if read_mode not in ['next_day', 'same_day']:
+            errors.append(f"sleep_config.read_mode '{read_mode}' 无效，必须是 next_day 或 same_day")
+
+        start_hour = sleep_config.get('start_hour', 20)
+        end_hour = sleep_config.get('end_hour', 12)
+        if not isinstance(start_hour, int) or start_hour < 0 or start_hour > 23:
+            errors.append("sleep_config.start_hour 必须是 0-23 的整数")
+        if not isinstance(end_hour, int) or end_hour < 0 or end_hour > 23:
+            errors.append("sleep_config.end_hour 必须是 0-23 的整数")
+
+    # email_config
     email_config = config.get('email_config', {})
-    priority = email_config.get('provider_priority', [])
-    valid_providers = ['oauth2', 'smtp', 'mail_app', 'local']
-    for provider in priority:
-        if provider not in valid_providers:
-            errors.append(f"未知的邮件 provider: {provider}")
-    
+    if email_config and not isinstance(email_config, dict):
+        errors.append("email_config 必须是对象")
+    elif isinstance(email_config, dict):
+        priority = email_config.get('provider_priority', [])
+        valid_providers = ['oauth2', 'smtp', 'mail_app', 'local']
+
+        if priority:
+            if not isinstance(priority, list):
+                errors.append("email_config.provider_priority 必须是数组")
+            else:
+                for provider in priority:
+                    if provider not in valid_providers:
+                        errors.append(f"未知的邮件 provider: {provider}")
+                if len(set(priority)) != len(priority):
+                    errors.append("email_config.provider_priority 不允许重复项")
+
+        oauth2 = email_config.get('oauth2', {})
+        if isinstance(oauth2, dict) and oauth2.get('enabled'):
+            for k in ['client_id', 'client_secret', 'refresh_token', 'sender_email']:
+                if not oauth2.get(k):
+                    errors.append(f"email_config.oauth2 启用时缺少字段: {k}")
+
+        smtp = email_config.get('smtp', {})
+        if isinstance(smtp, dict) and smtp.get('enabled'):
+            for k in ['sender_email', 'password']:
+                if not smtp.get(k):
+                    errors.append(f"email_config.smtp 启用时缺少字段: {k}")
+
+        local_cfg = email_config.get('local', {})
+        if isinstance(local_cfg, dict) and local_cfg.get('enabled'):
+            if not local_cfg.get('output_dir'):
+                errors.append("email_config.local 启用时缺少字段: output_dir")
+
     return errors
 
 

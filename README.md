@@ -336,8 +336,10 @@ python3 scripts/setup_oauth2.py
 ```
 
 **字数验证说明：**
-- 设置 `validation_mode: strict` 时，字数不足会报错退出
-- 设置 `validation_mode: warn` 时，字数不足仅警告，继续生成
+- `validation_mode: strict` 时，字数不足/超限会报错退出。
+- `validation_mode: warn` 时，字数不足/超限仅警告，继续生成。
+- 日报会校验 `analysis_limits.metric_min_words` 与 `metric_max_words`，并校验 `daily_min_words`。
+- 周报/月报总字数下限分别读取 `analysis_limits.weekly_min_words` 与 `analysis_limits.monthly_min_words`。
 
 **邮件发送参数：**
 ```bash
