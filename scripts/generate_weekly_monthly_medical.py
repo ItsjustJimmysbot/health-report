@@ -213,6 +213,13 @@ def load_cache(date_str, member_name="默认用户"):
                 return json.load(f)
     return None
 
+
+def _sleep_total(sleep_obj: dict) -> float:
+    """兼容新旧睡眠字段：total_hours / total"""
+    if not isinstance(sleep_obj, dict):
+        return 0.0
+    return float(sleep_obj.get('total_hours', sleep_obj.get('total', 0)) or 0)
+
 def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px):
     return f'''<div style="height: {height_px}px;">
   <canvas id="{canvas_id}"></canvas>
@@ -373,7 +380,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     # 计算统计数据
     hrv_values = [d['hrv']['value'] for d in weekly_data if d.get('hrv', {}).get('value')]
     steps_values = [d['steps'] for d in weekly_data if d.get('steps')]
-    sleep_values = [d['sleep']['total'] for d in weekly_data if d.get('sleep', {}).get('total')]
+    sleep_values = [_sleep_total(d.get('sleep')) for d in weekly_data if _sleep_total(d.get('sleep')) > 0]
     workout_days = sum(1 for d in weekly_data if d.get('has_workout'))
     
     avg_hrv = sum(hrv_values) / len(hrv_values) if hrv_values else 0
@@ -390,7 +397,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
                 <td>{date[5:]}</td>
                 <td class="cell-primary">{data['hrv']['value']:.1f}</td>
                 <td class="cell-primary">{data['steps']:,}</td>
-                <td class="cell-primary">{data['sleep']['total']:.1f}h</td>
+                <td class="cell-primary">{_sleep_total(data.get('sleep')):.1f}h</td>
                 <td>{data['active_energy']}kcal</td>
                 <td>{workout_mark}</td>
                 <td><span class="rating rating-good">{get_text('good')}</span></td>
@@ -439,7 +446,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     if previous_data:
         prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
         prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
-        prev_sleep = [d['sleep']['total'] for d in previous_data if d.get('sleep', {}).get('total')]
+        prev_sleep = [_sleep_total(d.get('sleep')) for d in previous_data if _sleep_total(d.get('sleep')) > 0]
         
         hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
         steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
@@ -523,7 +530,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     for week_num, week_data in sorted(weeks.items()):
         hrv_values = [d['hrv']['value'] for d in week_data if d.get('hrv', {}).get('value')]
         steps_values = [d['steps'] for d in week_data if d.get('steps')]
-        sleep_values = [d['sleep']['total'] for d in week_data if d.get('sleep', {}).get('total')]
+        sleep_values = [_sleep_total(d.get('sleep')) for d in week_data if _sleep_total(d.get('sleep')) > 0]
         workout_days = sum(1 for d in week_data if d.get('has_workout'))
         
         avg_hrv = sum(hrv_values) / len(hrv_values) if hrv_values else 0
@@ -543,7 +550,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     # 计算全月统计
     hrv_values = [d['hrv']['value'] for d in monthly_data if d.get('hrv', {}).get('value')]
     steps_values = [d['steps'] for d in monthly_data if d.get('steps')]
-    sleep_values = [d['sleep']['total'] for d in monthly_data if d.get('sleep', {}).get('total')]
+    sleep_values = [_sleep_total(d.get('sleep')) for d in monthly_data if _sleep_total(d.get('sleep')) > 0]
     active_energy_values = [d.get('active_energy', 0) for d in monthly_data if d.get('active_energy')]
     stand_time_values = [d.get('apple_stand_time', 0) for d in monthly_data if d.get('apple_stand_time')]
     workout_days = sum(1 for d in monthly_data if d.get('has_workout'))
@@ -628,7 +635,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     if previous_data and len(previous_data) >= 15:
         prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
         prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
-        prev_sleep = [d['sleep']['total'] for d in previous_data if d.get('sleep', {}).get('total')]
+        prev_sleep = [_sleep_total(d.get('sleep')) for d in previous_data if _sleep_total(d.get('sleep')) > 0]
         prev_calories = [d.get('active_energy', 0) for d in previous_data if d.get('active_energy')]
         prev_stand = [d.get('apple_stand_time', 0) for d in previous_data if d.get('apple_stand_time')]
         
@@ -798,43 +805,50 @@ def main():
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
             
-            # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
-            ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
-            if not isinstance(ai_analysis, dict) or not ai_analysis:
-                print(f"⚠️ 未找到成员 {member_name} 的有效周报分析，跳过")
+            try:
+                # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
+                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+                if not isinstance(ai_analysis, dict) or not ai_analysis:
+                    print(f"⚠️ 未找到成员 {member_name} 的有效周报分析，跳过")
+                    continue
+                
+                print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print(f"🧑 正在为成员 {idx+1}/{member_count} 生成周报: {member_name}")
+                
+                # 生成报告
+                html = generate_weekly_report(start_date, end_date, ai_analysis, template, member_name)
+                if not html:
+                    continue
+                
+                safe_name = safe_member_name(member_name)
+                
+                # 保存HTML
+                html_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.html'
+                html_path.write_text(html, encoding='utf-8')
+                
+                # 生成PDF
+                pdf_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.pdf'
+                with sync_playwright() as p:
+                    browser = p.chromium.launch()
+                    page = browser.new_page()
+                    page.goto(html_path.resolve().as_uri())
+                    page.wait_for_timeout(2500)
+                    page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                             margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
+                    browser.close()
+                
+                if LANGUAGE == "EN":
+                    print(f'✅ Weekly report generated: {pdf_path}')
+                    print(f'   Period: {start_date} to {end_date}')
+                else:
+                    print(f'✅ 周报已生成: {pdf_path}')
+                    print(f'   周期: {start_date} 至 {end_date}')
+                    
+            except Exception as e:
+                print(f"❌ 成员 {member_name} 处理失败: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
-            
-            print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            print(f"🧑 正在为成员 {idx+1}/{member_count} 生成周报: {member_name}")
-            
-            # 生成报告
-            html = generate_weekly_report(start_date, end_date, ai_analysis, template, member_name)
-            if not html:
-                continue
-            
-            safe_name = safe_member_name(member_name)
-            
-            # 保存HTML
-            html_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.html'
-            html_path.write_text(html, encoding='utf-8')
-            
-            # 生成PDF
-            pdf_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.pdf'
-            with sync_playwright() as p:
-                browser = p.chromium.launch()
-                page = browser.new_page()
-                page.goto(html_path.resolve().as_uri())
-                page.wait_for_timeout(2500)
-                page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                         margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                browser.close()
-            
-            if LANGUAGE == "EN":
-                print(f'✅ Weekly report generated: {pdf_path}')
-                print(f'   Period: {start_date} to {end_date}')
-            else:
-                print(f'✅ 周报已生成: {pdf_path}')
-                print(f'   周期: {start_date} 至 {end_date}')
         
     elif report_type == 'monthly':
         if len(sys.argv) < 4:
@@ -856,43 +870,50 @@ def main():
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
             
-            # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
-            ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
-            if not isinstance(ai_analysis, dict) or not ai_analysis:
-                print(f"⚠️ 未找到成员 {member_name} 的有效月报分析，跳过")
+            try:
+                # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
+                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+                if not isinstance(ai_analysis, dict) or not ai_analysis:
+                    print(f"⚠️ 未找到成员 {member_name} 的有效月报分析，跳过")
+                    continue
+                
+                print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print(f"🧑 正在为成员 {idx+1}/{member_count} 生成月报: {member_name}")
+                
+                # 生成报告
+                html = generate_monthly_report(year, month, ai_analysis, template, member_name)
+                if not html:
+                    continue
+                
+                safe_name = safe_member_name(member_name)
+                
+                # 保存HTML
+                html_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.html'
+                html_path.write_text(html, encoding='utf-8')
+                
+                # 生成PDF
+                pdf_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.pdf'
+                with sync_playwright() as p:
+                    browser = p.chromium.launch()
+                    page = browser.new_page()
+                    page.goto(html_path.resolve().as_uri())
+                    page.wait_for_timeout(2500)
+                    page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                             margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
+                    browser.close()
+                
+                if LANGUAGE == "EN":
+                    print(f'✅ Monthly report generated: {pdf_path}')
+                    print(f'   Month: {year}-{month:02d}')
+                else:
+                    print(f'✅ 月报已生成: {pdf_path}')
+                    print(f'   月份: {year}年{month}月')
+                    
+            except Exception as e:
+                print(f"❌ 成员 {member_name} 处理失败: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
-            
-            print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            print(f"🧑 正在为成员 {idx+1}/{member_count} 生成月报: {member_name}")
-            
-            # 生成报告
-            html = generate_monthly_report(year, month, ai_analysis, template, member_name)
-            if not html:
-                continue
-            
-            safe_name = safe_member_name(member_name)
-            
-            # 保存HTML
-            html_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.html'
-            html_path.write_text(html, encoding='utf-8')
-            
-            # 生成PDF
-            pdf_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.pdf'
-            with sync_playwright() as p:
-                browser = p.chromium.launch()
-                page = browser.new_page()
-                page.goto(html_path.resolve().as_uri())
-                page.wait_for_timeout(2500)
-                page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                         margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                browser.close()
-            
-            if LANGUAGE == "EN":
-                print(f'✅ Monthly report generated: {pdf_path}')
-                print(f'   Month: {year}-{month:02d}')
-            else:
-                print(f'✅ 月报已生成: {pdf_path}')
-                print(f'   月份: {year}年{month}月')
     
     else:
         print(f'错误: 未知报告类型 {report_type}')

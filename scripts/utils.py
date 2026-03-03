@@ -337,60 +337,34 @@ def get_template_path(
     template_dir: Path,
     version: str = "V2"
 ) -> Path:
-    """获取模板文件路径 - 支持多语言 - V5.8.1
-    
-    参数:
-        template_type: 模板类型 ("daily", "weekly", "monthly")
-        language: 语言代码 ("CN", "EN", "JP", etc.)
-        template_dir: 模板目录路径
-        version: 模板版本 (默认 "V2")
-    
-    返回:
-        模板文件的完整路径
-    
-    异常:
-        FileNotFoundError: 找不到模板文件时抛出
-    
-    模板命名约定:
-        {TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html
-        例如: DAILY_TEMPLATE_MEDICAL_V2_EN.html
-        
-        如果特定语言模板不存在，回退到默认模板（不带语言后缀）
+    """获取模板文件路径 - 支持多语言 - V5.8.1 hotfix
+
+    查找顺序（很关键）：
+    1. 版本+语言：{TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html
+    2. 语言版（无版本）：{TYPE}_TEMPLATE_MEDICAL_{LANG}.html
+    3. 版本默认：{TYPE}_TEMPLATE_MEDICAL_{VERSION}.html
+    4. 默认（无版本）：{TYPE}_TEMPLATE_MEDICAL.html
     """
     template_dir = Path(template_dir)
-    
-    # 构建文件名（大写）
     type_upper = template_type.upper()
     lang_upper = language.upper()
-    
-    # 尝试特定语言模板
-    template_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}_{lang_upper}.html"
-    template_path = template_dir / template_name
-    
-    if template_path.exists():
-        return template_path
-    
-    # 回退到默认模板（不带语言后缀）
-    default_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}.html"
-    default_path = template_dir / default_name
-    
-    if default_path.exists():
-        print(f"⚠️  警告: 未找到 {language} 语言模板，使用默认模板")
-        return default_path
-    
-    # 再尝试不带版本的旧格式
-    legacy_name = f"{type_upper}_TEMPLATE_MEDICAL.html"
-    legacy_path = template_dir / legacy_name
-    
-    if legacy_path.exists():
-        print(f"⚠️  警告: 使用旧版模板 {legacy_name}")
-        return legacy_path
-    
+
+    candidates = [
+        template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}_{lang_upper}.html",
+        template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{lang_upper}.html",
+        template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}.html",
+        template_dir / f"{type_upper}_TEMPLATE_MEDICAL.html",
+    ]
+
+    for i, p in enumerate(candidates, 1):
+        if p.exists():
+            if i > 1:
+                print(f"⚠️  警告: 模板回退到 {p.name}")
+            return p
+
     raise FileNotFoundError(
-        f"找不到模板文件。尝试了以下路径:\n"
-        f"  1. {template_path}\n"
-        f"  2. {default_path}\n"
-        f"  3. {legacy_path}"
+        "找不到模板文件。尝试了以下路径:\n" +
+        "\n".join([f"  - {c}" for c in candidates])
     )
 
 
@@ -535,8 +509,8 @@ def parse_sleep_data_unified(
     
     # 筛选符合条件的记录
     sleep_records = []
-    bedtime = None
-    waketime = None
+    earliest_start = None
+    latest_end = None
     
     for record in sleep_data.get('data', []):
         start_ts = record.get('sleepStart')
@@ -584,11 +558,11 @@ def parse_sleep_data_unified(
                 'awake': record.get('awake', 0) or 0,
             })
             
-            # 记录入睡和起床时间
-            if bedtime is None or start_dt.hour < int(bedtime.split(':')[0]):
-                bedtime = start_dt.strftime('%H:%M')
-            if waketime is None or end_dt.hour > int(waketime.split(':')[0]):
-                waketime = end_dt.strftime('%H:%M')
+            # 记录最早入睡和最晚起床（按完整 datetime 比较）
+            if earliest_start is None or start_dt < earliest_start:
+                earliest_start = start_dt
+            if latest_end is None or end_dt > latest_end:
+                latest_end = end_dt
     
     # 计算总时长
     deep = sum(r['deep'] for r in sleep_records)
@@ -604,8 +578,8 @@ def parse_sleep_data_unified(
         'core_hours': round(core, 2),
         'rem_hours': round(rem, 2),
         'awake_hours': round(awake, 2),
-        'bedtime': bedtime or '--',
-        'waketime': waketime or '--',
+        'bedtime': earliest_start.strftime('%H:%M') if earliest_start else '--',
+        'waketime': latest_end.strftime('%H:%M') if latest_end else '--',
     }
 
 

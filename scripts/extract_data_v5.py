@@ -186,7 +186,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         from utils import DataError, handle_error
         handle_error(
             DataError(f"数据文件不存在: {data_file}"),
-            f"提取成员数据"
+            f"提取成员数据",
+            exit_on_fatal=False
         )
         return None
     
@@ -197,14 +198,16 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         from utils import DataError, handle_error
         handle_error(
             DataError(f"JSON解析失败: {e}"),
-            f"读取 {data_file}"
+            f"读取 {data_file}",
+            exit_on_fatal=False
         )
         return None
     except Exception as e:
         from utils import DataError, handle_error
         handle_error(
             DataError(f"读取数据文件失败: {e}"),
-            f"读取 {data_file}"
+            f"读取 {data_file}",
+            exit_on_fatal=False
         )
         return None
     

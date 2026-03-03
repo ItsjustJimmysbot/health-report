@@ -496,7 +496,7 @@ def calculate_scores(data, member_cfg=None):
     Returns:
         tuple: (recovery, sleep_score, exercise)
     """
-    sleep_hours = data.get('sleep', {}).get('total', 0) or 0
+    sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
     hrv_v = data['hrv']['value'] or 0
     rhr_v = data['resting_hr']['value'] or 999
     steps_v = data['steps'] or 0
@@ -710,7 +710,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         raise ValueError("❌ 错误: 缺少睡眠分析 - 必须在当前AI对话中生成")
     
     # 获取睡眠总时长
-    sleep_hours = data.get('sleep', {}).get('total', 0) or 0
+    sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
     
     sleep_status_text = 'Severely Insufficient' if LANGUAGE == 'EN' else '严重不足'
     sleep_status_normal = 'Normal' if LANGUAGE == 'EN' else '正常'
@@ -725,15 +725,21 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SLEEP_HOURS}}', f"{sleep_hours:.1f}")
 
     s = data.get('sleep', {})
-    t = max(s.get('total', 0), 0.1)
-    html = html.replace('{{SLEEP_DEEP}}', f"{s.get('deep', 0):.1f}")
-    html = html.replace('{{SLEEP_CORE}}', f"{s.get('core', 0):.1f}")
-    html = html.replace('{{SLEEP_REM}}', f"{s.get('rem', 0):.1f}")
-    html = html.replace('{{SLEEP_AWAKE}}', f"{s.get('awake', 0):.1f}")
-    html = html.replace('{{SLEEP_DEEP_PCT}}', str(int((s.get('deep', 0) / t) * 100)))
-    html = html.replace('{{SLEEP_CORE_PCT}}', str(int((s.get('core', 0) / t) * 100)))
-    html = html.replace('{{SLEEP_REM_PCT}}', str(int((s.get('rem', 0) / t) * 100)))
-    html = html.replace('{{SLEEP_AWAKE_PCT}}', str(int((s.get('awake', 0) / t) * 100)))
+    s_total = s.get('total_hours', s.get('total', 0))
+    s_deep = s.get('deep_hours', s.get('deep', 0))
+    s_core = s.get('core_hours', s.get('core', 0))
+    s_rem = s.get('rem_hours', s.get('rem', 0))
+    s_awake = s.get('awake_hours', s.get('awake', 0))
+
+    t = max(s_total, 0.1)
+    html = html.replace('{{SLEEP_DEEP}}', f"{s_deep:.1f}")
+    html = html.replace('{{SLEEP_CORE}}', f"{s_core:.1f}")
+    html = html.replace('{{SLEEP_REM}}', f"{s_rem:.1f}")
+    html = html.replace('{{SLEEP_AWAKE}}', f"{s_awake:.1f}")
+    html = html.replace('{{SLEEP_DEEP_PCT}}', str(int((s_deep / t) * 100)))
+    html = html.replace('{{SLEEP_CORE_PCT}}', str(int((s_core / t) * 100)))
+    html = html.replace('{{SLEEP_REM_PCT}}', str(int((s_rem / t) * 100)))
+    html = html.replace('{{SLEEP_AWAKE_PCT}}', str(int((s_awake / t) * 100)))
     html = html.replace('{{SLEEP_ANALYSIS_TEXT}}', sleep_analysis)
     
     # V5.1.1-fix: 添加入睡时间和起床时间
@@ -873,12 +879,12 @@ if __name__ == '__main__':
         print('       支持多成员报告生成（最多3人）')
         print('')
         print('多成员模式：')
-        print('  1. 修改脚本开头 MEMBER_COUNT 变量（1-3）')
-        print('  2. 填写对应成员的数据路径 MEMBER_X_HEALTH_DIR')
+        print('  1. 在 config.json 中配置 members 数组（最多3人）')
+        print('  2. 为每个成员填写 health_dir、workout_dir 和 email')
         print('  3. 按顺序为每个成员提供AI分析（通过stdin传入，用JSON数组格式）')
         print('')
         print('当前配置：')
-        print(f'  MEMBER_COUNT = {MEMBER_COUNT}')
+        print(f'  成员数上限: {MAX_MEMBERS}（来自 config.json）')
         for i in range(min(MEMBER_COUNT, MAX_MEMBERS)):
             cfg = get_member_config(i)
             print(f'  成员{i+1}: {cfg["name"]} -> {cfg["health_dir"]}')
