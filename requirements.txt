@@ -3,4 +3,3 @@ requests>=2.31.0
 google-auth>=2.0.0
 google-auth-oauthlib>=1.0.0
 langdetect>=1.0.9
-jsonschema>=4.0.0

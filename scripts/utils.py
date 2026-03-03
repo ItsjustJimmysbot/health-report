@@ -249,174 +249,66 @@ def pick_member_ai_analysis(
 
 # ==================== 语言检测 ====================
 
-def detect_language_mismatch(ai_analysis: Dict, expected_language: str,
-                              whitelist: Optional[List[str]] = None) -> Optional[str]:
-    """检测 AI 分析语言是否与配置匹配
-
-    参数:
-        ai_analysis: AI 分析数据
-        expected_language: 期望的语言 ("CN" 或 "EN")
-        whitelist: 允许的中文字符白名单（如指标名）
-
-    返回:
-        错误信息（不匹配时），匹配时返回 None
-    """
-    if expected_language not in ("CN", "EN"):
-        return None
-
-    full_text = json.dumps(ai_analysis, ensure_ascii=False)
-
-    # 移除白名单中的词汇
-    if whitelist:
-        for word in whitelist:
-            full_text = full_text.replace(word, "")
-
-    # 统计中文字符
-    chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', full_text))
-
-    if expected_language == "EN" and chinese_chars > 20:
-        return f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文字符"
-    elif expected_language == "CN" and chinese_chars < 20:
-        return f"语言配置不匹配: 设置为 CN(中文), 但未检测到足够中文字符"
-
-    return None
-
-
-def detect_language_mismatch_v2(
-    ai_analysis: dict,
-    expected_language: str,
-    metric_names_cn: list = None,
-    metric_names_en: list = None
-) -> list:
-    """改进的语言检测 - 排除指标名后检测 - V5.8.1
-
-    参数:
-        ai_analysis: AI分析数据字典
-        expected_language: 期望语言 ("CN" 或 "EN")
-        metric_names_cn: 中文指标名白名单（这些词不计入中文统计）
-        metric_names_en: 英文指标名白名单（这些词不计入英文统计）
-
-    返回:
-        错误信息列表（为空表示通过检测）
-    """
-    errors = []
-
-    if expected_language not in ("CN", "EN"):
-        return errors
-
-    # 默认指标名白名单
-    default_cn_metrics = [
-        "心率", "HRV", "静息心率", "步数", "距离", "活动能量", "血氧",
-        "爬楼", "站立", "基础代谢", "呼吸率", "睡眠", "运动", "千卡",
-        "公里", "小时", "分钟", "次", "层", "步", "毫秒", "bpm", "ms",
-        "深睡", "核心睡眠", "REM", "清醒", "优秀", "良好", "一般", "需改善",
-        "早餐", "午餐", "晚餐", "加餐", "苹果健康", "健康数据"
-    ]
-
-    default_en_metrics = [
-        "HRV", "Resting HR", "Steps", "Distance", "Active Energy", "SpO2",
-        "Flights", "Stand", "Basal", "Respiratory", "Sleep", "Workout",
-        "kcal", "km", "hours", "minutes", "bpm", "ms", "floors",
-        "Deep", "Core", "REM", "Awake", "Excellent", "Good", "Average", "Poor",
-        "Breakfast", "Lunch", "Dinner", "Snack", "Apple Health"
-    ]
-
-    metric_names_cn = metric_names_cn or default_cn_metrics
-    metric_names_en = metric_names_en or default_en_metrics
-
-    # 提取所有文本内容
-    full_text = json.dumps(ai_analysis, ensure_ascii=False)
-
-    if expected_language == "EN":
-        # 期望英文：移除英文指标名后，检测中文字符
-        text_for_check = full_text
-        for metric in metric_names_en:
-            text_for_check = text_for_check.replace(metric, "")
-
-        # 也移除常见的中文指标名（这些是正常的）
-        for metric in metric_names_cn:
-            text_for_check = text_for_check.replace(metric, "")
-
-        chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
-
-        # EN 模式：中文字符超过 20 个视为不匹配
-        if chinese_chars > 20:
-            # 提取违规的中文片段作为示例
-            chinese_segments = re.findall(r'[\u4e00-\u9fa5]{5,}', text_for_check)
-            examples = chinese_segments[:2] if chinese_segments else []
-
-            error_msg = f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字"
-            if examples:
-                error_msg += f"（如: {'... '.join(examples)}...）"
-            error_msg += "。请确保AI分析使用纯英文输出。"
-            errors.append(error_msg)
-
-    elif expected_language == "CN":
-        # 期望中文：检测中文字符数量是否足够
-        text_for_check = full_text
-
-        # 移除英文指标名
-        for metric in metric_names_en:
-            text_for_check = text_for_check.replace(metric, "")
-
-        chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
-
-        # 要求至少100个中文字符（排除指标名后）
-        if chinese_chars < 100:
-            errors.append(
-                f"语言配置不匹配: 设置为 CN(中文), 但只检测到 {chinese_chars} 个中文字符 "
-                f"(要求至少100字，不含指标名)。请确保AI分析使用纯中文输出。"
-            )
-
-    return errors
-
-
 # ==================== 模板选择 ====================
 
 def get_template_path(
-    template_type: str,
-    language: str,
-    template_dir: Path,
-    version: str = "V2"
+    template_type: str, language: str, template_dir: Path, version: str = "V2"
 ) -> Path:
-    """获取模板文件路径 - 支持多语言 - V5.8.1 hotfix
-
-    查找顺序（很关键）：
-    1. 版本+语言：{TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html
-    2. 语言版（无版本）：{TYPE}_TEMPLATE_MEDICAL_{LANG}.html
-    3. 版本默认：{TYPE}_TEMPLATE_MEDICAL_{VERSION}.html
-    4. 默认（无版本）：{TYPE}_TEMPLATE_MEDICAL.html
+    """获取模板文件路径 - 支持多语言 - V5.8.2
+    
+    查找顺序（按优先级）：
+    1. 完整版：{TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html (日报)
+       或 {TYPE}_TEMPLATE_MEDICAL_{LANG}.html (周报/月报)
+    2. 语言版（无版本）：{TYPE}_TEMPLATE_MEDICAL_{LANG}.html (日报回退)
+    3. 版本默认：{TYPE}_TEMPLATE_MEDICAL_{VERSION}.html (日报中文)
+    4. 默认：{TYPE}_TEMPLATE_MEDICAL.html (中文回退)
     """
     template_dir = Path(template_dir)
     type_upper = template_type.upper()
     lang_upper = language.upper()
-
+    
     # 构建候选列表
     candidates = []
-
-    # 确定基础文件名
-    # 周报/月报没有 V2 后缀，日报有
-    if template_type.lower() in ['weekly', 'monthly']:
+    
+    # 区分日报和周月报的模板命名规则
+    is_weekly_monthly = template_type.lower() in ['weekly', 'monthly']
+    
+    if is_weekly_monthly:
+        # 周报/月报: 没有版本号，格式为 WEEKLY_TEMPLATE_MEDICAL[_EN].html
         base_name = f"{type_upper}_TEMPLATE_MEDICAL"
+        
+        # 1. 语言版（非中文）
+        if lang_upper != "CN":
+            candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
+        
+        # 2. 默认（中文或无语言后缀）
+        candidates.append(template_dir / f"{base_name}.html")
     else:
+        # 日报: 有版本号，格式为 DAILY_TEMPLATE_MEDICAL_V2[_EN].html
         base_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}"
-
-    # 1. 语言版（仅当 language 不是 CN 时）
-    if lang_upper != "CN":
-        candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
-
-    # 2. 默认（中文或无语言后缀）
-    candidates.append(template_dir / f"{base_name}.html")
-
+        
+        # 1. 完整版（版本+语言）
+        if lang_upper != "CN":
+            candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
+        
+        # 2. 语言版（无版本，日报回退）
+        if lang_upper != "CN":
+            candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{lang_upper}.html")
+        
+        # 3. 版本默认（中文）
+        candidates.append(template_dir / f"{base_name}.html")
+        
+        # 4. 默认（中文回退）
+        candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL.html")
+    
     for i, p in enumerate(candidates, 1):
         if p.exists():
             if i > 1:
-                print(f"⚠️  警告: 模板回退到 {p.name}")
+                print(f"⚠️ 警告: 模板回退到 {p.name}")
             return p
-
+    
     raise FileNotFoundError(
-        "找不到模板文件。尝试了以下路径:\n" +
-        "\n".join([f"  - {c}" for c in candidates])
+        "找不到模板文件。尝试了以下路径:\n" + "\n".join([f" - {c}" for c in candidates])
     )
 
 
@@ -1130,6 +1022,10 @@ def detect_language_mismatch_v3(
             errors.append(f"语言配置不匹配: 设置为 CN(中文), 但只检测到 {chinese_chars} 个中文字符")
     
     return errors
+
+
+# V5.8.2: 统一入口，保留旧函数名兼容性
+detect_language_mismatch = detect_language_mismatch_v3
 
 
 # ==================== 日志包装函数 ====================
