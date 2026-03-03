@@ -233,8 +233,8 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
         errors.append(f"❌ 日报AI总字数不足: {total_text_len}字 (要求至少{DAILY_MIN_WORDS}字)")
 
     # 语言一致性
-    from utils import detect_language_mismatch_v2
-    lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
+    from utils import detect_language_mismatch
+    lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
     for error in lang_errors:
         errors.append(f"❌ {error}")
 

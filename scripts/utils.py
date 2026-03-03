@@ -132,15 +132,38 @@ def load_config() -> dict:
 
 def safe_member_name(name: str) -> str:
     """将成员名称转换为安全的文件名格式
-
+    
     替换规则：
-    - 空格 -> 下划线
-    - / -> 下划线
-    - \\ -> 下划线
+    - 空格、/、\、:、*、?、"、<、>、| 替换为下划线
+    - 连续多个下划线合并为一个
+    - 移除首尾下划线
+    - 限制长度不超过50字符
     """
     if not name:
         return "member"
-    return (name or "member").strip().replace(' ', '_').replace('/', '_').replace('\\', '_')
+    
+    import re
+    
+    # 替换不安全字符为下划线
+    safe = (name or "member").strip()
+    unsafe_chars = r'[\s/\\:*?"<>|]+'
+    safe = re.sub(unsafe_chars, '_', safe)
+    
+    # 合并连续下划线
+    safe = re.sub(r'_+', '_', safe)
+    
+    # 移除首尾下划线
+    safe = safe.strip('_')
+    
+    # 限制长度
+    if len(safe) > 50:
+        safe = safe[:50]
+    
+    # 如果结果为空，使用默认值
+    if not safe:
+        safe = "member"
+    
+    return safe
 
 
 # ==================== AI 分析匹配 ====================
