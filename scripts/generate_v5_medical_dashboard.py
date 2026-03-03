@@ -364,8 +364,20 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
 
             # duration 兼容秒/分钟
             dur_raw = w.get('duration')
-            if isinstance(dur_raw, (int, float)):
-                duration_min = (dur_raw / 60.0) if dur_raw > 200 else float(dur_raw)
+            if isinstance(dur_raw, (int, float)) and dur_raw > 0:
+                # 1) 读取 unit
+                unit = str(w.get('durationUnit') or w.get('duration_unit') or '').lower()
+                # 2) 如果 unit 明确是秒（s/sec/second/seconds）=> duration_min = dur_raw / 60
+                if unit in ('s', 'sec', 'second', 'seconds'):
+                    duration_min = dur_raw / 60.0
+                # 3) 如果 unit 明确是分钟（m/min/minute/minutes）=> duration_min = dur_raw
+                elif unit in ('m', 'min', 'minute', 'minutes'):
+                    duration_min = float(dur_raw)
+                # 4) 否则用保守兜底：dur_raw > 1440 视为秒（/60），否则视为分钟
+                elif dur_raw > 1440:
+                    duration_min = dur_raw / 60.0
+                else:
+                    duration_min = float(dur_raw)
             else:
                 duration_min = 0.0
 
@@ -980,7 +992,7 @@ if __name__ == '__main__':
             member_workout_dir = Path(member_cfg['workout_dir'])
             
             # 健壮的成员匹配逻辑
-            ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+            ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx, strict=True)
             
             if not isinstance(ai_analysis, dict) or not ai_analysis:
                 print(f"⚠️  警告: 找不到成员 {member_name} 的有效分析数据")

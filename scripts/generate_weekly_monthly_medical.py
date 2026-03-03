@@ -504,7 +504,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     # 下周建议 - 严格检查，必须在当前session生成
     recommendations = ai_analysis.get('recommendations', [])
     if not recommendations:
-        raise ValueError("❌ 错误: 缺少周报下周建议 - 必须在当前AI对话中生成（recommendations数组或priority/ai字段）")
+        raise ValueError("❌ 错误: 缺少周报下周建议 - 必须在当前AI对话中生成（recommendations数组）")
     
     html = html.replace('{{RECOMMENDATIONS}}', generate_recommendations_html(recommendations))
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
@@ -828,7 +828,7 @@ def main():
             
             try:
                 # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
-                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx, strict=True)
                 if not isinstance(ai_analysis, dict) or not ai_analysis:
                     print(f"⚠️ 未找到成员 {member_name} 的有效周报分析，跳过")
                     skip_count += 1
@@ -904,7 +904,7 @@ def main():
             
             try:
                 # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
-                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
+                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx, strict=True)
                 if not isinstance(ai_analysis, dict) or not ai_analysis:
                     print(f"⚠️ 未找到成员 {member_name} 的有效月报分析，跳过")
                     skip_count += 1

@@ -24,8 +24,7 @@
         "required": [
           "name",
           "health_dir",
-          "workout_dir",
-          "email"
+          "workout_dir"
         ],
         "properties": {
           "name": {

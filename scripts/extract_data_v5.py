@@ -155,10 +155,23 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
         except (ValueError, TypeError):
             continue
         
+        # 计算 duration_min（支持 durationUnit/duration_unit，兜底阈值 1440）
+        dur_raw = workout.get('duration', 0) or 0
+        if dur_raw:
+            unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
+            if unit in ('s', 'sec', 'second', 'seconds'):
+                duration_min = dur_raw / 60.0
+            elif unit in ('m', 'min', 'minute', 'minutes'):
+                duration_min = float(dur_raw)
+            else:
+                duration_min = dur_raw / 60.0 if dur_raw > 1440 else float(dur_raw)
+        else:
+            duration_min = 0
+
         workouts.append({
             'type': workout.get('name', 'Unknown'),
             'start_time': start_dt.strftime('%H:%M'),
-            'duration_min': workout.get('duration', 0) / 60 if workout.get('duration') else 0,
+            'duration_min': duration_min,
             'energy_kcal': workout.get('energy', 0) / 4.184 if workout.get('energy') else 0,
             'avg_hr': workout.get('avg_hr'),
             'max_hr': workout.get('max_hr')

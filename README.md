@@ -113,10 +113,12 @@ python3 -m playwright install chromium
 }
 ```
 
+`members[*].email` 可为空，留空时使用 `receiver_email`。
+
 **配置说明：**
 - `health_dir`: Apple Health 数据导出路径（需包含 `HealthAutoExport-YYYY-MM-DD.json` 文件）
 - `workout_dir`: 运动数据导出路径
-- `email`: 报告接收邮箱
+- `email`: 成员报告接收邮箱（可选；为空时回退到全局 receiver_email）
 - `email_config`: 邮件发送配置（V5.8.1 新版 Provider 架构）
   - `provider_priority`: 发送方式优先级，默认 `['oauth2', 'smtp', 'mail_app', 'local']`
   - `oauth2`: Gmail OAuth2 认证（推荐，最安全）
@@ -127,6 +129,7 @@ python3 -m playwright install chromium
 - `sleep_config`: 睡眠数据读取配置
   - `read_mode`: `next_day`（读取次日文件，适合早上生成报告）或 `same_day`（读取当天文件，适合晚上生成报告）
 - `age`, `gender`, `height_cm`, `weight_kg`: 个人档案数据，用于 AI 生成个性化分析
+- `config.schema.json` 定义结构约束，`scripts/validate_config.py` 会执行 schema + 业务校验。
 
 ### 4. 邮件发送配置（OAuth2 推荐）
 
@@ -388,6 +391,8 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **生成周报/月报**：`python3 scripts/generate_weekly_monthly_medical.py weekly|monthly ...`
 *   **手动补发邮件**：`python3 scripts/send_health_report_email.py YYYY-MM-DD`
 *   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
+*   **配置校验**：`python3 scripts/validate_config.py`
+*   **配置校验**：`python3 scripts/validate_config.py`
 
 ---
 
