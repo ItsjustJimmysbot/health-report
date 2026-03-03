@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V5.7.0报告生成 - 支持多成员"""
+"""提取Apple Health数据用于V5.8.1报告生成 - 支持多成员"""
 
 import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# V5.7.0: 从 config.json 读取路径配置，支持多语言和多成员
-def load_config():
-    """加载配置文件"""
-    config_path = Path.home() / ".openclaw" / "workspace-health" / "config.json"
-    if config_path.exists():
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {}
+MAX_MEMBERS = 3
+
+# V5.8.1: 使用共用工具函数
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import load_config
 
 def get_member_config(member_idx=0):
     """获取指定成员的配置，优先从config.json读取"""
@@ -45,19 +42,28 @@ def get_member_config(member_idx=0):
         }
     }
 
-def get_all_members_count():
-    """获取配置的成员总数"""
+def get_sleep_config():
+    """获取睡眠配置"""
     config = load_config()
-    return len(config.get('members', []))
+    sleep_config = config.get('sleep_config', {})
+    
+    return {
+        'read_mode': sleep_config.get('read_mode', 'next_day'),  # 'next_day' 或 'same_day'
+        'start_hour': sleep_config.get('start_hour', 20),
+        'end_hour': sleep_config.get('end_hour', 12)
+    }
+
+
+def get_all_members_count():
+    """获取配置的成员总数（最多 MAX_MEMBERS）"""
+    config = load_config()
+    members = config.get('members', [])
+    return min(len(members), MAX_MEMBERS)
 
 def extract_metric_avg(metrics, metric_name):
     """提取平均值和数据点数"""
-    # 支持列表或字典格式
-    if isinstance(metrics, list):
-        metric = next((m for m in metrics if m.get('name') == metric_name), {})
-    else:
-        metric = metrics.get(metric_name, {})
-    data = metric.get('data', []) if isinstance(metric, dict) else []
+    metric = metrics.get(metric_name, {})
+    data = metric.get('data', [])
     if not data:
         return None, 0
     values = [d.get('qty', 0) for d in data if d.get('qty') is not None]
@@ -67,127 +73,87 @@ def extract_metric_avg(metrics, metric_name):
 
 def extract_metric_sum(metrics, metric_name):
     """提取总和"""
-    # 支持列表或字典格式
-    if isinstance(metrics, list):
-        metric = next((m for m in metrics if m.get('name') == metric_name), {})
-    else:
-        metric = metrics.get(metric_name, {})
-    data = metric.get('data', []) if isinstance(metric, dict) else []
+    metric = metrics.get(metric_name, {})
+    data = metric.get('data', [])
     if not data:
         return 0
     return sum(d.get('qty', 0) for d in data if d.get('qty') is not None)
 
-def parse_sleep_data_v5(date_str, health_dir=None):
-    """V5.0: 使用sleepStart字段，严格时间窗口筛选 - V5.7.0: 支持路径传入"""
-    date = datetime.strptime(date_str, '%Y-%m-%d')
-    next_date = date + timedelta(days=1)
-    
-    # V5.7.0: 使用传入的路径或全局默认路径
-    if health_dir is None:
-        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
-    else:
-        health_dir = Path(health_dir).expanduser()
-    
-    # 尝试读取次日文件（睡眠数据存储在次日）
-    next_date_file = health_dir / f'HealthAutoExport-{next_date.strftime("%Y-%m-%d")}.json'
-    
-    if not next_date_file.exists():
-        return []
-    
-    try:
-        with open(next_date_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    except:
-        return []
-    
-    sleep_records = []
-    sleep_data = data.get('data', {}).get('sleep_analysis', {})
-    
-    if not sleep_data:
-        return []
-    
-    for record in sleep_data.get('data', []):
-        # V5.0: 使用 sleepStart 字段（UTC时间戳，毫秒）
-        start_ts = record.get('sleepStart')
-        end_ts = record.get('sleepEnd')
-        
-        if not start_ts or not end_ts:
-            continue
-        
-        # 转换为本地时间（UTC+8）
-        start_dt = datetime.fromtimestamp(start_ts / 1000)
-        end_dt = datetime.fromtimestamp(end_ts / 1000)
-        
-        # 严格筛选：只保留属于目标日期的睡眠（当天20:00到次日12:00）
-        sleep_date = start_dt.strftime('%Y-%m-%d')
-        sleep_hour = start_dt.hour
-        
-        # 归属逻辑：如果是当天20:00之后开始，属于当天
-        # 如果是次日12:00之前结束，也属于当天
-        belongs_to_date = False
-        
-        if sleep_date == date_str and sleep_hour >= 20:
-            # 当天20:00之后开始
-            belongs_to_date = True
-        elif sleep_date == next_date.strftime('%Y-%m-%d') and sleep_hour < 12:
-            # 次日12:00之前开始（跨夜睡眠）
-            belongs_to_date = True
-        
-        if belongs_to_date:
-            # 转换毫秒到小时
-            duration_hours = (end_ts - start_ts) / 1000 / 3600
-            
-            sleep_records.append({
-                'start': start_dt.strftime('%H:%M'),
-                'end': end_dt.strftime('%H-%M'),
-                'total': duration_hours,
-                'deep': record.get('sleep_deep', 0) / 3600 if record.get('sleep_deep') else 0,
-                'core': record.get('sleep_core', 0) / 3600 if record.get('sleep_core') else 0,
-                'rem': record.get('sleep_rem', 0) / 3600 if record.get('sleep_rem') else 0,
-                'awake': record.get('sleep_awake', 0) / 3600 if record.get('sleep_awake') else 0
-            })
-    
-    return sleep_records
 
-def extract_workout_data(date_str, workout_dir=None):
-    """提取运动数据 - V5.7.0: 支持路径传入"""
+def extract_workout_data(date_str, workout_dir=None, health_dir=None):
+    """
+    提取运动数据 - V5.8.1: 
+    1. 支持双文件名: YYYY-MM-DD.json 和 HealthAutoExport-YYYY-MM-DD.json
+    2. 兼容 workout 结构: data.workouts.data 和 data.workouts
+    """
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.7.0: 使用传入的路径或全局默认路径
+    # V5.8.1: 使用传入的路径或全局默认路径
     if workout_dir is None:
         workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
     else:
         workout_dir = Path(workout_dir).expanduser()
     
-    workout_file = workout_dir / f'HealthAutoExport-{date_str}.json'
+    if health_dir is None:
+        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
+    else:
+        health_dir = Path(health_dir).expanduser()
     
-    if not workout_file.exists():
+    # 尝试两种文件名（按优先级）
+    workout_paths = [
+        workout_dir / f'{date_str}.json',
+        workout_dir / f'HealthAutoExport-{date_str}.json',
+        health_dir / f'HealthAutoExport-{date_str}.json',
+    ]
+    
+    workout_file = None
+    for p in workout_paths:
+        if p.exists():
+            workout_file = p
+            break
+    
+    if not workout_file:
         return []
     
     try:
         with open(workout_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-    except:
+    except Exception as e:
+        print(f"⚠️  读取运动文件失败: {workout_file} - {e}", file=sys.stderr)
         return []
     
+    # V5.8.1: 兼容两种 workout 结构
     workouts = []
+    
+    # 尝试结构1: data.workouts.data
     workout_data = data.get('data', {}).get('workouts', {})
+    if workout_data and 'data' in workout_data:
+        workout_list = workout_data.get('data', [])
+    else:
+        # 尝试结构2: data.workouts (直接是数组)
+        workout_list = data.get('workouts', [])
+        if not workout_list and 'data' in data:
+            workout_list = data['data'].get('workouts', [])
     
-    if not workout_data:
-        return []
-    
-    for workout in workout_data.get('data', []):
+    for workout in workout_list:
         # 解析开始时间
         start_ts = workout.get('start')
         if not start_ts:
             continue
         
-        start_dt = datetime.fromtimestamp(start_ts)
+        try:
+            if isinstance(start_ts, (int, float)):
+                start_dt = datetime.fromtimestamp(start_ts)
+            else:
+                # 字符串时间戳
+                start_dt = datetime.fromtimestamp(float(start_ts))
+        except (ValueError, TypeError):
+            continue
         
         workouts.append({
             'type': workout.get('name', 'Unknown'),
             'start_time': start_dt.strftime('%H:%M'),
-            'duration_min': workout.get('duration', 0) / 60,
+            'duration_min': workout.get('duration', 0) / 60 if workout.get('duration') else 0,
             'energy_kcal': workout.get('energy', 0) / 4.184 if workout.get('energy') else 0,
             'avg_hr': workout.get('avg_hr'),
             'max_hr': workout.get('max_hr')
@@ -195,11 +161,11 @@ def extract_workout_data(date_str, workout_dir=None):
     
     return workouts
 
-def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None):
-    """提取完整的一天数据 - V5.7.0: 支持多成员路径传入"""
+def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None, sleep_config=None):
+    """提取完整的一天数据 - V5.8.1: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.7.0: 使用传入的路径或全局默认路径
+    # V5.8.1: 使用传入的路径或全局默认路径
     if health_dir is None:
         health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
     else:
@@ -217,18 +183,37 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     data_file = health_dir / f'HealthAutoExport-{date_str}.json'
     
     if not data_file.exists():
-        print(f"Warning: Data file not found: {data_file}", file=sys.stderr)
+        from utils import DataError, handle_error
+        handle_error(
+            DataError(f"数据文件不存在: {data_file}"),
+            f"提取成员数据",
+            exit_on_fatal=False
+        )
         return None
     
     try:
         with open(data_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
+    except json.JSONDecodeError as e:
+        from utils import DataError, handle_error
+        handle_error(
+            DataError(f"JSON解析失败: {e}"),
+            f"读取 {data_file}",
+            exit_on_fatal=False
+        )
+        return None
     except Exception as e:
-        print(f"Error reading data file: {e}", file=sys.stderr)
+        from utils import DataError, handle_error
+        handle_error(
+            DataError(f"读取数据文件失败: {e}"),
+            f"读取 {data_file}",
+            exit_on_fatal=False
+        )
         return None
     
     # 提取指标
-    metrics = data.get('data', {}).get('metrics', [])
+    metrics_list = data.get('data', {}).get('metrics', [])
+    metrics = {m['name']: m for m in metrics_list if 'name' in m}
     
     # HRV (心率变异性)
     hrv_raw, hrv_points = extract_metric_avg(metrics, 'heart_rate_variability')
@@ -239,8 +224,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 步数
     steps = extract_metric_sum(metrics, 'step_count')
     
-    # 距离 (km)
-    distance = extract_metric_sum(metrics, 'walking_running_distance')  # 数据已为公里
+    # 距离 (km) - 数据单位已经是km，不需要再转换
+    distance = extract_metric_sum(metrics, 'walking_running_distance')
     
     # 活动能量 (kJ)
     active_energy = extract_metric_sum(metrics, 'active_energy')
@@ -248,8 +233,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 爬楼层数
     flights = extract_metric_sum(metrics, 'flights_climbed')
     
-    # 站立时间 (分钟)
-    stand_time = extract_metric_sum(metrics, 'apple_stand_time')  # 数据已为分钟
+    # 站立时间 (分钟) - 保持分钟单位，不除以60
+    stand_time = extract_metric_sum(metrics, 'apple_stand_time')
     
     # 血氧 - V5.5.0: 修复百分比单位问题
     spo2_raw, _ = extract_metric_avg(metrics, 'blood_oxygen_saturation')
@@ -263,13 +248,21 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
     
-    # 睡眠数据 - V5.5.0: 传递健康数据路径
-    sleep_records = parse_sleep_data_v5(date_str, health_dir)
-    sleep_total = sum(r['total'] for r in sleep_records) if sleep_records else 0
-    sleep_deep = sum(r['deep'] for r in sleep_records) if sleep_records else 0
-    sleep_core = sum(r['core'] for r in sleep_records) if sleep_records else 0
-    sleep_rem = sum(r['rem'] for r in sleep_records) if sleep_records else 0
-    sleep_awake = sum(r['awake'] for r in sleep_records) if sleep_records else 0
+    # 睡眠数据 - V5.8.1: 使用统一解析函数
+    from utils import parse_sleep_data_unified
+    sleep_result = parse_sleep_data_unified(
+        date_str, health_dir, 
+        read_mode=sleep_config.get('read_mode', 'next_day'),
+        start_hour=sleep_config.get('start_hour', 20),
+        end_hour=sleep_config.get('end_hour', 12)
+    )
+    
+    sleep_records = sleep_result['records']
+    sleep_total = sleep_result['total_hours']
+    sleep_deep = sleep_result['deep_hours']
+    sleep_core = sleep_result['core_hours']
+    sleep_rem = sleep_result['rem_hours']
+    sleep_awake = sleep_result['awake_hours']
     
     # 运动数据
     workouts = extract_workout_data(date_str, workout_dir)
@@ -312,9 +305,15 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     return result
 
 def extract_all_members_data(date_str):
-    """V5.7.0: 提取所有成员的数据"""
+    """V5.8.1: 提取所有成员的数据"""
     config = load_config()
     members = config.get('members', [])
+    sleep_config = get_sleep_config()
+    
+    # 限制最多 MAX_MEMBERS 位成员
+    if len(members) > MAX_MEMBERS:
+        print(f"⚠️ 成员数 {len(members)} 超过上限 {MAX_MEMBERS}，仅处理前 {MAX_MEMBERS} 位", file=sys.stderr)
+        members = members[:MAX_MEMBERS]
     
     if not members:
         print("Error: No members configured in config.json", file=sys.stderr)
@@ -330,7 +329,7 @@ def extract_all_members_data(date_str):
         
         print(f"Extracting data for member {idx}: {profile.get('name', 'Unknown')}...", file=sys.stderr)
         
-        data = extract_daily_data(date_str, health_dir, workout_dir, profile)
+        data = extract_daily_data(date_str, health_dir, workout_dir, profile, sleep_config)
         if data:
             all_members_data.append(data)
         else:
@@ -353,7 +352,7 @@ if __name__ == '__main__':
         print("  python extract_data_v5.py 2026-03-01       # 提取第一个成员数据（默认）", file=sys.stderr)
         print("  python extract_data_v5.py 2026-03-01 1     # 提取第二个成员数据", file=sys.stderr)
         print("  python extract_data_v5.py 2026-03-01 2     # 提取第三个成员数据", file=sys.stderr)
-        print("  python extract_data_v5.py 2026-03-01 all   # 提取所有成员数据（V5.7.0+）", file=sys.stderr)
+        print("  python extract_data_v5.py 2026-03-01 all   # 提取所有成员数据（V5.8.1+）", file=sys.stderr)
         sys.exit(1)
     
     date_str = sys.argv[1]
@@ -366,12 +365,14 @@ if __name__ == '__main__':
         # 提取单个成员数据
         member_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
         member_config = get_member_config(member_idx)
+        sleep_config = get_sleep_config()
         
         data = extract_daily_data(
             date_str, 
             member_config['health_dir'], 
             member_config['workout_dir'], 
-            member_config['profile']
+            member_config['profile'],
+            sleep_config
         )
     
     if data:

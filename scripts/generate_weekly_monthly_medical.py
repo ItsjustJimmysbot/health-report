@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V5.4 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V5.8.1 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly <start_date> <end_date> < ai_analysis.json
@@ -12,42 +12,147 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
+# V5.8.1: 使用共用工具函数
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import load_config, safe_member_name, pick_member_ai_analysis, is_single_analysis_dict
+
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
 
 # ==================== 配置加载 ====================
-def load_config():
-    """从 config.json 加载配置"""
-    config_paths = [
-        Path(__file__).parent.parent / "config.json",
-        HOME / '.openclaw' / 'workspace-health' / 'config.json',
-    ]
-    
-    for config_path in config_paths:
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    
-    # 默认配置
-    return {
-        "version": "5.6.0",
-        "members": [{
-            "name": "默认用户",
-            "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
-            "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
-            "email": ""
-        }],
-        "language": "CN"
-    }
-
-# 加载配置
 CONFIG = load_config()
-LANGUAGE = CONFIG.get("language", "CN")
+LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
+if LANGUAGE not in ("CN", "EN"):
+    LANGUAGE = "CN"
+VALIDATION_MODE = CONFIG.get("validation_mode", "strict")
 
 OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path(__file__).parent.parent / 'output'))).expanduser()
 CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+# ==================== 验证函数 ====================
+def verify_ai_analysis_weekly(ai_analysis):
+    """验证周报AI分析字数"""
+    errors = []
+    total_text = ""
+    
+    # 收集所有文本
+    trend_analysis = ai_analysis.get('trend_analysis') or ai_analysis.get('weekly_analysis', '')
+    total_text += trend_analysis
+    
+    recommendations = ai_analysis.get('recommendations', [])
+    for rec in recommendations:
+        total_text += rec.get('title', '')
+        total_text += rec.get('content', '')
+    
+    # 检查周报总字数（要求≥800字）
+    if len(total_text) < 800:
+        errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥800字)")
+    
+    return errors
+
+def verify_ai_analysis_monthly(ai_analysis):
+    """验证月报AI分析字数"""
+    errors = []
+    total_text = ""
+    
+    # 收集所有文本
+    hrv_analysis = ai_analysis.get('hrv_analysis') or ai_analysis.get('monthly_analysis', '')
+    sleep_analysis = ai_analysis.get('sleep_analysis', '')
+    activity_analysis = ai_analysis.get('activity_analysis') or ai_analysis.get('key_findings', '')
+    trend_assessment = ai_analysis.get('trend_assessment') or ai_analysis.get('trend_forecast', '')
+    
+    total_text += hrv_analysis + sleep_analysis + activity_analysis + trend_assessment
+    
+    recommendations = ai_analysis.get('recommendations', [])
+    for rec in recommendations:
+        total_text += rec.get('title', '')
+        total_text += rec.get('content', '')
+    
+    # 检查月报总字数（要求≥1000字）
+    if len(total_text) < 1000:
+        errors.append(f"❌ 月报总字数不足: {len(total_text)}字 (要求≥1000字)")
+    
+    # 同时检查 trend_assessment 单独字数（原逻辑保留）
+    trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
+    if len(trend_text_clean) < 150:
+        errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥150字)")
+    
+    return errors
+
+# ==================== 趋势计算函数 ====================
+def load_previous_week_data(current_dates, member_name="默认用户"):
+    """加载上一周完整数据（周一至周日）- V5.8.1 修复版
+    
+    正确的趋势对比逻辑：
+    - 当前周：本周一至本周日（7天）
+    - 对比周：上周一至上周日（7天）
+    - 计算两周平均值的环比变化
+    
+    参数:
+        current_dates: 当前周的日期列表，如 ['2026-03-01', '2026-03-02', ...]
+        member_name: 成员名称
+    """
+    if not current_dates:
+        return []
+    
+    # 找到当前周的起始日（周一）
+    current_dates_sorted = sorted(current_dates)
+    current_start = datetime.strptime(current_dates_sorted[0], '%Y-%m-%d')
+    
+    # 计算上周的起始日（再往前推7天）
+    prev_week_start = current_start - timedelta(days=7)
+    
+    # 生成上周的7天日期（周一至周日）
+    previous_dates = [
+        (prev_week_start + timedelta(days=i)).strftime('%Y-%m-%d') 
+        for i in range(7)
+    ]
+    
+    print(f"📊 趋势对比: 本周 {current_dates_sorted[0]} 至 {current_dates_sorted[-1]}")
+    print(f"   对比上周 {previous_dates[0]} 至 {previous_dates[-1]}")
+    
+    # 加载上周数据
+    previous_data = []
+    for date in previous_dates:
+        data = load_cache(date, member_name)
+        if data:
+            previous_data.append(data)
+    
+    return previous_data
+
+def calculate_trend(current_values, previous_values):
+    """计算趋势变化（环比）"""
+    if not current_values or not previous_values:
+        return 0, 'stable'
+    
+    current_avg = sum(current_values) / len(current_values)
+    previous_avg = sum(previous_values) / len(previous_values)
+    
+    if previous_avg == 0:
+        return 0, 'stable'
+    
+    change_pct = ((current_avg - previous_avg) / previous_avg) * 100
+    
+    if change_pct > 5:
+        return change_pct, 'increase'
+    elif change_pct < -5:
+        return change_pct, 'decrease'
+    else:
+        return change_pct, 'stable'
+
+def get_trend_html(change_pct, trend_type):
+    """生成趋势变化HTML"""
+    if trend_type == 'increase':
+        return f"↑ {change_pct:+.1f}%", 'change-up'
+    elif trend_type == 'decrease':
+        return f"↓ {change_pct:+.1f}%", 'change-down'
+    else:
+        if LANGUAGE == 'EN':
+            return "→ Stable", 'change-stable'
+        else:
+            return "→ 持平", 'change-stable'
 
 # 多语言文本
 def get_text(key):
@@ -90,17 +195,22 @@ def get_text(key):
     }
     return texts.get(LANGUAGE, texts["CN"]).get(key, key)
 
+
 def load_cache(date_str, member_name="默认用户"):
-    """加载单日缓存数据"""
-    # 优先尝试带成员名的缓存
-    cache_path = CACHE_DIR / f'{date_str}_{member_name}.json'
-    if not cache_path.exists():
-        # 回退到无成员名的旧格式
-        cache_path = CACHE_DIR / f'{date_str}.json'
+    """加载单日缓存数据 - V5.8.1: 支持 safe_name 命名规则"""
+    safe_name = safe_member_name(member_name)
     
-    if cache_path.exists():
-        with open(cache_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+    # 三级读取顺序：safe_name -> 原始name -> 旧格式
+    cache_paths = [
+        CACHE_DIR / f'{date_str}_{safe_name}.json',
+        CACHE_DIR / f'{date_str}_{member_name}.json',
+        CACHE_DIR / f'{date_str}.json',  # 旧格式兜底
+    ]
+    
+    for cache_path in cache_paths:
+        if cache_path.exists():
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
     return None
 
 def _sleep_total(sleep_obj: dict) -> float:
@@ -297,11 +407,12 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = template
     html = html.replace('{{START_DATE}}', start_date)
     html = html.replace('{{END_DATE}}', end_date)
-    week_num = start.isocalendar()[1]
-    if LANGUAGE == "EN":
-        html = html.replace('{{WEEK_RANGE}}', f"Week {week_num}")
-    else:
-        html = html.replace('{{WEEK_RANGE}}', f"第{week_num}周")
+    
+    # V5.8.1: 使用统一的周范围格式化
+    from utils import format_week_range
+    week_range_text = format_week_range(start_date, end_date, LANGUAGE)
+    html = html.replace('{{WEEK_RANGE}}', week_range_text)
+    
     html = html.replace('{{DAYS_COUNT}}', str(len(weekly_data)))
     
     # 概览数据
@@ -311,13 +422,53 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
     
+    # 验证AI分析字数
+    print(f"📏 验证AI分析字数...")
+    validation_errors = verify_ai_analysis_weekly(ai_analysis)
+    if validation_errors:
+        print(f"⚠️  发现 {len(validation_errors)} 处字数不足:")
+        for error in validation_errors:
+            print(f"   {error}")
+        if VALIDATION_MODE == "strict":
+            print(f"❌ 严格模式: 字数验证失败，停止生成")
+            return None
+        else:
+            print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
+    else:
+        print(f"   ✅ 字数验证通过")
+    
+    # 加载上一周期数据用于趋势对比
+    print(f"📊 计算趋势变化...")
+    previous_data = load_previous_week_data(week_dates, member_name)
+    
+    # 计算趋势变化
+    if previous_data:
+        prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
+        prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
+        prev_sleep = [_sleep_total(d.get('sleep')) for d in previous_data if _sleep_total(d.get('sleep')) > 0]
+        
+        hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
+        steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
+        sleep_change_pct, sleep_trend = calculate_trend(sleep_values, prev_sleep)
+        
+        hrv_change_html, hrv_class = get_trend_html(hrv_change_pct, hrv_trend)
+        steps_change_html, steps_class = get_trend_html(steps_change_pct, steps_trend)
+        sleep_change_html, sleep_class = get_trend_html(sleep_change_pct, sleep_trend)
+        
+        print(f"   HRV: {hrv_change_html}, 步数: {steps_change_html}, 睡眠: {sleep_change_html}")
+    else:
+        print(f"   ⚠️  未找到上一周期数据，趋势显示为持平")
+        hrv_change_html, hrv_class = get_trend_html(0, 'stable')
+        steps_change_html, steps_class = get_trend_html(0, 'stable')
+        sleep_change_html, sleep_class = get_trend_html(0, 'stable')
+    
     # 趋势变化
-    html = html.replace('{{HRV_CHANGE}}', '→ 持平')
-    html = html.replace('{{STEPS_CHANGE}}', '→ 持平')
-    html = html.replace('{{SLEEP_CHANGE}}', '→ 持平')
-    html = html.replace('{{HRV_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{STEPS_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{SLEEP_TREND_CLASS}}', 'change-stable')
+    html = html.replace('{{HRV_CHANGE}}', hrv_change_html)
+    html = html.replace('{{STEPS_CHANGE}}', steps_change_html)
+    html = html.replace('{{SLEEP_CHANGE}}', sleep_change_html)
+    html = html.replace('{{HRV_TREND_CLASS}}', hrv_class)
+    html = html.replace('{{STEPS_TREND_CLASS}}', steps_class)
+    html = html.replace('{{SLEEP_TREND_CLASS}}', sleep_class)
     
     # 表格和AI分析
     html = html.replace('{{DAILY_ROWS}}', '\n'.join(daily_rows))
@@ -399,6 +550,8 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     hrv_values = [d['hrv']['value'] for d in monthly_data if d.get('hrv', {}).get('value')]
     steps_values = [d['steps'] for d in monthly_data if d.get('steps')]
     sleep_values = [_sleep_total(d.get('sleep')) for d in monthly_data if _sleep_total(d.get('sleep')) > 0]
+    active_energy_values = [d.get('active_energy', 0) for d in monthly_data if d.get('active_energy')]
+    stand_time_values = [d.get('apple_stand_time', 0) for d in monthly_data if d.get('apple_stand_time')]
     workout_days = sum(1 for d in monthly_data if d.get('has_workout'))
     
     # 提取实际有数据的日期（用于图表X轴）
@@ -407,6 +560,8 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     avg_hrv = sum(hrv_values) / len(hrv_values) if hrv_values else 0
     avg_steps = sum(steps_values) / len(steps_values) if steps_values else 0
     avg_sleep = sum(sleep_values) / len(sleep_values) if sleep_values else 0
+    avg_calories = sum(active_energy_values) / len(active_energy_values) if active_energy_values else 0
+    avg_stand = sum(stand_time_values) / len(stand_time_values) / 60 if stand_time_values else 0  # 转换为小时
     
     # 填充模板
     html = template
@@ -421,20 +576,105 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_SLEEP}}', f"{avg_sleep:.1f}")
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(monthly_data)} {get_text('days')}")
-    html = html.replace('{{AVG_CALORIES}}', '2,100')
-    html = html.replace('{{AVG_STAND}}', '8.5')
+    html = html.replace('{{AVG_CALORIES}}', f"{int(avg_calories):,}")
+    html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
+    
+    # 验证AI分析字数
+    print(f"📏 验证AI分析字数...")
+    validation_errors = verify_ai_analysis_monthly(ai_analysis)
+    if validation_errors:
+        print(f"⚠️  发现 {len(validation_errors)} 处字数不足:")
+        for error in validation_errors:
+            print(f"   {error}")
+        if VALIDATION_MODE == "strict":
+            print(f"❌ 严格模式: 字数验证失败，停止生成")
+            return None
+        else:
+            print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
+    else:
+        print(f"   ✅ 字数验证通过")
+    
+    # 加载上一周期数据用于趋势对比（V5.8.1 修复版：对比整月平均值）
+    print(f"📊 计算趋势变化（对比整月平均值）...")
+    
+    # 计算上月日期范围
+    if month == 1:
+        prev_month = 12
+        prev_year = year - 1
+    else:
+        prev_month = month - 1
+        prev_year = year
+    
+    # 获取上月总天数
+    if prev_month == 12:
+        next_month_date = datetime(prev_year + 1, 1, 1)
+    else:
+        next_month_date = datetime(prev_year, prev_month + 1, 1)
+    prev_month_last_day = (next_month_date - timedelta(days=1)).day
+    
+    # 生成上月所有日期
+    prev_month_dates = [
+        f"{prev_year}-{prev_month:02d}-{day:02d}"
+        for day in range(1, prev_month_last_day + 1)
+    ]
+    
+    # 加载上月所有可用数据
+    previous_data = []
+    for date in prev_month_dates:
+        data = load_cache(date, member_name)
+        if data:
+            previous_data.append(data)
+    
+    if previous_data:
+        print(f"   上月数据: {len(previous_data)}/{len(prev_month_dates)} 天")
+    else:
+        print(f"   ⚠️  未找到上月数据，趋势显示为持平")
+    
+    # 计算趋势变化（使用整月平均值，至少15天数据才计算趋势）
+    if previous_data and len(previous_data) >= 15:
+        prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
+        prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
+        prev_sleep = [_sleep_total(d.get('sleep')) for d in previous_data if _sleep_total(d.get('sleep')) > 0]
+        prev_calories = [d.get('active_energy', 0) for d in previous_data if d.get('active_energy')]
+        prev_stand = [d.get('apple_stand_time', 0) for d in previous_data if d.get('apple_stand_time')]
+        
+        hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
+        steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
+        sleep_change_pct, sleep_trend = calculate_trend(sleep_values, prev_sleep)
+        calories_change_pct, calories_trend = calculate_trend(active_energy_values, prev_calories)
+        stand_change_pct, stand_trend = calculate_trend(stand_time_values, prev_stand)
+        
+        print(f"   HRV: {hrv_change_pct:+.1f}%, 步数: {steps_change_pct:+.1f}%, 睡眠: {sleep_change_pct:+.1f}%")
+    else:
+        if previous_data:
+            print(f"   ⚠️  上月数据不足（仅{len(previous_data)}天），不计算趋势")
+        else:
+            print(f"   ⚠️  未找到上月数据，趋势显示为持平")
+        # 设置为持平
+        hrv_change_pct, hrv_trend = 0, 'stable'
+        steps_change_pct, steps_trend = 0, 'stable'
+        sleep_change_pct, sleep_trend = 0, 'stable'
+        calories_change_pct, calories_trend = 0, 'stable'
+        stand_change_pct, stand_trend = 0, 'stable'
+    
+    # 生成趋势 HTML
+    hrv_change_html, hrv_class = get_trend_html(hrv_change_pct, hrv_trend)
+    steps_change_html, steps_class = get_trend_html(steps_change_pct, steps_trend)
+    sleep_change_html, sleep_class = get_trend_html(sleep_change_pct, sleep_trend)
+    calories_change_html, calories_class = get_trend_html(calories_change_pct, calories_trend)
+    stand_change_html, stand_class = get_trend_html(stand_change_pct, stand_trend)
     
     # 趋势变化
-    html = html.replace('{{HRV_CHANGE}}', '→ 持平')
-    html = html.replace('{{STEPS_CHANGE}}', '→ 持平')
-    html = html.replace('{{SLEEP_CHANGE}}', '→ 持平')
-    html = html.replace('{{CALORIES_CHANGE}}', '→ 持平')
-    html = html.replace('{{STAND_CHANGE}}', '→ 持平')
-    html = html.replace('{{HRV_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{STEPS_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{SLEEP_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{CALORIES_TREND_CLASS}}', 'change-stable')
-    html = html.replace('{{STAND_TREND_CLASS}}', 'change-stable')
+    html = html.replace('{{HRV_CHANGE}}', hrv_change_html)
+    html = html.replace('{{STEPS_CHANGE}}', steps_change_html)
+    html = html.replace('{{SLEEP_CHANGE}}', sleep_change_html)
+    html = html.replace('{{CALORIES_CHANGE}}', calories_change_html)
+    html = html.replace('{{STAND_CHANGE}}', stand_change_html)
+    html = html.replace('{{HRV_TREND_CLASS}}', hrv_class)
+    html = html.replace('{{STEPS_TREND_CLASS}}', steps_class)
+    html = html.replace('{{SLEEP_TREND_CLASS}}', sleep_class)
+    html = html.replace('{{CALORIES_TREND_CLASS}}', calories_class)
+    html = html.replace('{{STAND_TREND_CLASS}}', stand_class)
     
     # 表格和AI分析
     html = html.replace('{{WEEKLY_ROWS}}', '\n'.join(weekly_rows))
@@ -507,7 +747,8 @@ def generate_recommendations_html(recommendations):
 
 # 成员数量（最多3人）
 MEMBERS = CONFIG.get("members", [{}])
-MEMBER_COUNT = min(len(MEMBERS), 3)
+MAX_MEMBERS = 3
+MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
 def get_member_config(index: int):
     """获取指定成员的配置"""
@@ -538,13 +779,10 @@ def main():
     # 读取AI分析
     raw_ai_analyses = json.load(sys.stdin)
     
-    member_count = max(1, min(MEMBER_COUNT, 3))
+    member_count = max(1, min(MEMBER_COUNT, MAX_MEMBERS))
     
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]
-    
-    # 根据语言选择模板
-    template_suffix = "_EN" if LANGUAGE == "EN" else ""
     
     if report_type == 'weekly':
         if len(sys.argv) < 4:
@@ -554,67 +792,56 @@ def main():
         start_date = sys.argv[2]
         end_date = sys.argv[3]
         
-        # 加载模板
-        template_path = TEMPLATE_DIR / f'WEEKLY_TEMPLATE_MEDICAL{template_suffix}.html'
+        # 加载模板 - V5.8.1: 使用灵活的模板选择
+        from utils import get_template_path
+        template_path = get_template_path("weekly", LANGUAGE, TEMPLATE_DIR)
+        print(f"📄 使用模板: {template_path.name}")
+        
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
             
         for idx in range(member_count):
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
-
+            
             try:
-                # 健壮的成员匹配逻辑
-                ai_analysis = {}
-                if isinstance(raw_ai_analyses, dict):
-                    if member_name in raw_ai_analyses:
-                        ai_analysis = raw_ai_analyses[member_name]
-                    elif "默认用户" in raw_ai_analyses:
-                        ai_analysis = raw_ai_analyses["默认用户"]
-                    else:
-                        ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
-                elif isinstance(raw_ai_analyses, list):
-                    if idx < len(raw_ai_analyses):
-                        ai_analysis = raw_ai_analyses[idx]
-                else:
-                    ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
-
+                # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
+                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
                 if not isinstance(ai_analysis, dict) or not ai_analysis:
-                    print(f"⚠️ 未找到成员 {member_name} 的有效分析，跳过")
+                    print(f"⚠️ 未找到成员 {member_name} 的有效周报分析，跳过")
                     continue
-
+                
                 print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 print(f"🧑 正在为成员 {idx+1}/{member_count} 生成周报: {member_name}")
-
+                
                 # 生成报告
                 html = generate_weekly_report(start_date, end_date, ai_analysis, template, member_name)
                 if not html:
                     continue
-
-                safe_name = member_name.replace('/', '_').replace('\\', '_')
-
+                
+                safe_name = safe_member_name(member_name)
+                
                 # 保存HTML
                 html_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.html'
                 html_path.write_text(html, encoding='utf-8')
-
+                
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.pdf'
                 with sync_playwright() as p:
                     browser = p.chromium.launch()
                     page = browser.new_page()
-                    page.goto(f'file://{html_path}')
+                    page.goto(html_path.resolve().as_uri())
                     page.wait_for_timeout(2500)
                     page.pdf(path=str(pdf_path), format='A4', print_background=True,
                              margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
                     browser.close()
-
+                
                 if LANGUAGE == "EN":
                     print(f'✅ Weekly report generated: {pdf_path}')
                     print(f'   Period: {start_date} to {end_date}')
                 else:
                     print(f'✅ 周报已生成: {pdf_path}')
                     print(f'   周期: {start_date} 至 {end_date}')
-
             except Exception as e:
                 print(f"❌ 成员 {member_name} 处理失败: {e}")
                 import traceback
@@ -629,67 +856,56 @@ def main():
         year = int(sys.argv[2])
         month = int(sys.argv[3])
         
-        # 加载模板
-        template_path = TEMPLATE_DIR / f'MONTHLY_TEMPLATE_MEDICAL{template_suffix}.html'
+        # 加载模板 - V5.8.1: 使用灵活的模板选择
+        from utils import get_template_path
+        template_path = get_template_path("monthly", LANGUAGE, TEMPLATE_DIR)
+        print(f"📄 使用模板: {template_path.name}")
+        
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
             
         for idx in range(member_count):
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
-
+            
             try:
-                # 健壮的成员匹配逻辑
-                ai_analysis = {}
-                if isinstance(raw_ai_analyses, dict):
-                    if member_name in raw_ai_analyses:
-                        ai_analysis = raw_ai_analyses[member_name]
-                    elif "默认用户" in raw_ai_analyses:
-                        ai_analysis = raw_ai_analyses["默认用户"]
-                    else:
-                        ai_analysis = list(raw_ai_analyses.values())[0] if raw_ai_analyses else {}
-                elif isinstance(raw_ai_analyses, list):
-                    if idx < len(raw_ai_analyses):
-                        ai_analysis = raw_ai_analyses[idx]
-                else:
-                    ai_analysis = raw_ai_analyses if isinstance(raw_ai_analyses, dict) else {}
-
+                # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
+                ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
                 if not isinstance(ai_analysis, dict) or not ai_analysis:
-                    print(f"⚠️ 未找到成员 {member_name} 的有效分析，跳过")
+                    print(f"⚠️ 未找到成员 {member_name} 的有效月报分析，跳过")
                     continue
-
+                
                 print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 print(f"🧑 正在为成员 {idx+1}/{member_count} 生成月报: {member_name}")
-            
-            # 生成报告
+                
+                # 生成报告
                 html = generate_monthly_report(year, month, ai_analysis, template, member_name)
                 if not html:
                     continue
-
-                safe_name = member_name.replace('/', '_').replace('\\', '_')
-
+                
+                safe_name = safe_member_name(member_name)
+                
                 # 保存HTML
                 html_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.html'
                 html_path.write_text(html, encoding='utf-8')
-
+                
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.pdf'
                 with sync_playwright() as p:
                     browser = p.chromium.launch()
                     page = browser.new_page()
-                    page.goto(f'file://{html_path}')
+                    page.goto(html_path.resolve().as_uri())
                     page.wait_for_timeout(2500)
                     page.pdf(path=str(pdf_path), format='A4', print_background=True,
                              margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
                     browser.close()
-
+                
                 if LANGUAGE == "EN":
                     print(f'✅ Monthly report generated: {pdf_path}')
                     print(f'   Month: {year}-{month:02d}')
                 else:
                     print(f'✅ 月报已生成: {pdf_path}')
                     print(f'   月份: {year}年{month}月')
-
             except Exception as e:
                 print(f"❌ 成员 {member_name} 处理失败: {e}")
                 import traceback
