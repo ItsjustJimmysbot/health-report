@@ -281,7 +281,10 @@ python3 scripts/setup_oauth2.py
 【每日健康日报 - V5.8.1 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
 2. 提取数据：为所有成员提取当日数据
+   # macOS:
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
+   # Linux:
+   python3 scripts/extract_data_v5.py $(date -d 'yesterday' +%Y-%m-%d) all
 3. AI 分析：基于提取的 JSON 数据生成详细分析。**必须严格使用 JSON 中 `profile` 字段的实际个人档案信息（如：年龄{X}岁、性别{Y}、身高{Z}cm、体重{W}kg）、计算BMI并据此给出个性化建议。** 每项指标分析 150-200 字，核心建议 250-300 字。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
    
    **AI 分析时必须包含以下个性化要素：**
@@ -313,8 +316,12 @@ python3 scripts/setup_oauth2.py
 【每周健康周报 - V5.8.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算日期：获取上周一至上周日日期
+   # macOS:
    START_DATE=$(date -v-7d +%Y-%m-%d)
    END_DATE=$(date -v-1d +%Y-%m-%d)
+   # Linux:
+   START_DATE=$(date -d '7 days ago' +%Y-%m-%d)
+   END_DATE=$(date -d 'yesterday' +%Y-%m-%d)
 3. AI 分析：基于整周数据趋势生成周报分析（总字数≥800字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
 4. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
 5. 渲染生成：
@@ -335,9 +342,14 @@ python3 scripts/setup_oauth2.py
 【每月健康月报 - V5.8.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算月份：获取上月年份和月份
+   # macOS:
    YEAR=$(date -v-1m +%Y)
    MONTH=$(date -v-1m +%m)
    LAST_DAY=$(date -v-1d +%Y-%m-%d)  # 上月最后一天
+   # Linux:
+   YEAR=$(date -d '1 month ago' +%Y)
+   MONTH=$(date -d '1 month ago' +%m)
+   LAST_DAY=$(date -d 'yesterday' +%Y-%m-%d)  # 上月最后一天
 3. AI 分析：基于整月数据趋势生成月报深度分析（总字数≥1000字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
 4. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
 5. 渲染生成：

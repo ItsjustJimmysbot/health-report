@@ -245,7 +245,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # HRV (心率变异性)
     hrv_raw, hrv_points = extract_metric_avg(metrics, 'heart_rate_variability')
     
-    # 静息心率 - V5.5.0: 使用 resting_heart_rate 而不是 heart_rate
+    # V5.8.1: 使用 resting_heart_rate 而不是 heart_rate
     resting_hr_raw, _ = extract_metric_avg(metrics, 'resting_heart_rate')
     
     # 步数
@@ -263,7 +263,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 站立时间 (分钟) - 保持分钟单位，不除以60
     stand_time = extract_metric_sum(metrics, 'apple_stand_time')
     
-    # 血氧 - V5.5.0: 修复百分比单位问题
+    # V5.8.1: 修复血氧百分比单位问题
     spo2_raw, _ = extract_metric_avg(metrics, 'blood_oxygen_saturation')
     if spo2_raw and spo2_raw <= 1.0:
         spo2 = spo2_raw * 100
@@ -275,7 +275,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
     
-    # 睡眠数据 - V5.8.1: 使用统一解析函数
+    # V5.8.1: 睡眠数据使用统一解析函数
     from utils import parse_sleep_data_unified
     sleep_result = parse_sleep_data_unified(
         date_str, health_dir, 

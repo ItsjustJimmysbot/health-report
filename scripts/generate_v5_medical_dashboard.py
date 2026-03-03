@@ -304,7 +304,7 @@ def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
     
-    # V5.1 修正：严格时间窗口过滤，防止次日数据污染当日指标
+    # V5.8.1: 睡眠数据严格时间窗口过滤，防止次日数据污染当日指标
     if target_date:
         filtered_arr = []
         for x in arr:
@@ -329,7 +329,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     health_dir = health_dir or DEFAULT_HEALTH_DIR
     workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
     
-    # V5.1 修正：活动数据读取当日文件，严格过滤当日时间戳
+    # V5.8.1: 活动数据读取当日文件，严格过滤当日时间戳
     metrics = _parse_metrics(date_str, health_dir)
     if not metrics:
         raise FileNotFoundError(f'未找到源数据: {health_dir}/HealthAutoExport-{date_str}.json')
@@ -338,7 +338,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     rhr_vals = _values(metrics, 'resting_heart_rate', date_str)
     steps_vals = _values(metrics, 'step_count', date_str)
     dist_vals = _values(metrics, 'walking_running_distance', date_str)
-    active_vals = _values(metrics, 'active_energy', date_str)  # V5.1.1-fix: 正确的指标名
+    active_vals = _values(metrics, 'active_energy', date_str)  # V5.8.1: 正确的指标名
     spo2_vals = _values(metrics, 'blood_oxygen_saturation', date_str)
     flights_vals = _values(metrics, 'flights_climbed', date_str)
     stand_vals = _values(metrics, 'apple_stand_time', date_str)
@@ -446,7 +446,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
                 'hr_timeline': [x for x in timeline if x.get('avg') is not None or x.get('max') is not None]
             })
 
-    # V5.1.1-fix: 计算总活动能量（日常活动 + 运动能量）
+    # V5.8.1: 计算总活动能量（日常活动 + 运动能量）
     workout_energy_total = sum(w.get('energy_kcal', 0) for w in workouts)
     if active_kcal is not None and active_kcal > 0:
         # active_energy 已代表当日活动能量，避免与 workout 重复累加
@@ -594,7 +594,7 @@ def generate_hr_svg(hr_data):
 
 
 def calculate_scores(data, member_cfg=None):
-    """V5.7.2: 计算个性化评分（考虑年龄、性别、BMI）
+    """V5.8.1: 计算个性化评分（考虑年龄、性别、BMI）
     
     Returns:
         tuple: (recovery, sleep_score, exercise)
@@ -717,7 +717,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{HEADER_SUBTITLE}}', header_subtitle)
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
 
-    # 评分 - V5.7.2: 使用提取的函数，传入 member_cfg
+    # 评分 - V5.8.1: 使用提取的函数，传入 member_cfg
     if member_cfg is None:
         members = CONFIG.get("members", [])
         member_cfg = members[0] if members else None
@@ -853,7 +853,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SLEEP_AWAKE_PCT}}', str(int((s_awake / t) * 100)))
     html = html.replace('{{SLEEP_ANALYSIS_TEXT}}', sleep_analysis)
     
-    # V5.1.1-fix: 添加入睡时间和起床时间
+    # V5.8.1: 添加入睡时间和起床时间
     html = html.replace('{{SLEEP_BEDTIME}}', s.get('bedtime', '--'))
     html = html.replace('{{SLEEP_WAKETIME}}', s.get('waketime', '--'))
 

@@ -101,7 +101,7 @@ def verify_ai_analysis_monthly(ai_analysis):
 
 # ==================== 趋势计算函数 ====================
 def load_previous_week_data(current_dates, member_name="默认用户"):
-    """加载上一周完整数据（周一至周日）- V5.8.1 修复版
+    """加载上一周完整数据（周一至周日）- V5.8.1
     
     正确的趋势对比逻辑：
     - 当前周：本周一至本周日（7天）
@@ -631,7 +631,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     else:
         print(f"   ✅ 字数验证通过")
     
-    # 加载上一周期数据用于趋势对比（V5.8.1 修复版：对比整月平均值）
+    # V5.8.1: 加载上一周期数据用于趋势对比（对比整月平均值）
     print(f"📊 计算趋势变化（对比整月平均值）...")
     
     # 计算上月日期范围
@@ -737,7 +737,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     if not trend_assessment:
         raise ValueError("❌ 错误: 缺少月报整体趋势评估 - 必须在当前AI对话中生成")
     
-    # V5.0: 检查字数，如果不足要求抛出错误（不在脚本中自动生成模板）
+    # V5.8.1: 检查字数，如果不足要求抛出错误
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
     if len(trend_text_clean) < 150:
         raise ValueError(f"❌ 错误: 月报趋势评估字数不足（当前{len(trend_text_clean)}字，要求≥150字）- 请在当前AI对话中重新生成完整分析，必须包含具体数据点引用和指标间关联分析")

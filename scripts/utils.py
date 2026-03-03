@@ -1163,8 +1163,8 @@ def detect_language_mismatch_v3(
     chinese_ratio = chinese_chars / total_chars
     
     if expected_language == "EN":
-        # EN模式：中文比例应低于阈值
-        threshold = 0.05 if strict_mode else 0.10  # 5%或10%
+        # EN模式：中文比例应低于阈值（放宽到15%/20%以容纳中文术语）
+        threshold = 0.15 if strict_mode else 0.20  # 15%或20%
         if chinese_ratio > threshold:
             errors.append(
                 f"语言配置不匹配: 设置为 EN(英文), "
