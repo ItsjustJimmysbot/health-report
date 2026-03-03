@@ -265,12 +265,15 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     sleep_awake = sleep_result['awake_hours']
     
     # 运动数据
-    workouts = extract_workout_data(date_str, workout_dir)
+    workouts = extract_workout_data(date_str, workout_dir, health_dir)
     
     # 活动能量合并 (kJ to kcal)
-    workout_energy = sum(w.get('energy_kcal', 0) * 4.184 for w in workouts)  # back to kJ for calc
-    total_energy_kJ = active_energy + workout_energy
-    total_energy_kcal = total_energy_kJ / 4.184
+    workout_energy = sum(w.get('energy_kcal', 0) * 4.184 for w in workouts)  # workout -> kJ
+    if active_energy and active_energy > 0:
+        total_energy_kJ = active_energy
+    else:
+        total_energy_kJ = workout_energy
+    total_energy_kcal = total_energy_kJ / 4.184 if total_energy_kJ else 0
     
     result = {
         'date': date_str,

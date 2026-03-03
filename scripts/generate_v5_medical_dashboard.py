@@ -108,7 +108,11 @@ def get_member_config(index: int):
             "name": member.get("name", f"成员{index+1}"),
             "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
             "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
-            "email": member.get("email", "")
+            "email": member.get("email", ""),
+            "age": member.get("age"),
+            "gender": member.get("gender"),
+            "height_cm": member.get("height_cm"),
+            "weight_kg": member.get("weight_kg")
         }
     
     # 默认配置
@@ -116,7 +120,11 @@ def get_member_config(index: int):
         "name": f"成员{index+1}",
         "health_dir": DEFAULT_HEALTH_DIR,
         "workout_dir": DEFAULT_WORKOUT_DIR,
-        "email": ""
+        "email": "",
+        "age": 30,
+        "gender": "male",
+        "height_cm": 175,
+        "weight_kg": 70
     }
 
 
@@ -347,9 +355,11 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
 
     # V5.1.1-fix: 计算总活动能量（日常活动 + 运动能量）
     workout_energy_total = sum(w.get('energy_kcal', 0) for w in workouts)
-    if active_kcal is not None:
-        total_active_kcal = active_kcal + workout_energy_total
+    if active_kcal is not None and active_kcal > 0:
+        # active_energy 已代表当日活动能量，避免与 workout 重复累加
+        total_active_kcal = active_kcal
     else:
+        # 回退：当 active_energy 缺失时，使用 workout 能量
         total_active_kcal = workout_energy_total if workout_energy_total > 0 else None
     
     # 睡眠数据 - V5.8.1: 使用统一解析函数
@@ -955,7 +965,7 @@ if __name__ == '__main__':
             data = load_data(date_str, member_health_dir, member_workout_dir)
             
             # 生成报告HTML
-            html = generate_report(date_str, ai_analysis, template, member_health_dir, member_workout_dir)
+            html = generate_report(date_str, ai_analysis, template, member_health_dir, member_workout_dir, member_cfg)
             
             # 保存HTML
             safe_name = safe_member_name(member_name)
