@@ -1,5 +1,8 @@
 # Health Agent V5.8.1 - OpenClaw 专业健康分析 Skill
 
+> ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
+> 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。
+
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
 
 ---
@@ -585,6 +588,14 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 | `priority.problem` | ≥80字 | 问题识别 |
 | `priority.action` | ≥100字 | 行动计划 |
 | `priority.expectation` | ≥70字 | 预期效果 |
+
+---
+
+## 文档职责（避免重复）
+- `SKILL.md`：给 Agent 的快速执行卡片（短）
+- `README.md`：给用户的完整说明手册（长）
+
+如果两边内容冲突，以 README.md 的完整说明为准，再同步更新 SKILL.md 的摘要。
 
 ---
 
