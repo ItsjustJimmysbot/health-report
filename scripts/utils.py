@@ -575,12 +575,24 @@ def parse_sleep_data_unified(
                 if not value or value <= 0:
                     return 0.0
 
-                # 判断是否为睡眠阶段字段（深睡/核心/REM/清醒不太可能超过10小时）
+                # 判断是否为睡眠阶段字段
                 is_stage = any(x in field_name.lower() for x in ['deep', 'core', 'rem', 'awake'])
 
-                # 睡眠阶段值大于10，很可能是分钟；总睡眠可能超过10小时
-                if value > 10 and is_stage:
-                    return round(value / 60.0, 2)
+                # 更智能的单位判断逻辑
+                if is_stage:
+                    # 睡眠阶段正常范围：0.5-5 小时（30-300 分钟）
+                    # 值 > 30 几乎肯定是分钟
+                    if value > 30:
+                        return round(value / 60.0, 2)
+                    # 值在 10-30 之间：如果是整数可能是分钟，如果是小数可能是小时
+                    elif value > 10 and float(value) == int(value):
+                        return round(value / 60.0, 2)
+                else:
+                    # 总睡眠正常范围：3-12 小时（180-720 分钟）
+                    # 值 > 100 肯定是分钟
+                    if value > 100:
+                        return round(value / 60.0, 2)
+                
                 return round(float(value), 2)
 
             sleep_records.append({

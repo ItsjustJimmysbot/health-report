@@ -238,6 +238,25 @@ def _sleep_total(sleep_obj: dict) -> float:
     return float(sleep_obj.get('total_hours', sleep_obj.get('total', 0)) or 0)
 
 def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px):
+    # 动态计算 Y 轴范围
+    def calc_range(values, min_default, max_default, padding=0.1):
+        if not values:
+            return min_default, max_default
+        min_val = min(values)
+        max_val = max(values)
+        range_val = max_val - min_val
+        if range_val == 0:
+            range_val = max_val * 0.1  # 避免除以零
+        padding_val = range_val * padding
+        return max(0, min_val - padding_val), max_val + padding_val
+    
+    # 计算各轴范围
+    hrv_min, hrv_max = calc_range(hrv_values, 30, 100)
+    sleep_min, sleep_max = calc_range(sleep_values, 0, 10)
+    
+    # 步数范围：除以1000后的值
+    steps_normalized = [s/1000 for s in steps_values] if steps_values else []
+    steps_min, steps_max = calc_range(steps_normalized, 0, 15)
     return f'''<div style="height: {height_px}px;">
   <canvas id="{canvas_id}"></canvas>
 </div>
@@ -308,16 +327,16 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
           display: true,
           position: 'left',
           title: {{ display: true, text: 'HRV (ms)' }},
-          min: 40,
-          max: 60
+          min: {int(hrv_min)},
+          max: {int(hrv_max)}
         }},
         y1: {{
           type: 'linear',
           display: true,
           position: 'right',
           title: {{ display: true, text: '{lang_labels["steps"]}' }},
-          min: 0,
-          max: 8,
+          min: {int(steps_min)},
+          max: {int(steps_max)},
           grid: {{ drawOnChartArea: false }}
         }},
         y2: {{
@@ -325,8 +344,8 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
           display: true,
           position: 'right',
           title: {{ display: true, text: '{lang_labels["sleep"]}' }},
-          min: 0,
-          max: 10,
+          min: {sleep_min:.1f},
+          max: {sleep_max:.1f},
           grid: {{ drawOnChartArea: false }}
         }}
       }}

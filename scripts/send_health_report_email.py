@@ -126,13 +126,18 @@ def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) ->
     daily_reports = list(upload_path.glob(daily_pattern))
     reports.extend(daily_reports)
     
-    # 2. 周报 - 严格匹配
-    date = datetime.strptime(date_str, '%Y-%m-%d')
-    monday = date - timedelta(days=date.weekday())
-    sunday = monday + timedelta(days=6)
-    weekly_pattern = f"{monday.strftime('%Y-%m-%d')}_to_{sunday.strftime('%Y-%m-%d')}-weekly-medical-{safe_name}.pdf"
-    weekly_reports = list(upload_path.glob(weekly_pattern))
-    reports.extend(weekly_reports)
+    # 2. 周报 - 查找包含该日期的周报（支持任意日期范围）
+    # 周报文件名格式：{start_date}_to_{end_date}-weekly-medical-{safe_name}.pdf
+    all_weekly = list(upload_path.glob(f"*_to_*-weekly-medical-{safe_name}.pdf"))
+    for weekly_file in all_weekly:
+        # 从文件名解析日期范围
+        import re
+        match = re.match(r'(\d{4}-\d{2}-\d{2})_to_(\d{4}-\d{2}-\d{2})', weekly_file.name)
+        if match:
+            week_start, week_end = match.groups()
+            if week_start <= date_str <= week_end:
+                reports.append(weekly_file)
+                break  # 只找一个包含该日期的周报
     
     # 3. 月报 - 严格匹配
     year_month = date_str[:7]
