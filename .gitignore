@@ -1,29 +1,33 @@
 # 配置文件（包含敏感信息）
 config.json
-
-# 本地工作区文件（与 skill 无关）
-AGENTS.md
-SOUL.md
-USER.md
-TOOLS.md
-IDENTITY.md
-HEARTBEAT.md
-BOOTSTRAP.md
-*.md.bak
-ai_analysis.json
-memory/
-
-# 输出文件
-output/
-
-# 系统文件
-.DS_Store
-.openclaw/
-
-# 临时文件
-*.tmp
 *.log
-# Cache files
+
+# 输出和缓存
 cache/
+output/
+*.pdf
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# 日志
+logs/
