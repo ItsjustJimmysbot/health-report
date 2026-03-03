@@ -29,7 +29,12 @@ ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 WEEKLY_MIN_WORDS = ANALYSIS_LIMITS.get("weekly_min_words", 800)
 MONTHLY_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_min_words", 1000)
 
-OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path(__file__).parent.parent / 'output'))).expanduser()
+OUTPUT_DIR = Path(
+    CONFIG.get(
+        "output_dir",
+        str(Path.home() / '.openclaw' / 'workspace' / 'shared' / 'health-reports' / 'upload')
+    )
+).expanduser()
 CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -842,8 +847,7 @@ def main():
                 if not html:
                     fail_count += 1
                     continue
-                success_count += 1
-                
+
                 safe_name = safe_member_name(member_name)
                 
                 # 保存HTML
@@ -958,11 +962,6 @@ def main():
     print(f"📊 生成摘要: 成功={success_count}, 失败={fail_count}, 跳过={skip_count}")
     print(f"{'='*60}")
     
-    if success_count == 0 or fail_count > 0:
-        sys.exit(1)
-    sys.exit(0)
-    
-    # 最终退出码判定
     if success_count == 0 or fail_count > 0:
         sys.exit(1)
     sys.exit(0)
