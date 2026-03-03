@@ -16,22 +16,30 @@ def get_member_config(member_idx=0):
     config = load_config()
     members = config.get('members', [])
     
-    # 添加边界检查：如果索引超出范围则使用第一个成员
-    if members and len(members) > member_idx:
-        member = members[member_idx]
-    elif members and len(members) > 0:
-        member = members[0]  # fallback 到第一个成员
-    else:
-        # 默认配置
+    # 检查成员列表是否为空
+    if not members:
+        print("⚠️ 警告: config.json 中未配置任何成员，使用默认配置", file=sys.stderr)
         return {
-            'health_dir': '~/我的云端硬盘/Health Auto Export/Health Data',
-            'workout_dir': '~/我的云端硬盘/Health Auto Export/Workout Data',
+            'health_dir': '~/Health Auto Export/Health Data',
+            'workout_dir': '~/Health Auto Export/Workout Data',
             'profile': {'name': '', 'age': None, 'gender': None, 'height_cm': None, 'weight_kg': None}
         }
     
+    # 检查成员数量限制（最多 MAX_MEMBERS 位）
+    if len(members) > MAX_MEMBERS:
+        print(f"⚠️ 警告: 成员数 {len(members)} 超过上限 {MAX_MEMBERS}，仅处理前 {MAX_MEMBERS} 位", file=sys.stderr)
+        members = members[:MAX_MEMBERS]
+    
+    # 检查索引是否越界
+    if member_idx >= len(members):
+        print(f"❌ 错误: 成员索引 {member_idx} 超出范围（有效范围: 0-{len(members)-1}）", file=sys.stderr)
+        sys.exit(1)
+    
+    member = members[member_idx]
+    
     return {
-        'health_dir': member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data'),
-        'workout_dir': member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data'),
+        'health_dir': member.get('health_dir', '~/Health Auto Export/Health Data'),
+        'workout_dir': member.get('workout_dir', '~/Health Auto Export/Workout Data'),
         'profile': {
             'name': member.get('name', ''),
             'age': member.get('age'),

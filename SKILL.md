@@ -24,19 +24,37 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
       "gender": "male",
       "height_cm": 175,
       "weight_kg": 70,
-      "health_dir": "~/.../Health Data",
-      "workout_dir": "~/.../Workout Data",
+      "health_dir": "~/Health Auto Export/Health Data",
+      "workout_dir": "~/Health Auto Export/Workout Data",
       "email": "you@example.com"
     }
   ],
   "language": "CN",
   "validation_mode": "strict",
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
-  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache",
+  "sleep_config": {
+    "read_mode": "next_day",
+    "start_hour": 20,
+    "end_hour": 12
+  },
+  "analysis_limits": {
+    "metric_min_words": 150,
+    "metric_max_words": 200,
+    "action_min_words": 250,
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000
+  }
 }
 ```
 
 - `members[*].email` 可选；为空时使用 `receiver_email`。
+- `sleep_config.read_mode`: 睡眠读取模式
+  - `"next_day"`: 读取次日文件（适合晚上8点到次日中午的睡眠）
+  - `"same_day"`: 读取当天文件（适合跨午夜睡眠数据在当日文件的情况）
+- `analysis_limits`: AI分析字数限制，用于验证AI输出是否符合要求
 ```
 
 ## 3) 标准命令
@@ -56,6 +74,25 @@ python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < 
 ```bash
 python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_analysis.json
 ```
+
+### 字段命名对照表
+
+| 数据提取字段 | AI JSON 字段 | 说明 |
+|-------------|-------------|------|
+| `active_energy_kcal` | `active_energy` | 活动能量（千卡）|
+| `resting_hr` | `resting_hr` | 静息心率（bpm）|
+| `hrv` | `hrv` | 心率变异性（ms）|
+| `steps` | `steps` | 步数 |
+| `distance_km` | `distance` | 步行/跑步距离（公里）|
+| `spo2` | `spo2` | 血氧饱和度（%）|
+| `basal_energy_kcal` | `basal` | 基础代谢能量（千卡）|
+| `respiratory_rate` | `respiratory` | 呼吸率（次/分钟）|
+| `flights_climbed` | `flights` | 爬楼层数 |
+| `stand_time_min` | `stand` | 站立时间（分钟）|
+| `sleep.total_hours` | `sleep` | 睡眠时长（小时）|
+| `workouts` | `workout` | 运动记录 |
+
+注意：AI 分析 JSON 中使用简写形式，如 `active_energy` 而非 `active_energy_kcal`。
 
 ## 4) AI 分析最小字段要求
 日报必须包含：

@@ -705,8 +705,8 @@ def get_member_config_unified(
         'gender': member.get('gender'),
         'height_cm': member.get('height_cm'),
         'weight_kg': member.get('weight_kg'),
-        'health_dir': member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data'),
-        'workout_dir': member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data'),
+        'health_dir': member.get('health_dir', '~/Health Auto Export/Health Data'),
+        'workout_dir': member.get('workout_dir', '~/Health Auto Export/Workout Data'),
         'email': member.get('email', ''),
     }
 
@@ -868,8 +868,17 @@ class MultiMemberProcessor:
                 result.error_message = "处理函数返回空"
                 print(f"⚠️  成员 {name} 处理返回空")
 
+        except FileNotFoundError as e:
+            result.error_message = f"数据文件不存在: {e}"
+            print(f"❌ 成员 {name} 处理失败: 数据文件不存在 - {e}")
+        except json.JSONDecodeError as e:
+            result.error_message = f"JSON解析失败: {e}"
+            print(f"❌ 成员 {name} 处理失败: JSON解析错误 - {e}")
+        except ValidationError as e:
+            result.error_message = f"验证失败: {e}"
+            print(f"❌ 成员 {name} 处理失败: 验证错误 - {e}")
         except Exception as e:
-            result.error_message = str(e)
+            result.error_message = f"{type(e).__name__}: {str(e)}"
             print(f"❌ 成员 {name} 处理失败: {e}")
             import traceback
             traceback.print_exc()
@@ -1080,42 +1089,46 @@ def detect_language_advanced(text: str) -> str:
 
 
 def detect_language_mismatch_v3(
-    ai_analysis: dict,
-    expected_language: str
+    ai_analysis: dict, expected_language: str
 ) -> list:
-    """改进的语言检测 V3 - 结合 langdetect 和字符统计"""
+    """改进的语言检测 V3 - 基于字符统计"""
     errors = []
-
     if expected_language not in ("CN", "EN"):
         return errors
 
     full_text = json.dumps(ai_analysis, ensure_ascii=False)
-
+    
+    # 默认指标名白名单（这些词不计入语言统计）
+    default_cn_metrics = [
+        "心率", "HRV", "静息心率", "步数", "距离", "活动能量", "血氧",
+        "爬楼", "站立", "基础代谢", "呼吸率", "睡眠", "运动", "千卡",
+        "公里", "小时", "分钟", "次", "层", "步", "毫秒", "bpm", "ms",
+        "深睡", "核心睡眠", "REM", "清醒"
+    ]
+    default_en_metrics = [
+        "HRV", "Resting HR", "Steps", "Distance", "Active Energy", "SpO2",
+        "Flights", "Stand", "Basal", "Respiratory", "Sleep", "Workout",
+        "kcal", "km", "hours", "minutes", "bpm", "ms", "floors",
+        "Deep", "Core", "REM", "Awake"
+    ]
+    
     # 移除指标名
-    cn_metrics = ["心率", "HRV", "睡眠", "运动"]
     text_for_check = full_text
-    for metric in cn_metrics:
+    for metric in default_cn_metrics + default_en_metrics:
         text_for_check = text_for_check.replace(metric, "")
-
-    # 尝试使用 langdetect
-    detected_lang = detect_language_advanced(text_for_check)
-
+    
+    # 统计中文字符
+    chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
+    
     if expected_language == "EN":
-        if detected_lang == 'zh':
-            errors.append("语言配置不匹配: 设置为 EN(英文), 但检测到中文内容")
-        elif detected_lang == 'unknown':
-            chinese_chars = len(__import__('re').findall(r'[一-龥]', text_for_check))
-            if chinese_chars > 100:
-                errors.append(f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字")
-
+        # EN 模式：中文字符超过20个视为不匹配
+        if chinese_chars > 20:
+            errors.append(f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字")
     elif expected_language == "CN":
-        if detected_lang == 'en':
-            errors.append("语言配置不匹配: 设置为 CN(中文), 但检测到英文内容")
-        elif detected_lang == 'unknown':
-            chinese_chars = len(__import__('re').findall(r'[一-龥]', text_for_check))
-            if chinese_chars < 100:
-                errors.append(f"语言配置不匹配: 设置为 CN(中文), 但只检测到 {chinese_chars} 个中文字符")
-
+        # CN 模式：要求至少100个中文字符
+        if chinese_chars < 100:
+            errors.append(f"语言配置不匹配: 设置为 CN(中文), 但只检测到 {chinese_chars} 个中文字符")
+    
     return errors
 
 
