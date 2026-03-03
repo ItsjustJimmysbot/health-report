@@ -93,6 +93,8 @@ python3 -m playwright install chromium
     "mail_app": {
       "enabled": true
     },
+    "max_retries": 3,
+    "retry_delay": 5,
     "local": {
       "enabled": true,
       "output_dir": "~/.openclaw/workspace/shared/health-reports/upload"
@@ -185,7 +187,9 @@ python3 scripts/setup_oauth2.py
 #### 方式 D：本地保存（不发送邮件）
 
 ```json
-"local": {
+"max_retries": 3,
+    "retry_delay": 5,
+    "local": {
   "enabled": true,
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload"
 }

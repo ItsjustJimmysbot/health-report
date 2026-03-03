@@ -788,6 +788,11 @@ def main():
     
     report_type = sys.argv[1]
     
+    # 计数器
+    success_count = 0
+    fail_count = 0
+    skip_count = 0
+    
     # 读取AI分析
     raw_ai_analyses = json.load(sys.stdin)
     
@@ -861,7 +866,8 @@ def main():
                     print(f'   Period: {start_date} to {end_date}')
                 else:
                     print(f'✅ 周报已生成: {pdf_path}')
-                    print(f'   周期: {start_date} 至 {end_date}')
+                success_count += 1
+                print(f'   周期: {start_date} 至 {end_date}')
             except Exception as e:
                 print(f"❌ 成员 {member_name} 处理失败: {e}")
                 import traceback
@@ -946,6 +952,15 @@ def main():
     else:
         print(f'错误: 未知报告类型 {report_type}')
         sys.exit(1)
+    
+    # 打印摘要并确定退出码
+    print(f"\n{'='*60}")
+    print(f"📊 生成摘要: 成功={success_count}, 失败={fail_count}, 跳过={skip_count}")
+    print(f"{'='*60}")
+    
+    if success_count == 0 or fail_count > 0:
+        sys.exit(1)
+    sys.exit(0)
     
     # 最终退出码判定
     if success_count == 0 or fail_count > 0:
