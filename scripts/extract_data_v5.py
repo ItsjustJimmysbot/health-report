@@ -9,7 +9,7 @@ from pathlib import Path
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, MAX_MEMBERS
+from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL
 
 def get_member_config(member_idx=0):
     """获取指定成员的配置，优先从config.json读取"""
@@ -181,7 +181,7 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             'type': workout.get('name', 'Unknown'),
             'start_time': start_dt.strftime('%H:%M'),
             'duration_min': duration_min,
-            'energy_kcal': workout.get('energy', 0) / 4.184 if workout.get('energy') else 0,
+            'energy_kcal': workout.get('energy', 0) / KJ_TO_KCAL if workout.get('energy') else 0,
             'avg_hr': workout.get('avg_hr'),
             'max_hr': workout.get('max_hr')
         })
@@ -297,7 +297,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 活动能量合并（统一换算到 kcal）
     # active_energy 来源于 Apple Health 指标，单位是 kJ；workout.energy_kcal 已经是 kcal
     if active_energy and active_energy > 0:
-        total_energy_kcal = active_energy / 4.184
+        total_energy_kcal = active_energy / KJ_TO_KCAL
     else:
         total_energy_kcal = sum(w.get('energy_kcal', 0) for w in workouts)
     
@@ -318,7 +318,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         'flights_climbed': round(flights, 1) if flights else 0,
         'stand_time_min': int(stand_time),
         'spo2': round(spo2, 1) if spo2 else None,
-        'basal_energy_kcal': round(basal_energy / 4.184, 1) if basal_energy else 0,
+        'basal_energy_kcal': round(basal_energy / KJ_TO_KCAL, 1) if basal_energy else 0,
         'respiratory_rate': round(respiratory, 1) if respiratory else None,
         'sleep': {
             'total_hours': round(sleep_total, 2),

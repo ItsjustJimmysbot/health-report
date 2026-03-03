@@ -59,6 +59,7 @@
   "validation_mode": "strict",
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
   "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache",
+  "log_dir": "~/.openclaw/workspace-health/logs",
   "sleep_config": {
     "read_mode": "next_day",
     "start_hour": 20,

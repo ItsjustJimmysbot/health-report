@@ -23,7 +23,7 @@ from playwright.sync_api import sync_playwright
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS
+from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL
 
 # ==================== 全局配置（从 config.json 加载）====================
 CONFIG = load_config()
@@ -346,8 +346,8 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     resp_vals = _values(metrics, 'respiratory_rate', date_str)
 
     # 能量通常是kJ，转kcal
-    active_kcal = (_sum(active_vals) / 4.184) if active_vals else None
-    basal_kcal = (_sum(basal_vals) / 4.184) if basal_vals else None
+    active_kcal = (_sum(active_vals) / KJ_TO_KCAL) if active_vals else None
+    basal_kcal = (_sum(basal_vals) / KJ_TO_KCAL) if basal_vals else None
 
     # 血氧智能单位
     spo2_avg = _avg(spo2_vals)
@@ -425,7 +425,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             if isinstance(e, dict):
                 qty = e.get('qty') or 0
                 unit = (e.get('units') or '').lower()
-                energy_kcal = (qty / 4.184) if 'kj' in unit else qty
+                energy_kcal = (qty / KJ_TO_KCAL) if 'kj' in unit else qty
             else:
                 energy_kcal = e or 0
 

@@ -25,19 +25,32 @@ logging.basicConfig(
 # 创建模块级 logger
 logger = logging.getLogger('health_report')
 
-# 可选：添加文件日志处理器
-log_dir = Path.home() / '.openclaw' / 'workspace-health' / 'logs'
-log_dir.mkdir(parents=True, exist_ok=True)
-log_file = log_dir / 'health_report.log'
+# 文件日志处理器延迟初始化标志
+_file_handler_initialized = False
 
-file_handler = logging.FileHandler(log_file, encoding='utf-8')
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-))
-logger.addHandler(file_handler)
+def _setup_file_handler():
+    """设置文件日志处理器（延迟初始化）"""
+    global _file_handler_initialized
+    if _file_handler_initialized:
+        return
+    
+    config = load_config()
+    log_dir = get_log_dir(config)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / 'health_report.log'
+    
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    logger.addHandler(file_handler)
+    _file_handler_initialized = True
 # 全局常量
 MAX_MEMBERS = 3  # 支持的最大成员数
+
+# 能量单位转换常量
+KJ_TO_KCAL = 4.184
 
 # ==================== 统一异常类 ====================
 
@@ -126,6 +139,17 @@ def load_config() -> dict:
             return config
 
     return {}
+
+
+def get_log_dir(config=None):
+    """获取日志目录，优先从配置读取"""
+    if config is None:
+        config = load_config()
+    log_dir_str = config.get('log_dir')
+    if log_dir_str:
+        return Path(log_dir_str).expanduser()
+    # 默认路径
+    return Path.home() / '.openclaw' / 'workspace-health' / 'logs'
 
 
 # ==================== 成员名称处理 ====================
@@ -1149,7 +1173,6 @@ def detect_language_mismatch_v3(
 
 # 保留旧函数名兼容
 detect_language_mismatch = detect_language_mismatch_v3
-detect_language_mismatch_v2 = detect_language_mismatch_v3
 
 
 # ==================== 日志包装函数 ====================

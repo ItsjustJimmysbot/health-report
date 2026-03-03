@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch_v2, MAX_MEMBERS
+from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS
 
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
@@ -59,7 +59,7 @@ def verify_ai_analysis_weekly(ai_analysis):
         errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥{WEEKLY_MIN_WORDS}字)")
     
     # 语言一致性校验
-    lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
+    lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
     for err in lang_errors:
         errors.append(f"❌ {err}")
     
@@ -93,7 +93,7 @@ def verify_ai_analysis_monthly(ai_analysis):
         errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥150字)")
     
     # 语言一致性校验
-    lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
+    lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
     for err in lang_errors:
         errors.append(f"❌ {err}")
     

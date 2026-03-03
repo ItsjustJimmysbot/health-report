@@ -225,6 +225,10 @@
     "cache_dir": {
       "type": "string"
     },
+    "log_dir": {
+      "type": "string",
+      "description": "日志文件保存目录"
+    },
     "sleep_config": {
       "type": "object",
       "properties": {
