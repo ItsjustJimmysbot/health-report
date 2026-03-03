@@ -394,8 +394,12 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
     "oauth2": {
+      "enabled": false,
       "provider": "gmail",
-      "credentials_file": "~/.config/gmail-oauth/credentials.json"
+      "client_id": "your-client-id.apps.googleusercontent.com",
+      "client_secret": "your-client-secret",
+      "refresh_token": "your-refresh-token",
+      "sender_email": "your-email@gmail.com"
     },
     "smtp": {
       "server": "smtp.gmail.com",

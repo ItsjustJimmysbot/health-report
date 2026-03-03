@@ -70,7 +70,7 @@ def handle_error(error: Exception, context: str = "", exit_on_fatal: bool = True
 # ==================== 配置加载 ====================
 
 def load_config() -> dict:
-    """从 config.json 加载配置
+    """从 config.json 加载配置（带验证）
     
     搜索路径（按优先级）：
     1. 脚本所在目录的父目录/config.json
@@ -84,7 +84,17 @@ def load_config() -> dict:
     for config_path in config_paths:
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                config = json.load(f)
+            
+            # 验证配置
+            validation_errors = validate_config_schema(config)
+            if validation_errors:
+                print(f"\n⚠️  config.json 配置验证警告:", file=sys.stderr)
+                for error in validation_errors:
+                    print(f"   - {error}", file=sys.stderr)
+                print(f"   配置文件位置: {config_path}\n", file=sys.stderr)
+            
+            return config
     
     return {}
 
@@ -566,14 +576,31 @@ def parse_sleep_data_unified(
         
         if belongs_to_date:
             duration_hours = (end_dt - start_dt).total_seconds() / 3600
+            
+            # 获取原始值
+            deep_raw = record.get('deep', 0) or 0
+            core_raw = record.get('core', 0) or 0
+            rem_raw = record.get('rem', 0) or 0
+            awake_raw = record.get('awake', 0) or 0
+            
+            # 统一转换为小时（假设原始值可能是分钟或小时）
+            # 如果值大于 10，假设是分钟，转换为小时
+            def normalize_hours(value):
+                if not value or value <= 0:
+                    return 0.0
+                # 如果值大于 10，可能是分钟（正常睡眠阶段不会单独超过 10 小时）
+                if value > 10:
+                    return round(value / 60.0, 2)
+                return round(float(value), 2)
+            
             sleep_records.append({
                 'start': start_dt.strftime('%H:%M'),
                 'end': end_dt.strftime('%H:%M'),
                 'total': duration_hours,
-                'deep': record.get('deep', 0) or 0,
-                'core': record.get('core', 0) or 0,
-                'rem': record.get('rem', 0) or 0,
-                'awake': record.get('awake', 0) or 0,
+                'deep': normalize_hours(deep_raw),
+                'core': normalize_hours(core_raw),
+                'rem': normalize_hours(rem_raw),
+                'awake': normalize_hours(awake_raw),
             })
             
             # 记录最早入睡和最晚起床（按完整 datetime 比较）
@@ -845,3 +872,64 @@ class MultiMemberProcessor:
         print(f"{'='*60}\n")
         
         return success_count == total_count
+
+# ==================== JSON Schema 验证 ====================
+
+def validate_config_schema(config: dict) -> list:
+    """验证配置是否符合 JSON Schema
+    
+    返回错误列表（为空表示验证通过）
+    """
+    errors = []
+    
+    # 加载 schema
+    schema_path = Path(__file__).parent.parent / "config.schema.json"
+    if not schema_path.exists():
+        # 如果 schema 文件不存在，跳过验证
+        return errors
+    
+    try:
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema = json.load(f)
+    except Exception as e:
+        errors.append(f"无法加载 schema 文件: {e}")
+        return errors
+    
+    # 基础验证
+    if not isinstance(config, dict):
+        errors.append("配置必须是 JSON 对象")
+        return errors
+    
+    # 检查必填字段
+    required = schema.get('required', [])
+    for field in required:
+        if field not in config:
+            errors.append(f"缺少必填字段: {field}")
+    
+    # 检查成员数量
+    members = config.get('members', [])
+    if len(members) > 3:
+        errors.append(f"成员数量 {len(members)} 超过最大限制 3")
+    
+    if len(members) == 0:
+        errors.append("至少需要配置 1 个成员")
+    
+    # 检查语言设置
+    language = config.get('language', 'CN')
+    if language not in ['CN', 'EN']:
+        errors.append(f"语言设置 '{language}' 无效，必须是 'CN' 或 'EN'")
+    
+    # 检查验证模式
+    validation_mode = config.get('validation_mode', 'strict')
+    if validation_mode not in ['strict', 'warn']:
+        errors.append(f"validation_mode '{validation_mode}' 无效，必须是 'strict' 或 'warn'")
+    
+    # 检查 email_config 中的 provider_priority
+    email_config = config.get('email_config', {})
+    priority = email_config.get('provider_priority', [])
+    valid_providers = ['oauth2', 'smtp', 'mail_app', 'local']
+    for provider in priority:
+        if provider not in valid_providers:
+            errors.append(f"未知的邮件 provider: {provider}")
+    
+    return errors
