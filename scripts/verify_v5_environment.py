@@ -70,8 +70,12 @@ def verify():
         else:
             print(f"❌ 脚本缺失: {s}")
 
-    # 2. 检查模板
-    templates = ['DAILY_TEMPLATE_MEDICAL_V2.html', 'WEEKLY_TEMPLATE_MEDICAL.html', 'MONTHLY_TEMPLATE_MEDICAL.html']
+    # 2. 检查模板（根据 language 配置检查对应语言模板）
+    language = config.get('language', 'CN')
+    if language == 'EN':
+        templates = ['DAILY_TEMPLATE_MEDICAL_V2_EN.html', 'WEEKLY_TEMPLATE_MEDICAL_EN.html', 'MONTHLY_TEMPLATE_MEDICAL_EN.html']
+    else:
+        templates = ['DAILY_TEMPLATE_MEDICAL_V2.html', 'WEEKLY_TEMPLATE_MEDICAL.html', 'MONTHLY_TEMPLATE_MEDICAL.html']
     for t in templates:
         p = workspace / 'templates' / t
         if p.exists():
