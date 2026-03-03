@@ -188,8 +188,8 @@ python3 scripts/setup_oauth2.py
 
 ```json
 "max_retries": 3,
-    "retry_delay": 5,
-    "local": {
+"retry_delay": 5,
+"local": {
   "enabled": true,
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload"
 }

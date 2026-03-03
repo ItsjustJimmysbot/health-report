@@ -50,7 +50,9 @@
     "local": {
       "enabled": true,
       "output_dir": "~/.openclaw/workspace/shared/health-reports/upload"
-    }
+    },
+    "max_retries": 3,
+    "retry_delay": 5
   },
   "receiver_email": "target-email@example.com",
   "language": "CN",

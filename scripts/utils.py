@@ -36,11 +36,6 @@ file_handler.setFormatter(logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 ))
 logger.addHandler(file_handler)
-import re
-import sys
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Union
-
 # 全局常量
 MAX_MEMBERS = 3  # 支持的最大成员数
 
@@ -345,7 +340,7 @@ def detect_language_mismatch_v2(
         chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
         
         # 阈值提高到50个字符（允许少量中文引用）
-        if chinese_chars > 50:
+        if chinese_chars > 100:
             # 提取违规的中文片段作为示例
             chinese_segments = re.findall(r'[\u4e00-\u9fa5]{5,}', text_for_check)
             examples = chinese_segments[:2] if chinese_segments else []
@@ -1105,7 +1100,7 @@ def detect_language_mismatch_v3(
             errors.append("语言配置不匹配: 设置为 EN(英文), 但检测到中文内容")
         elif detected_lang == 'unknown':
             chinese_chars = len(__import__('re').findall(r'[一-龥]', text_for_check))
-            if chinese_chars > 50:
+            if chinese_chars > 100:
                 errors.append(f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字")
     
     elif expected_language == "CN":
