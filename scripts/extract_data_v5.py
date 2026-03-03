@@ -6,11 +6,10 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-MAX_MEMBERS = 3
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config
+from utils import load_config, MAX_MEMBERS
 
 def get_member_config(member_idx=0):
     """获取指定成员的配置，优先从config.json读取"""

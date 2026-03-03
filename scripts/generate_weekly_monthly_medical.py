@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch_v2
+from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch_v2, MAX_MEMBERS
 
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
@@ -757,7 +757,6 @@ def generate_recommendations_html(recommendations):
 
 # 成员数量（最多3人）
 MEMBERS = CONFIG.get("members", [{}])
-MAX_MEMBERS = 3
 MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
 def get_member_config(index: int):

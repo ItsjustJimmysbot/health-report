@@ -352,12 +352,27 @@ def get_template_path(
     type_upper = template_type.upper()
     lang_upper = language.upper()
 
-    candidates = [
-        template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}_{lang_upper}.html",
-        template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{lang_upper}.html",
-        template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}.html",
-        template_dir / f"{type_upper}_TEMPLATE_MEDICAL.html",
-    ]
+    # V5.8.1: 周报和月报没有 V2 后缀，日报有
+    if template_type.lower() in ['weekly', 'monthly']:
+        version = ""
+
+    # 构建候选列表
+    candidates = []
+    # 中文模板无后缀，英文模板有 _EN 后缀
+    # 1. 版本+语言（仅当 version 和 language 都存在时）
+    if version and lang_upper != "CN":
+        candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}_{lang_upper}.html")
+    
+    # 2. 语言版（仅当 language 不是 CN 时）
+    if lang_upper != "CN":
+        candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{lang_upper}.html")
+    
+    # 3. 版本默认（仅当 version 存在时）
+    if version:
+        candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}.html")
+    
+    # 4. 默认（无版本无语言）
+    candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL.html")
 
     for i, p in enumerate(candidates, 1):
         if p.exists():

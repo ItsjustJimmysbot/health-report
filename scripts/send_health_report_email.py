@@ -14,12 +14,11 @@ from datetime import datetime, timedelta
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name
+from utils import load_config, safe_member_name, MAX_MEMBERS
 
 # 导入 Provider
 from email_providers import PROVIDER_MAP
 
-MAX_MEMBERS = 3
 
 
 def get_email_providers(config: dict) -> list:

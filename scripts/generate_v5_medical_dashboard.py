@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis
+from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS
 
 # ==================== 全局配置（从 config.json 加载）====================
 CONFIG = load_config()
@@ -36,7 +36,6 @@ MEMBERS = CONFIG.get("members", [{}])
 ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 
 # 成员数量（最多3人）
-MAX_MEMBERS = 3
 MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
 
