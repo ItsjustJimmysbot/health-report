@@ -34,6 +34,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
   "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
   "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
 }
+```
 
 - `members[*].email` 可选；为空时使用 `receiver_email`。
 ```

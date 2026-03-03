@@ -34,7 +34,8 @@ def validate_with_jsonschema(config: dict) -> list:
         return errors
     
     # 执行校验
-    validator = Draft7Validator(schema)
+    from jsonschema import FormatChecker
+    validator = Draft7Validator(schema, format_checker=FormatChecker())
     for error in validator.iter_errors(config):
         path = '/'.join(str(p) for p in error.path) if error.path else 'root'
         errors.append(f"[schema] {path}: {error.message}")

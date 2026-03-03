@@ -918,7 +918,6 @@ def main():
                 if not html:
                     fail_count += 1
                     continue
-                success_count += 1
                 
                 safe_name = safe_member_name(member_name)
                 
@@ -936,6 +935,8 @@ def main():
                     page.pdf(path=str(pdf_path), format='A4', print_background=True,
                              margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
                     browser.close()
+                
+                success_count += 1
                 
                 if LANGUAGE == "EN":
                     print(f'✅ Monthly report generated: {pdf_path}')

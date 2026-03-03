@@ -452,8 +452,8 @@ def list_available_templates(template_dir: Path) -> dict:
                 lang = parts[-1]
                 if lang not in result[template_type]:
                     result[template_type].append(lang)
-            elif 'V2' in parts or 'V1' in parts:
-                # 默认模板（无语言后缀）
+            elif 'V2' in parts or 'V1' in parts or template_type in ['weekly', 'monthly']:
+                # 默认模板(无语言后缀) - weekly/monthly没有版本号,直接识别基础文件名
                 if 'default' not in result[template_type]:
                     result[template_type].append('default')
 

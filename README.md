@@ -177,6 +177,9 @@ python3 scripts/setup_oauth2.py
 
 **注意：** Gmail 需要使用「应用专用密码」，不是登录密码。
 
+**兼容旧配置:**
+如果你使用的是 V5.8.0 或更早版本的配置,脚本会自动识别顶层的 `sender_email`, `password`, `smtp_server` 字段,无需手动迁移到 `email_config.smtp` 结构。
+
 #### 方式 C：macOS Mail.app（仅 Mac）
 
 ```json
@@ -369,6 +372,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 > 版本说明：当前发布主版本为 **V5.8.1**。文中保留的 "V5.8.1" 标识表示该功能在 V5.8.1 首次引入，并在 V5.8.1 继续兼容。
 
+*   **版本号支持**: config.json 支持 5.8.x 和 5.9.x 版本号(为未来兼容预留)
 *   **数据字段修复 (V5.8.1)**：修复了 `active_energy` 字段名（原 `active_energy_burned`），确保活动能量数据正确提取
 *   **睡眠数据结构兼容 (V5.8.1)**：增强睡眠数据解析，同时兼容 `data.sleep_analysis` 和 `data.metrics[].sleep_analysis` 两种数据结构
 *   **评分算法个性化 (V5.8.1)**：健康得分基于年龄、性别、BMI 计算，同一体征对不同人群评分不同
@@ -405,7 +409,6 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ## 📁 配置文件说明
 
-#
 配置文件查找顺序（按优先级）：
 1. 仓库根目录 `config.json`
 2. `~/.openclaw/workspace-health/config.json`
@@ -644,6 +647,10 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 - **示例**：同样的 HRV 50ms，22岁男性评为"一般"，35岁男性可能评为"良好"
 - **检查**：确认 `config.json` 中的个人档案数据（age/gender/height/weight）正确
 
+### 邮件发送找不到报告文件
+- **原因**: send_health_report_email.py 使用严格文件名匹配,旧文件可能不匹配
+- **解决**: 确保报告文件名格式为 `{date}-daily-v5-medical-{safe_name}.pdf`,其中 safe_name 是成员名去除空格和特殊字符后的版本
+
 ---
 
 ## 📊 数据字段说明
@@ -687,7 +694,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 | `workout` | 150-200字 | 运动分析 |
 | `priority.title` | ≥10字 | 最高优先级标题 |
 | `priority.problem` | ≥80字 | 问题识别 |
-| `priority.action` | ≥100字 | 行动计划 |
+| `priority.action` | 250-300字 | 行动计划 |
 | `priority.expectation` | ≥70字 | 预期效果 |
 
 ---
