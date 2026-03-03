@@ -402,7 +402,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 ## 📁 配置文件说明
 
 #
-#配置文件查找顺序（按优先级）：
+配置文件查找顺序（按优先级）：
 1. 仓库根目录 `config.json`
 2. `~/.openclaw/workspace-health/config.json`
 
@@ -471,6 +471,8 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 支持为家庭成员分别生成健康报告。**注意：硬编码限制最多3人。**
 
+**邮件发送优先级**：成员配置中的 `email` 字段 > 全局 `receiver_email`。如果成员配置了 email，则使用该地址；否则使用全局 receiver_email。
+
 ```json
 {
   "version": "5.8.1",
@@ -527,16 +529,29 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 
 注意：all 模式最多处理前 3 位成员。
 
-# 输出将包含每个成员的数据，格式如下：
+# 输出格式：
 # {
 #   "date": "2026-03-01",
-#   "members_count": 3,
+#   "members_count": 2,
 #   "members": [
-#     {"profile": {...}, "hrv": {...}, ...},  # 成员1
-#     {"profile": {...}, "hrv": {...}, ...},  # 成员2
-#     {"profile": {...}, "hrv": {...}, ...}   # 成员3
+#     {
+#       "date": "2026-03-01",
+#       "data_source": "Apple Health",
+#       "profile": {"name": "成员1", "age": 30, ...},
+#       "hrv": {"value": 45.2, "points": 10},
+#       "resting_hr": {"value": 62},
+#       ...
+#     },
+#     {
+#       "date": "2026-03-01",
+#       "data_source": "Apple Health", 
+#       "profile": {"name": "成员2", "age": 28, ...},
+#       "hrv": {"value": 52.1, "points": 12},
+#       ...
+#     }
 #   ]
 # }
+# 注意：每个成员的数据包含完整的单日数据结构，profile 在顶层。
 ```
 
 **在定时任务中使用（推荐）：**

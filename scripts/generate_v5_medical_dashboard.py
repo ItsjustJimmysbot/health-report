@@ -212,7 +212,7 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
             if len(expectation) < MIN_LENGTH_AI2_EXPECTATION:
                 errors.append(f"❌ {label}效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_AI2_EXPECTATION}字)")
 
-    # 饮食方案
+    # 饮食方案（必填字段）
     diet_checks = [
         ('breakfast', MIN_LENGTH_BREAKFAST, '早餐'),
         ('lunch', MIN_LENGTH_LUNCH, '午餐'),
@@ -221,7 +221,9 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
     ]
     for key, min_len, name in diet_checks:
         text = ai_analysis.get(key, '')
-        if text:
+        if not text:
+            errors.append(f"❌ {name} 缺失: 必须提供{name}内容")
+        else:
             total_text_len += len(text)
             if len(text) < min_len:
                 errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")

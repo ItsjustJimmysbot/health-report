@@ -161,7 +161,7 @@ def pick_member_ai_analysis(
     raw_ai_analyses: Union[Dict, List], 
     member_name: str, 
     idx: int,
-    strict: bool = True
+    strict: bool = False
 ) -> Dict[str, Any]:
     """从原始 AI 分析数据中提取指定成员的分析
     

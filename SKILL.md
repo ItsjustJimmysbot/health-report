@@ -56,14 +56,19 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 
 ## 4) AI 分析最小字段要求
 日报必须包含：
-- 指标分析：`hrv` `resting_hr` `steps` `distance` `active_energy` `spo2` `flights` `stand` `basal` `respiratory` `sleep` `workout`
-- 优先级建议：`priority.title` `priority.problem` `priority.action` `priority.expectation`
-- 次级建议：`ai2_*` `ai3_*`
-- 饮食：`breakfast` `lunch` `dinner` `snack`
+- 指标分析（每项150-200字）：`hrv` `resting_hr` `steps` `distance` `active_energy` `spo2` `flights` `stand` `basal` `respiratory` `sleep` `workout`
+- 优先级建议（250-300字）：`priority.title` `priority.problem` `priority.action` `priority.expectation`
+- 次级建议：`ai2_title` `ai2_problem` `ai2_action` `ai2_expectation` `ai3_title` `ai3_problem` `ai3_action` `ai3_expectation`
+- 饮食方案（每项≥30字）：`breakfast` `lunch` `dinner` `snack`
+
+**字段命名说明**：
+- 数据提取使用 `active_energy_kcal`（单位：千卡）
+- AI 分析 JSON 使用 `active_energy`（简写形式）
+- 内部缓存统一使用 `active_energy`
 
 周报必须包含：
 - `trend_analysis` 或 `weekly_analysis`（建议≥800字）
-- `recommendations` 数组
+- `recommendations` 数组（每项包含 `priority` `title` `content`）
 
 月报必须包含：
 - `hrv_analysis` 或 `monthly_analysis`
