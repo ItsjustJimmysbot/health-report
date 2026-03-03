@@ -297,13 +297,40 @@ python3 scripts/setup_oauth2.py
    python3 scripts/send_health_report_email.py $LAST_DAY all
 ```
 
-**注意：** 周报和月报的 AI 分析 JSON 需包含 `recommendations` 数组（优先级建议），格式如下：
+**注意：** 周报与月报的 AI 分析字段要求不同，请分别提供：
+
+**周报（weekly）最小要求：**
+- `trend_analysis` 或 `weekly_analysis`（主体分析，建议总字数≥800字）
+- `recommendations` 数组（每项需包含 `priority` / `title` / `content`）
+
+周报示例：
 ```json
 {
   "trend_analysis": "本周 HRV 呈现...",
   "recommendations": [
     {"priority": "high", "title": "优先保证睡眠", "content": "建议每晚..."},
     {"priority": "medium", "title": "增加有氧运动", "content": "建议每周..."}
+  ]
+}
+```
+
+**月报（monthly）最小要求：**
+- `hrv_analysis` 或 `monthly_analysis`
+- `sleep_analysis`
+- `activity_analysis` 或 `key_findings`
+- `trend_assessment` 或 `trend_forecast`
+- `recommendations` 数组（每项需包含 `priority` / `title` / `content`）
+
+月报示例：
+```json
+{
+  "hrv_analysis": "本月 HRV 整体...",
+  "sleep_analysis": "本月睡眠结构...",
+  "activity_analysis": "本月活动量...",
+  "trend_assessment": "本月整体趋势...",
+  "recommendations": [
+    {"priority": "high", "title": "先修复睡眠稳定性", "content": "建议..."},
+    {"priority": "medium", "title": "提高中低强度有氧频次", "content": "建议..."}
   ]
 }
 ```
@@ -402,10 +429,12 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
       "sender_email": "your-email@gmail.com"
     },
     "smtp": {
+      "enabled": false,
       "server": "smtp.gmail.com",
       "port": 587,
-      "username": "your_email@gmail.com",
-      "password": "your_app_password"
+      "sender_email": "your-email@gmail.com",
+      "password": "your-app-password",
+      "use_tls": true
     },
     "mail_app": {
       "enabled": true

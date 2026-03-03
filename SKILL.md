@@ -61,9 +61,16 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 - 次级建议：`ai2_*` `ai3_*`
 - 饮食：`breakfast` `lunch` `dinner` `snack`
 
-周/月报必须包含：
-- 趋势分析主体（周报≥800字、月报≥1000字）
+周报必须包含：
+- `trend_analysis` 或 `weekly_analysis`（建议≥800字）
 - `recommendations` 数组
+
+月报必须包含：
+- `hrv_analysis` 或 `monthly_analysis`
+- `sleep_analysis`
+- `activity_analysis` 或 `key_findings`
+- `trend_assessment` 或 `trend_forecast`
+- `recommendations` 数组（建议整篇≥1000字）
 
 ## 5) 必须遵守
 - `language` 与 AI 输出语言必须一致（CN/EN）

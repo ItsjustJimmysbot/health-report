@@ -99,7 +99,8 @@ def verify():
         print("❌ 依赖检测: Playwright 未安装，请运行 pip3 install playwright")
 
     # 5. 检查缓存目录
-    cache_dir = workspace / 'cache' / 'daily'
+    cache_dir_str = config.get('cache_dir', str(workspace / 'cache' / 'daily'))
+    cache_dir = Path(cache_dir_str).expanduser()
     cache_dir.mkdir(parents=True, exist_ok=True)
     print(f"✅ 缓存目录: {cache_dir} 已就绪")
     

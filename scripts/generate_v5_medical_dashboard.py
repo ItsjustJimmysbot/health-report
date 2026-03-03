@@ -298,7 +298,18 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         except Exception as e:
             print(f"⚠️ 解析运动文件失败: {wp} - {e}")
             wd = {}
-        for w in wd.get('data', {}).get('workouts', []):
+        workout_raw = wd.get('data', {}).get('workouts', [])
+        if isinstance(workout_raw, dict):
+            workout_list = workout_raw.get('data', [])
+        elif isinstance(workout_raw, list):
+            workout_list = workout_raw
+        else:
+            workout_list = wd.get('workouts', [])
+
+        if not isinstance(workout_list, list):
+            workout_list = []
+
+        for w in workout_list:
             timeline = []
             for h in (w.get('heartRateData') or []):
                 a = h.get('avg') if h.get('avg') is not None else h.get('Avg')

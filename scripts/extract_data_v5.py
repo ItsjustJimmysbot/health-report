@@ -266,13 +266,12 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 运动数据
     workouts = extract_workout_data(date_str, workout_dir, health_dir)
     
-    # 活动能量合并 (kJ to kcal)
-    workout_energy = sum(w.get('energy_kcal', 0) / 4.184 for w in workouts)  # workout -> kJ
+    # 活动能量合并（统一换算到 kcal）
+    # active_energy 来源于 Apple Health 指标，单位是 kJ；workout.energy_kcal 已经是 kcal
     if active_energy and active_energy > 0:
-        total_energy_kJ = active_energy
+        total_energy_kcal = active_energy / 4.184
     else:
-        total_energy_kJ = workout_energy
-    total_energy_kcal = total_energy_kJ / 4.184 if total_energy_kJ else 0
+        total_energy_kcal = sum(w.get('energy_kcal', 0) for w in workouts)
     
     result = {
         'date': date_str,
