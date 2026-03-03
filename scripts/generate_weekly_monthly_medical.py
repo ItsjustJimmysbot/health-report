@@ -50,6 +50,11 @@ def verify_ai_analysis_weekly(ai_analysis):
     if len(total_text) < 800:
         errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥800字)")
     
+    # 语言一致性校验
+    lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
+    for err in lang_errors:
+        errors.append(f"❌ {err}")
+    
     return errors
 
 def verify_ai_analysis_monthly(ai_analysis):
@@ -78,6 +83,11 @@ def verify_ai_analysis_monthly(ai_analysis):
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
     if len(trend_text_clean) < 150:
         errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥150字)")
+    
+    # 语言一致性校验
+    lang_errors = detect_language_mismatch_v2(ai_analysis, LANGUAGE)
+    for err in lang_errors:
+        errors.append(f"❌ {err}")
     
     return errors
 
