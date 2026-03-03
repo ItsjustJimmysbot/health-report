@@ -268,7 +268,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     workouts = extract_workout_data(date_str, workout_dir, health_dir)
     
     # 活动能量合并 (kJ to kcal)
-    workout_energy = sum(w.get('energy_kcal', 0) * 4.184 for w in workouts)  # workout -> kJ
+    workout_energy = sum(w.get('energy_kcal', 0) / 4.184 for w in workouts)  # workout -> kJ
     if active_energy and active_energy > 0:
         total_energy_kJ = active_energy
     else:
