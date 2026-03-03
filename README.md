@@ -210,6 +210,14 @@ python3 scripts/setup_oauth2.py
 ### 6. OpenClaw 定时任务 (Cron) 配置
 在 OpenClaw 中添加日报任务，建议时间 `12:10`（确保当日数据已同步完成）。
 
+**📌 兼容性提示（date 命令）**
+- macOS(BSD): 使用 `date -v-1d +%Y-%m-%d`
+- Linux(GNU): 使用 `date -d 'yesterday' +%Y-%m-%d`
+
+示例对照：
+- macOS: `date -v-1d +%Y-%m-%d` → 昨天日期
+- Linux: `date -d 'yesterday' +%Y-%m-%d` → 昨天日期
+
 **指令内容模板：**
 ```text
 【每日健康日报 - V5.8.1 标准化流程】
@@ -321,7 +329,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **字数验证 (V5.8.1)**：支持 strict/warn 两种模式，确保 AI 分析内容质量
 *   **多语言支持**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）
 *   **个人档案数据**：支持 `age`, `gender`, `height_cm`, `weight_kg` 个人档案配置，AI 分析时参考这些数据生成个性化建议
-*   **智能邮件回退**：自动级联 - Mail.app → Gmail SMTP → 通用 SMTP → 本地副本
+*   **智能邮件回退**：默认优先级 oauth2 → smtp → mail_app → local（可在 provider_priority 自定义）
 *   **配置化路径**：所有脚本统一从 `config.json` 读取数据路径，无需修改代码
 *   **真·数据对齐**：彻底修正了 Apple Health 跨天导出的偏移问题。日间活动从当日文件读取，睡眠数据从次日文件读取
 *   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、11 项核心指标表、Chart.js 动态心率曲线和深度睡眠结构分析
@@ -376,10 +384,20 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
     "monthly_min_words": 1000
   },
   "email_config": {
-    "smtp_server": "smtp.gmail.com",
-    "smtp_port": 587,
-    "sender_email": "your_email@gmail.com",
-    "password": "your_app_password"
+    "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
+    "oauth2": {
+      "provider": "gmail",
+      "credentials_file": "~/.config/gmail-oauth/credentials.json"
+    },
+    "smtp": {
+      "server": "smtp.gmail.com",
+      "port": 587,
+      "username": "your_email@gmail.com",
+      "password": "your_app_password"
+    },
+    "mail_app": {
+      "enabled": true
+    }
   },
   "receiver_email": "target_email@example.com",
   "language": "CN",
