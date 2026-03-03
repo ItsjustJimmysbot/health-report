@@ -792,25 +792,15 @@ def main():
         sys.exit(1)
     
     report_type = sys.argv[1]
-    
-    # 计数器
-    success_count = 0
-    fail_count = 0
-    skip_count = 0
-    
+
     # 读取AI分析
     raw_ai_analyses = json.load(sys.stdin)
-    
+
     member_count = max(1, min(MEMBER_COUNT, MAX_MEMBERS))
-    
+
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]
-    
-    # 初始化计数器
-    success_count = 0
-    fail_count = 0
-    skip_count = 0
-    
+
     if report_type == 'weekly':
         if len(sys.argv) < 4:
             print('Error: Weekly report requires start and end dates')
@@ -823,6 +813,11 @@ def main():
         from utils import get_template_path
         template_path = get_template_path("weekly", LANGUAGE, TEMPLATE_DIR)
         print(f"📄 使用模板: {template_path.name}")
+        
+        # 初始化计数器
+        success_count = 0
+        fail_count = 0
+        skip_count = 0
         
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
@@ -894,6 +889,11 @@ def main():
         from utils import get_template_path
         template_path = get_template_path("monthly", LANGUAGE, TEMPLATE_DIR)
         print(f"📄 使用模板: {template_path.name}")
+        
+        # 初始化计数器
+        success_count = 0
+        fail_count = 0
+        skip_count = 0
         
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()

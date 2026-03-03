@@ -391,27 +391,22 @@ def get_template_path(
     type_upper = template_type.upper()
     lang_upper = language.upper()
 
-    # V5.8.1: 周报和月报没有 V2 后缀，日报有
-    if template_type.lower() in ['weekly', 'monthly']:
-        version = ""
-
     # 构建候选列表
     candidates = []
-    # 中文模板无后缀，英文模板有 _EN 后缀
-    # 1. 版本+语言（仅当 version 和 language 都存在时）
-    if version and lang_upper != "CN":
-        candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}_{lang_upper}.html")
-    
-    # 2. 语言版（仅当 language 不是 CN 时）
+
+    # 确定基础文件名
+    # 周报/月报没有 V2 后缀，日报有
+    if template_type.lower() in ['weekly', 'monthly']:
+        base_name = f"{type_upper}_TEMPLATE_MEDICAL"
+    else:
+        base_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}"
+
+    # 1. 语言版（仅当 language 不是 CN 时）
     if lang_upper != "CN":
-        candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{lang_upper}.html")
-    
-    # 3. 版本默认（仅当 version 存在时）
-    if version:
-        candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{version}.html")
-    
-    # 4. 默认（无版本无语言）
-    candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL.html")
+        candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
+
+    # 2. 默认（中文或无语言后缀）
+    candidates.append(template_dir / f"{base_name}.html")
 
     for i, p in enumerate(candidates, 1):
         if p.exists():
@@ -613,12 +608,15 @@ def parse_sleep_data_unified(
             awake_raw = record.get('awake', 0) or 0
             
             # 统一转换为小时（假设原始值可能是分钟或小时）
-            # 如果值大于 10，假设是分钟，转换为小时
-            def normalize_hours(value):
+            def normalize_hours(value, field_name=""):
                 if not value or value <= 0:
                     return 0.0
-                # 如果值大于 10，可能是分钟（正常睡眠阶段不会单独超过 10 小时）
-                if value > 10:
+
+                # 判断是否为睡眠阶段字段（深睡/核心/REM/清醒不太可能超过10小时）
+                is_stage = any(x in field_name.lower() for x in ['deep', 'core', 'rem', 'awake'])
+
+                # 睡眠阶段值大于10，很可能是分钟；总睡眠可能超过10小时
+                if value > 10 and is_stage:
                     return round(value / 60.0, 2)
                 return round(float(value), 2)
             
@@ -626,10 +624,10 @@ def parse_sleep_data_unified(
                 'start': start_dt.strftime('%H:%M'),
                 'end': end_dt.strftime('%H:%M'),
                 'total': duration_hours,
-                'deep': normalize_hours(deep_raw),
-                'core': normalize_hours(core_raw),
-                'rem': normalize_hours(rem_raw),
-                'awake': normalize_hours(awake_raw),
+                'deep': normalize_hours(deep_raw, 'deep'),
+                'core': normalize_hours(core_raw, 'core'),
+                'rem': normalize_hours(rem_raw, 'rem'),
+                'awake': normalize_hours(awake_raw, 'awake'),
             })
             
             # 记录最早入睡和最晚起床（按完整 datetime 比较）
@@ -919,10 +917,12 @@ def validate_config_schema(config: dict) -> list:
         if field not in config:
             errors.append(f"缺少必填字段: {field}")
 
-    # version
+    # version - 支持 5.8.x 和 5.9.x
     version = config.get('version')
-    if version is not None and version != '5.8.1':
-        errors.append(f"version '{version}' 无效，当前仅支持 '5.8.1'")
+    if version is not None:
+        import re
+        if not re.match(r'^5\.(8|9)\.\d+$', str(version)):
+            errors.append(f"version '{version}' 无效，格式应为 5.8.x 或 5.9.x")
 
     # members
     members = config.get('members', [])

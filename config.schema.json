@@ -11,10 +11,8 @@
   "properties": {
     "version": {
       "type": "string",
-      "enum": [
-        "5.8.1"
-      ],
-      "description": "配置版本号"
+      "pattern": "^5\\.(8|9)\\.\\d+$",
+      "description": "配置版本号，格式: 5.x.x"
     },
     "members": {
       "type": "array",
