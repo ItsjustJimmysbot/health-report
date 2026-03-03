@@ -750,26 +750,52 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 | `sleep.rem_hours` | 小时 | REM睡眠时长 |
 | `sleep.awake_hours` | 小时 | 清醒时长 |
 
+### AI 分析字段必填说明
+
+日报必须提供以下所有字段，否则报告生成将失败：
+
+**指标分析（12项，每项150-200字）**: hrv, resting_hr, steps, distance, active_energy, spo2, flights, stand, basal, respiratory, sleep, workout
+
+**最高优先级建议（1项）**: priority.title, priority.problem, priority.action, priority.expectation
+
+**次级建议（2项）**: ai2_title, ai2_problem, ai2_action, ai2_expectation, ai3_title, ai3_problem, ai3_action, ai3_expectation
+
+**饮食方案（4项）**: breakfast, lunch, dinner, snack（每项≥30字）
+
+> ⚠️ 注意: 以上所有字段都是**必填**的，即使无运动或无特殊饮食建议，也必须提供分析文本。
+
 ### AI 分析 JSON 字段要求
 
 | 字段名 | 字数要求 | 说明 |
 |--------|----------|------|
-| `hrv` | 150-200字 | HRV 分析 |
-| `resting_hr` | 150-200字 | 静息心率分析 |
-| `steps` | 150-200字 | 步数分析 |
-| `distance` | 150-200字 | 距离分析 |
-| `active_energy` | 150-200字 | 活动能量分析 |
-| `spo2` | 150-200字 | 血氧分析 |
-| `flights` | 150-200字 | 爬楼分析 |
-| `stand` | 150-200字 | 站立分析 |
-| `basal` | 150-200字 | 基础代谢分析 |
-| `respiratory` | 150-200字 | 呼吸率分析 |
-| `sleep` | 150-200字 | 睡眠分析 |
-| `workout` | 150-200字 | 运动分析 |
-| `priority.title` | ≥10字 | 最高优先级标题 |
-| `priority.problem` | ≥80字 | 问题识别 |
-| `priority.action` | 250-300字 | 行动计划 |
-| `priority.expectation` | ≥70字 | 预期效果 |
+| `hrv` | 150-200字 | 【必填】HRV 分析 |
+| `resting_hr` | 150-200字 | 【必填】静息心率分析 |
+| `steps` | 150-200字 | 【必填】步数分析 |
+| `distance` | 150-200字 | 【必填】距离分析 |
+| `active_energy` | 150-200字 | 【必填】活动能量分析 |
+| `spo2` | 150-200字 | 【必填】血氧分析 |
+| `flights` | 150-200字 | 【必填】爬楼分析 |
+| `stand` | 150-200字 | 【必填】站立分析 |
+| `basal` | 150-200字 | 【必填】基础代谢分析 |
+| `respiratory` | 150-200字 | 【必填】呼吸率分析 |
+| `sleep` | 150-200字 | 【必填】睡眠分析 |
+| `workout` | 150-200字 | 【必填】运动分析 |
+| `priority.title` | ≥10字 | 【必填】最高优先级标题 |
+| `priority.problem` | ≥80字 | 【必填】问题识别 |
+| `priority.action` | 250-300字 | 【必填】行动计划 |
+| `priority.expectation` | ≥70字 | 【必填】预期效果 |
+| `ai2_title` | ≥10字 | 【必填】第二优先级标题 |
+| `ai2_problem` | ≥80字 | 【必填】第二优先级问题识别 |
+| `ai2_action` | ≥100字 | 【必填】第二优先级行动计划 |
+| `ai2_expectation` | ≥70字 | 【必填】第二优先级预期效果 |
+| `ai3_title` | ≥10字 | 【必填】第三优先级标题 |
+| `ai3_problem` | ≥80字 | 【必填】第三优先级问题识别 |
+| `ai3_action` | ≥100字 | 【必填】第三优先级行动计划 |
+| `ai3_expectation` | ≥70字 | 【必填】第三优先级预期效果 |
+| `breakfast` | ≥30字 | 【必填】早餐方案 |
+| `lunch` | ≥30字 | 【必填】午餐方案 |
+| `dinner` | ≥30字 | 【必填】晚餐方案 |
+| `snack` | ≥30字 | 【必填】加餐方案 |
 
 ---
 

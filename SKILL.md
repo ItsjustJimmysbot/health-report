@@ -94,12 +94,22 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 
 注意：AI 分析 JSON 中使用简写形式，如 `active_energy` 而非 `active_energy_kcal`。
 
-## 4) AI 分析最小字段要求
-日报必须包含：
-- 指标分析（每项150-200字）：`hrv` `resting_hr` `steps` `distance` `active_energy` `spo2` `flights` `stand` `basal` `respiratory` `sleep` `workout`
-- 优先级建议（250-300字）：`priority.title` `priority.problem` `priority.action` `priority.expectation`
-- 次级建议：`ai2_title` `ai2_problem` `ai2_action` `ai2_expectation` `ai3_title` `ai3_problem` `ai3_action` `ai3_expectation`
-- 饮食方案（每项≥30字）：`breakfast` `lunch` `dinner` `snack`
+## 4) AI 分析字段要求（日报）
+
+所有字段都是**必填**的，缺一不可：
+
+### 指标分析（12项，每项150-200字）
+`hrv` `resting_hr` `steps` `distance` `active_energy` `spo2` `flights` `stand` `basal` `respiratory` `sleep` `workout`
+
+### 优先级建议（3项）
+- 最高: `priority.title` `priority.problem` `priority.action` `priority.expectation`
+- 第二: `ai2_title` `ai2_problem` `ai2_action` `ai2_expectation`
+- 第三: `ai3_title` `ai3_problem` `ai3_action` `ai3_expectation`
+
+### 饮食方案（4项，每项≥30字）
+`breakfast` `lunch` `dinner` `snack`
+
+> ⚠️ 即使当天无运动或无特殊饮食，也必须提供分析文本。
 
 **字段命名说明**：
 - 数据提取使用 `active_energy_kcal`（单位：千卡）

@@ -166,7 +166,8 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
         # 计算 duration_min（支持 durationUnit/duration_unit，兜底阈值 1440）
         dur_raw = workout.get('duration', 0) or 0
         if dur_raw:
-            unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
+            raw_unit = workout.get('durationUnit') or workout.get('duration_unit')
+            unit = str(raw_unit).lower() if raw_unit else ''
             if unit in ('s', 'sec', 'second', 'seconds'):
                 duration_min = dur_raw / 60.0
             elif unit in ('m', 'min', 'minute', 'minutes'):

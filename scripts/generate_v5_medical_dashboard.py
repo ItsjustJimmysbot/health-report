@@ -22,9 +22,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 # V5.8.1: 使用共用工具函数
-import sys as _sys
-from pathlib import Path as _Path
-_sys.path.insert(0, str(_Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS
 
 # ==================== 全局配置（从 config.json 加载）====================
