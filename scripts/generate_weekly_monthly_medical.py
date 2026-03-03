@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, is_single_analysis_dict, detect_language_mismatch_v2
+from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch_v2
 
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'

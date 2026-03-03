@@ -29,11 +29,32 @@ def verify():
     config = load_config()
     members = config.get('members', [])
     
-    # 使用第一成员的路径，或默认路径
+    # 检查所有成员（最多3位）
+    print(f"📋 发现 {len(members)} 个成员配置（最多检查3位）")
+    for idx, member in enumerate(members[:3]):
+        member_name = member.get('name', f'成员{idx+1}')
+        health_dir_str = member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data')
+        workout_dir_str = member.get('workout_dir', '~/我的云端硬盘/Health Auto Export/Workout Data')
+        
+        health_dir = Path(health_dir_str).expanduser()
+        workout_dir = Path(workout_dir_str).expanduser()
+        
+        print(f"  成员 {idx+1}: {member_name}")
+        if health_dir.exists():
+            print(f"    ✅ health_dir: {health_dir}")
+        else:
+            print(f"    ⚠️  health_dir: {health_dir} 不存在")
+        
+        if workout_dir.exists():
+            print(f"    ✅ workout_dir: {workout_dir}")
+        else:
+            print(f"    ⚠️  workout_dir: {workout_dir} 不存在（如无需运动数据可忽略）")
+        print()
+    
+    # 使用第一成员路径作为后续检查
     if members and len(members) > 0:
         first_member = members[0]
         health_dir_str = first_member.get('health_dir', '~/我的云端硬盘/Health Auto Export/Health Data')
-        print(f"📋 使用配置成员: {first_member.get('name', '默认')}")
     else:
         health_dir_str = '~/我的云端硬盘/Health Auto Export/Health Data'
         print("⚠️  未找到配置成员，使用默认路径")

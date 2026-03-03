@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, is_single_analysis_dict
+from utils import load_config, safe_member_name, pick_member_ai_analysis
 
 # ==================== 全局配置（从 config.json 加载）====================
 CONFIG = load_config()
@@ -34,11 +34,6 @@ if LANGUAGE not in ("CN", "EN"):
     LANGUAGE = "CN"
 MEMBERS = CONFIG.get("members", [{}])
 ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
-
-# 语言配置 (CN=中文, EN=英文)
-LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
-if LANGUAGE not in ("CN", "EN"):
-    LANGUAGE = "CN"
 
 # 成员数量（最多3人）
 MAX_MEMBERS = 3
