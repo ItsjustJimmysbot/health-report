@@ -104,6 +104,16 @@ def handle_error(error: Exception, context: str = "", exit_on_fatal: bool = True
     print(f"📝 错误信息: {error_msg}", file=sys.stderr)
     print(f"{'='*60}\n", file=sys.stderr)
 
+    # 写入文件日志（尽力而为，不影响主流程）
+    try:
+        _setup_file_handler()
+        logger.error(
+            f"[{context}] {error_type}: {error_msg}" if context else f"{error_type}: {error_msg}",
+            exc_info=True
+        )
+    except Exception:
+        pass
+
     # 根据错误类型决定是否退出
     if exit_on_fatal and isinstance(error, (ConfigError, DataError)):
         sys.exit(1)
@@ -301,7 +311,7 @@ def pick_member_ai_analysis(
 def get_template_path(
     template_type: str, language: str, template_dir: Path, version: str = "V2"
 ) -> Path:
-    """获取模板文件路径 - 支持多语言 - V5.8.2
+    """获取模板文件路径 - 支持多语言 - V5.8.1
     
     查找顺序（按优先级）：
     1. 完整版：{TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html (日报)
@@ -962,21 +972,21 @@ def validate_config_schema(config: dict) -> list:
         if age is not None:
             if not isinstance(age, (int, float)):
                 errors.append(f"members[{i}].age 必须是数字")
-            elif age < 1 or age > 150:  # 放宽到150岁，允许婴儿到长寿老人
+            elif age < 1 or age > 130:
                 errors.append(f"members[{i}].age 值 {age} 超出正常范围 (1-150)")
         
         height_cm = member.get('height_cm')
         if height_cm is not None:
             if not isinstance(height_cm, (int, float)):
                 errors.append(f"members[{i}].height_cm 必须是数字")
-            elif height_cm < 30 or height_cm > 300:  # 放宽范围
+            elif height_cm < 50 or height_cm > 250:
                 errors.append(f"members[{i}].height_cm 值 {height_cm} 超出正常范围 (30-300 cm)")
         
         weight_kg = member.get('weight_kg')
         if weight_kg is not None:
             if not isinstance(weight_kg, (int, float)):
                 errors.append(f"members[{i}].weight_kg 必须是数字")
-            elif weight_kg < 1 or weight_kg > 500:  # 放宽范围
+            elif weight_kg < 10 or weight_kg > 400:
                 errors.append(f"members[{i}].weight_kg 值 {weight_kg} 超出正常范围 (1-500 kg)")
 
     # language
@@ -1179,19 +1189,23 @@ detect_language_mismatch = detect_language_mismatch_v3
 
 def log_info(message: str) -> None:
     """记录信息日志"""
+    _setup_file_handler()
     logger.info(message)
 
 
 def log_warning(message: str) -> None:
     """记录警告日志"""
+    _setup_file_handler()
     logger.warning(message)
 
 
 def log_error(message: str, exc_info: bool = False) -> None:
     """记录错误日志"""
+    _setup_file_handler()
     logger.error(message, exc_info=exc_info)
 
 
 def log_debug(message: str) -> None:
     """记录调试日志"""
+    _setup_file_handler()
     logger.debug(message)

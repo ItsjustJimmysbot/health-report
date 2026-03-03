@@ -32,8 +32,8 @@ def get_member_config(member_idx=0):
     
     # 检查索引是否越界
     if member_idx >= len(members):
-        print(f"❌ 错误: 成员索引 {member_idx} 超出范围（有效范围: 0-{len(members)-1}）", file=sys.stderr)
-        sys.exit(1)
+        print(f"⚠️ 警告: 成员索引 {member_idx} 超出范围，回退到第一个成员(0)", file=sys.stderr)
+        member_idx = 0
     
     member = members[member_idx]
     

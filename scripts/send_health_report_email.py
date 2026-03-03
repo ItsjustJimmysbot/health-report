@@ -31,7 +31,7 @@ def get_email_providers(config: dict) -> list:
     
     # 全局重试配置
     global_retries = email_config.get('max_retries', 3)
-    global_delay = email_config.get('retry_delay', 2)
+    global_delay = email_config.get('retry_delay', 5)
     
     providers = []
     for provider_name in priority:

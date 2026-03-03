@@ -131,6 +131,11 @@ python3 -m playwright install chromium
 - `age`, `gender`, `height_cm`, `weight_kg`: 个人档案数据，用于 AI 生成个性化分析
 - `config.schema.json` 定义结构约束，`scripts/validate_config.py` 会执行 schema + 业务校验。
 
+### 日志配置
+
+- `log_dir`: 错误日志保存目录，默认 `~/.openclaw/workspace-health/logs`
+- 关键错误会同时写入 `health_report.log` 和终端输出
+
 ### 关于 receiver_email 的说明
 
 `receiver_email` 是**全局回退邮箱**，当某个成员没有配置 `email` 字段时，会使用此地址。
@@ -420,6 +425,15 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、11 项核心指标表、Chart.js 动态心率曲线和深度睡眠结构分析
 *   **原子化工作流**：将原本不稳定的 `edit` 局部替换逻辑升级为全量 `write` JSON 模式
 *   **跨夜睡眠归属**：完善了睡眠统计逻辑，自动抓取 `当日 20:00` 至 `次日 12:00` 的睡眠记录并归属为当日恢复指标
+
+### 模板回退策略
+
+系统按以下顺序查找模板（以日报为例）：
+1. `DAILY_TEMPLATE_MEDICAL_V2_{LANG}.html`（指定语言版本）
+2. `DAILY_TEMPLATE_MEDICAL_V2.html`（默认中文V2版）
+3. `DAILY_TEMPLATE_MEDICAL.html`（旧版兜底）
+
+周报/月报同理：`{TYPE}_TEMPLATE_MEDICAL_{LANG}.html` → `{TYPE}_TEMPLATE_MEDICAL.html`
 
 ---
 

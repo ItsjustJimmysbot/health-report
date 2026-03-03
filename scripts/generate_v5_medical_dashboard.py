@@ -30,7 +30,7 @@ CONFIG = load_config()
 LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
 if LANGUAGE not in ("CN", "EN"):
     LANGUAGE = "CN"
-MEMBERS = CONFIG.get("members", [{}])
+MEMBERS = CONFIG.get("members", [])
 ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 
 # 成员数量（最多3人）
@@ -915,10 +915,11 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         
         workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
         ai_analysis_title = 'Workout AI Analysis' if LANGUAGE == 'EN' else '运动AI综合分析'
+        count_text = f"{len(workouts)} workouts" if LANGUAGE == 'EN' else f"{len(workouts)} 次运动"
         workout_section = f'''<div class="workout-section no-break">
   <div class="section-header">
     <div class="section-title">
-      <span class="section-icon">🏃</span>{workout_title} - {len(workouts)} workouts
+      <span class="section-icon">🏃</span>{workout_title} - {count_text}
     </div>
   </div>
   {''.join(workout_entries)}
@@ -1013,7 +1014,11 @@ if __name__ == '__main__':
     print(get_error_msg("template_check_pass"))
     
     # 限制成员数量在1-3之间（控制token消耗）
-    member_count = max(1, min(MEMBER_COUNT, MAX_MEMBERS))
+    if MEMBER_COUNT == 0:
+        print("❌ 错误: config.json 未配置 members，无法生成报告")
+        sys.exit(1)
+    
+    member_count = min(MEMBER_COUNT, MAX_MEMBERS)
     
     print(f"📊 多成员报告生成模式")
     print(f"   日期: {date_str}")

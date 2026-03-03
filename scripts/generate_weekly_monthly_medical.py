@@ -783,7 +783,7 @@ def generate_recommendations_html(recommendations):
     return '\n'.join(html_parts)
 
 # 成员数量（最多3人）
-MEMBERS = CONFIG.get("members", [{}])
+MEMBERS = CONFIG.get("members", [])
 MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
 def get_member_config(index: int):
@@ -815,7 +815,11 @@ def main():
     # 读取AI分析
     raw_ai_analyses = json.load(sys.stdin)
 
-    member_count = max(1, min(MEMBER_COUNT, MAX_MEMBERS))
+    if MEMBER_COUNT == 0:
+        print("❌ 错误: config.json 未配置 members，无法生成周报/月报")
+        sys.exit(1)
+    
+    member_count = min(MEMBER_COUNT, MAX_MEMBERS)
 
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]

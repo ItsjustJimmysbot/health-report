@@ -105,14 +105,23 @@ class OAuth2Provider(EmailProvider):
             )
             creds.refresh(Request())
             
-            # 连接Gmail SMTP
-            server = smtplib.SMTP('smtp.gmail.com', 587)
+            # 连接Gmail SMTP 使用 XOAUTH2
+            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=30)
+            server.ehlo()
             server.starttls()
-            server.login(self.config['sender_email'], creds.token)
+            server.ehlo()
+
+            sender = self.config['sender_email']
+            auth_string = f"user={sender}\x01auth=Bearer {creds.token}\x01\x01"
+            auth_b64 = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+            code, resp = server.docmd('AUTH', 'XOAUTH2 ' + auth_b64)
+            if code != 235:
+                resp_text = resp.decode('utf-8', errors='ignore') if isinstance(resp, bytes) else str(resp)
+                raise Exception(f"XOAUTH2认证失败: {code} {resp_text}")
             
             # 构建邮件
             msg = MIMEMultipart()
-            msg['From'] = self.config['sender_email']
+            msg['From'] = sender
             msg['To'] = receiver
             msg['Subject'] = subject
             msg.attach(MIMEText(body, 'plain', 'utf-8'))
