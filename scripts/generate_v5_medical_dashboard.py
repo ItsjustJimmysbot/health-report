@@ -38,6 +38,47 @@ ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 # 成员数量（最多3人）
 MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
+# 多语言错误消息
+ERROR_MESSAGES = {
+    "CN": {
+        "missing_hrv": "❌ 错误: 缺少HRV分析 - 必须在当前AI对话中生成",
+        "missing_resting_hr": "❌ 错误: 缺少静息心率分析 - 必须在当前AI对话中生成",
+        "missing_steps": "❌ 错误: 缺少步数分析 - 必须在当前AI对话中生成",
+        "missing_distance": "❌ 错误: 缺少距离分析 - 必须在当前AI对话中生成",
+        "missing_active_energy": "❌ 错误: 缺少活动能量分析 - 必须在当前AI对话中生成",
+        "missing_spo2": "❌ 错误: 缺少血氧分析 - 必须在当前AI对话中生成",
+        "missing_flights": "❌ 错误: 缺少爬楼分析 - 必须在当前AI对话中生成",
+        "missing_stand": "❌ 错误: 缺少站立时间分析 - 必须在当前AI对话中生成",
+        "missing_basal": "❌ 错误: 缺少基础代谢分析 - 必须在当前AI对话中生成",
+        "missing_respiratory": "❌ 错误: 缺少呼吸率分析 - 必须在当前AI对话中生成",
+        "missing_sleep": "❌ 错误: 缺少睡眠分析 - 必须在当前AI对话中生成",
+        "missing_workout": "❌ 错误: 缺少运动分析 - 必须在当前AI对话中生成（即使无运动也需分析）",
+        "missing_fields": "❌ 错误: AI分析缺少以下字段，必须在当前AI对话中生成",
+        "template_check_pass": "✅ 模板文件检查通过",
+        "template_check_fail": "❌ 模板文件检查失败:",
+    },
+    "EN": {
+        "missing_hrv": "❌ Error: Missing HRV analysis - must be generated in current AI session",
+        "missing_resting_hr": "❌ Error: Missing Resting HR analysis - must be generated in current AI session",
+        "missing_steps": "❌ Error: Missing Steps analysis - must be generated in current AI session",
+        "missing_distance": "❌ Error: Missing Distance analysis - must be generated in current AI session",
+        "missing_active_energy": "❌ Error: Missing Active Energy analysis - must be generated in current AI session",
+        "missing_spo2": "❌ Error: Missing SpO2 analysis - must be generated in current AI session",
+        "missing_flights": "❌ Error: Missing Flights Climbed analysis - must be generated in current AI session",
+        "missing_stand": "❌ Error: Missing Stand Time analysis - must be generated in current AI session",
+        "missing_basal": "❌ Error: Missing Basal Energy analysis - must be generated in current AI session",
+        "missing_respiratory": "❌ Error: Missing Respiratory Rate analysis - must be generated in current AI session",
+        "missing_sleep": "❌ Error: Missing Sleep analysis - must be generated in current AI session",
+        "missing_workout": "❌ Error: Missing Workout analysis - must be generated in current AI session (even if no workout)",
+        "missing_fields": "❌ Error: AI analysis missing required fields, must be generated in current AI session",
+        "template_check_pass": "✅ Template files check passed",
+        "template_check_fail": "❌ Template files check failed:",
+    }
+}
+
+def get_error_msg(key: str) -> str:
+    """获取当前语言的错误消息"""
+    return ERROR_MESSAGES.get(LANGUAGE, ERROR_MESSAGES["EN"]).get(key, key)
 
 
 # ==================== AI分析字数限制配置（从 config.json 读取） ====================
@@ -697,7 +738,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     m1 = real_text(data['hrv']['value'], lambda v: f"{v:.1f} ms")
     hrv_analysis = ai_analysis.get('hrv')
     if not hrv_analysis:
-        raise ValueError("❌ 错误: 缺少HRV分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_hrv"))
     hrv_rating_text = 'Good' if LANGUAGE == 'EN' else '良好'
     hrv_rating_text2 = 'Average' if LANGUAGE == 'EN' else '一般'
     html = html.replace('{{METRIC1_VALUE}}', m1).replace('{{METRIC1_RATING_CLASS}}', 'rating-good' if data['hrv']['value'] and data['hrv']['value'] > 50 else 'rating-average').replace('{{METRIC1_RATING}}', hrv_rating_text if data['hrv']['value'] and data['hrv']['value'] > 50 else hrv_rating_text2).replace('{{METRIC1_ANALYSIS}}', hrv_analysis)
@@ -705,7 +746,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     m2 = real_text(data['resting_hr']['value'], lambda v: f"{int(v)} bpm")
     rhr_analysis = ai_analysis.get('resting_hr')
     if not rhr_analysis:
-        raise ValueError("❌ 错误: 缺少静息心率分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_resting_hr"))
     rhr_rating_text = 'Excellent' if LANGUAGE == 'EN' else '优秀'
     rhr_rating_text2 = 'Good' if LANGUAGE == 'EN' else '良好'
     html = html.replace('{{METRIC2_VALUE}}', m2).replace('{{METRIC2_RATING_CLASS}}', 'rating-excellent' if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else 'rating-good').replace('{{METRIC2_RATING}}', rhr_rating_text if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else rhr_rating_text2).replace('{{METRIC2_ANALYSIS}}', rhr_analysis)
@@ -713,7 +754,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     m3 = real_text(data['steps'], lambda v: f"{int(v):,}")
     steps_analysis = ai_analysis.get('steps')
     if not steps_analysis:
-        raise ValueError("❌ 错误: 缺少步数分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_steps"))
     steps_rating_text = 'Good' if LANGUAGE == 'EN' else '良好'
     steps_rating_text2 = 'Average' if LANGUAGE == 'EN' else '一般'
     html = html.replace('{{METRIC3_VALUE}}', m3).replace('{{METRIC3_RATING_CLASS}}', 'rating-good' if data['steps'] and data['steps'] > 8000 else 'rating-average').replace('{{METRIC3_RATING}}', steps_rating_text if data['steps'] and data['steps'] > 8000 else steps_rating_text2).replace('{{METRIC3_ANALYSIS}}', steps_analysis)
@@ -722,14 +763,14 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     c4, t4 = gen_rating_from_value(m4)
     distance_analysis = ai_analysis.get('distance')
     if not distance_analysis:
-        raise ValueError("❌ 错误: 缺少距离分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_distance"))
     html = html.replace('{{METRIC4_VALUE}}', m4).replace('{{METRIC4_RATING_CLASS}}', c4).replace('{{METRIC4_RATING}}', t4).replace('{{METRIC4_ANALYSIS}}', distance_analysis)
 
     m5 = real_text(data['active_energy'], lambda v: f"{int(v)} kcal")
     c5, t5 = gen_rating_from_value(m5)
     active_analysis = ai_analysis.get('active_energy')
     if not active_analysis:
-        raise ValueError("❌ 错误: 缺少活动能量分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_active_energy"))
     html = html.replace('{{METRIC5_VALUE}}', m5).replace('{{METRIC5_RATING_CLASS}}', c5).replace('{{METRIC5_RATING}}', t5).replace('{{METRIC5_ANALYSIS}}', active_analysis)
 
     if LANGUAGE == 'EN':
@@ -739,7 +780,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     c6, t6 = gen_rating_from_value(m6)
     flights_analysis = ai_analysis.get('flights')
     if not flights_analysis:
-        raise ValueError("❌ 错误: 缺少爬楼分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_flights"))
     html = html.replace('{{METRIC6_VALUE}}', m6).replace('{{METRIC6_RATING_CLASS}}', c6).replace('{{METRIC6_RATING}}', t6).replace('{{METRIC6_ANALYSIS}}', flights_analysis)
 
     if LANGUAGE == 'EN':
@@ -749,21 +790,21 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     c7, t7 = gen_rating_from_value(m7)
     stand_analysis = ai_analysis.get('stand')
     if not stand_analysis:
-        raise ValueError("❌ 错误: 缺少站立时间分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_stand"))
     html = html.replace('{{METRIC7_VALUE}}', m7).replace('{{METRIC7_RATING_CLASS}}', c7).replace('{{METRIC7_RATING}}', t7).replace('{{METRIC7_ANALYSIS}}', stand_analysis)
 
     m8 = real_text(data['spo2'], lambda v: f"{v:.1f}%")
     c8, t8 = gen_rating_from_value(m8)
     spo2_analysis = ai_analysis.get('spo2')
     if not spo2_analysis:
-        raise ValueError("❌ 错误: 缺少血氧分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_spo2"))
     html = html.replace('{{METRIC8_VALUE}}', m8).replace('{{METRIC8_RATING_CLASS}}', c8).replace('{{METRIC8_RATING}}', t8).replace('{{METRIC8_ANALYSIS}}', spo2_analysis)
 
     m9 = real_text(data['basal_energy_burned'], lambda v: f"{int(v):,} kcal")
     c9, t9 = gen_rating_from_value(m9)
     basal_analysis = ai_analysis.get('basal')
     if not basal_analysis:
-        raise ValueError("❌ 错误: 缺少基础代谢分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_basal"))
     html = html.replace('{{METRIC9_VALUE}}', m9).replace('{{METRIC9_RATING_CLASS}}', c9).replace('{{METRIC9_RATING}}', t9).replace('{{METRIC9_ANALYSIS}}', basal_analysis)
 
     if LANGUAGE == 'EN':
@@ -773,13 +814,13 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     c10, t10 = gen_rating_from_value(m10)
     resp_analysis = ai_analysis.get('respiratory')
     if not resp_analysis:
-        raise ValueError("❌ 错误: 缺少呼吸率分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_respiratory"))
     html = html.replace('{{METRIC10_VALUE}}', m10).replace('{{METRIC10_RATING_CLASS}}', c10).replace('{{METRIC10_RATING}}', t10).replace('{{METRIC10_ANALYSIS}}', resp_analysis)
 
     # 睡眠 - 必须有真实AI内容
     sleep_analysis = ai_analysis.get('sleep')
     if not sleep_analysis:
-        raise ValueError("❌ 错误: 缺少睡眠分析 - 必须在当前AI对话中生成")
+        raise ValueError(get_error_msg("missing_sleep"))
     
     # 获取睡眠总时长
     sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
@@ -823,7 +864,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         workouts = data['workouts']
         workout_analysis = ai_analysis.get('workout')
         if not workout_analysis:
-            raise ValueError("❌ 错误: 缺少运动分析 - 必须在当前AI对话中生成（今日有运动记录）")
+            raise ValueError(get_error_msg("missing_workout"))
         
         # 构建所有运动记录的HTML
         workout_entries = []
@@ -892,7 +933,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         # 无运动时也必须有workout分析字段（说明无运动的情况）
         workout_analysis = ai_analysis.get('workout')
         if not workout_analysis:
-            raise ValueError("❌ 错误: 缺少运动分析 - 必须在当前AI对话中生成（即使无运动也需分析）")
+            raise ValueError(get_error_msg("missing_workout"))
         workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
         no_workout_title = 'No Structured Exercise Today' if LANGUAGE == 'EN' else '今日无结构化运动'
         workout_section = f'''<div class="workout-section no-break"><div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>{workout_title}</div></div><div class="workout-analysis"><div class="workout-analysis-title">{no_workout_title}</div><div class="workout-analysis-text">{workout_analysis}</div></div></div>'''
@@ -916,7 +957,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
             missing_fields.append(f)
     
     if missing_fields:
-        raise ValueError(f"❌ 错误: AI分析缺少以下字段，必须在当前AI对话中生成: {missing_fields}")
+        raise ValueError(f"{get_error_msg('missing_fields')}: {missing_fields}")
     
     # 最高优先级建议
     p = ai_analysis.get('priority', {})
@@ -962,6 +1003,16 @@ if __name__ == '__main__':
         sys.exit(1)
 
     date_str = sys.argv[1]
+    
+    # V5.8.1: 预检查模板文件
+    from utils import validate_templates_exist
+    template_check = validate_templates_exist(TEMPLATE_DIR, LANGUAGE)
+    if template_check["errors"]:
+        print(get_error_msg("template_check_fail"))
+        for error in template_check["errors"]:
+            print(f"   - {error}")
+        sys.exit(1)
+    print(get_error_msg("template_check_pass"))
     
     # 限制成员数量在1-3之间（控制token消耗）
     member_count = max(1, min(MEMBER_COUNT, MAX_MEMBERS))

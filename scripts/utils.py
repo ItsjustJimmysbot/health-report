@@ -375,6 +375,54 @@ def list_available_templates(template_dir: Path) -> dict:
     return result
 
 
+def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
+    """验证必需的模板文件是否存在
+    
+    返回:
+        {
+            "daily": bool,
+            "weekly": bool,
+            "monthly": bool,
+            "errors": [str]
+        }
+    """
+    result = {"daily": False, "weekly": False, "monthly": False, "errors": []}
+    template_dir = Path(template_dir)
+    
+    if not template_dir.exists():
+        result["errors"].append(f"模板目录不存在: {template_dir}")
+        return result
+    
+    # 检查日报模板
+    daily_candidates = [
+        template_dir / f"DAILY_TEMPLATE_MEDICAL_V2_{language.upper()}.html",
+        template_dir / f"DAILY_TEMPLATE_MEDICAL_V2.html",
+    ]
+    result["daily"] = any(p.exists() for p in daily_candidates)
+    if not result["daily"]:
+        result["errors"].append(f"缺少日报模板，尝试了: {[p.name for p in daily_candidates]}")
+    
+    # 检查周报模板
+    weekly_candidates = [
+        template_dir / f"WEEKLY_TEMPLATE_MEDICAL_{language.upper()}.html",
+        template_dir / f"WEEKLY_TEMPLATE_MEDICAL.html",
+    ]
+    result["weekly"] = any(p.exists() for p in weekly_candidates)
+    if not result["weekly"]:
+        result["errors"].append(f"缺少周报模板，尝试了: {[p.name for p in weekly_candidates]}")
+    
+    # 检查月报模板
+    monthly_candidates = [
+        template_dir / f"MONTHLY_TEMPLATE_MEDICAL_{language.upper()}.html",
+        template_dir / f"MONTHLY_TEMPLATE_MEDICAL.html",
+    ]
+    result["monthly"] = any(p.exists() for p in monthly_candidates)
+    if not result["monthly"]:
+        result["errors"].append(f"缺少月报模板，尝试了: {[p.name for p in monthly_candidates]}")
+    
+    return result
+
+
 # ==================== 睡眠数据解析 ====================
 
 from datetime import datetime, timedelta
@@ -872,18 +920,28 @@ def validate_config_schema(config: dict) -> list:
         email = member.get('email', '')
         if email and '@' not in str(email):
             errors.append(f"members[{i}].email 格式无效: {email}")
-
+        
+        # 放宽的数值范围验证（仅警告极端值，不排除边界情况）
         age = member.get('age')
-        if age is not None and (not isinstance(age, (int, float)) or age <= 0 or age > 130):
-            errors.append(f"members[{i}].age 无效: {age}")
-
+        if age is not None:
+            if not isinstance(age, (int, float)):
+                errors.append(f"members[{i}].age 必须是数字")
+            elif age < 1 or age > 150:  # 放宽到150岁，允许婴儿到长寿老人
+                errors.append(f"members[{i}].age 值 {age} 超出正常范围 (1-150)")
+        
         height_cm = member.get('height_cm')
-        if height_cm is not None and (not isinstance(height_cm, (int, float)) or height_cm <= 50 or height_cm > 250):
-            errors.append(f"members[{i}].height_cm 无效: {height_cm}")
-
+        if height_cm is not None:
+            if not isinstance(height_cm, (int, float)):
+                errors.append(f"members[{i}].height_cm 必须是数字")
+            elif height_cm < 30 or height_cm > 300:  # 放宽范围
+                errors.append(f"members[{i}].height_cm 值 {height_cm} 超出正常范围 (30-300 cm)")
+        
         weight_kg = member.get('weight_kg')
-        if weight_kg is not None and (not isinstance(weight_kg, (int, float)) or weight_kg <= 10 or weight_kg > 400):
-            errors.append(f"members[{i}].weight_kg 无效: {weight_kg}")
+        if weight_kg is not None:
+            if not isinstance(weight_kg, (int, float)):
+                errors.append(f"members[{i}].weight_kg 必须是数字")
+            elif weight_kg < 1 or weight_kg > 500:  # 放宽范围
+                errors.append(f"members[{i}].weight_kg 值 {weight_kg} 超出正常范围 (1-500 kg)")
 
     # language
     language = config.get('language', 'CN')
@@ -927,6 +985,10 @@ def validate_config_schema(config: dict) -> list:
             errors.append("analysis_limits.weekly_min_words 不能小于 daily_min_words")
         if monthly_min < weekly_min:
             errors.append("analysis_limits.monthly_min_words 不能小于 weekly_min_words")
+        if metric_min > daily_min:
+            errors.append("analysis_limits.metric_min_words 应小于等于 daily_min_words")
+        if action_min > daily_min:
+            errors.append("analysis_limits.action_min_words 应小于等于 daily_min_words")
 
     # sleep_config
     sleep_config = config.get('sleep_config', {})
@@ -1004,25 +1066,37 @@ def detect_language_advanced(text: str) -> str:
 
 
 def detect_language_mismatch_v3(
-    ai_analysis: dict, expected_language: str
+    ai_analysis: dict,
+    expected_language: str,
+    strict_mode: bool = False
 ) -> list:
-    """改进的语言检测 V3 - 基于字符统计"""
+    """改进的语言检测 V3 - 基于字符统计和langdetect
+    
+    参数:
+        ai_analysis: AI分析结果字典
+        expected_language: 期望语言 ("CN" 或 "EN")
+        strict_mode: 严格模式（False时允许少量其他语言字符）
+    
+    返回:
+        错误列表，为空表示检测通过
+    """
     errors = []
     if expected_language not in ("CN", "EN"):
         return errors
-
+    
+    # 提取所有文本内容
     full_text = json.dumps(ai_analysis, ensure_ascii=False)
     
     # 默认指标名白名单（这些词不计入语言统计）
     default_cn_metrics = [
-        "心率", "HRV", "静息心率", "步数", "距离", "活动能量", "血氧",
-        "爬楼", "站立", "基础代谢", "呼吸率", "睡眠", "运动", "千卡",
-        "公里", "小时", "分钟", "次", "层", "步", "毫秒", "bpm", "ms",
-        "深睡", "核心睡眠", "REM", "清醒"
+        "心率", "HRV", "静息心率", "步数", "距离", "活动能量", 
+        "血氧", "爬楼", "站立", "基础代谢", "呼吸率", "睡眠", "运动",
+        "千卡", "公里", "小时", "分钟", "次", "层", "步", "毫秒",
+        "bpm", "ms", "深睡", "核心睡眠", "REM", "清醒"
     ]
     default_en_metrics = [
-        "HRV", "Resting HR", "Steps", "Distance", "Active Energy", "SpO2",
-        "Flights", "Stand", "Basal", "Respiratory", "Sleep", "Workout",
+        "HRV", "Resting HR", "Steps", "Distance", "Active Energy",
+        "SpO2", "Flights", "Stand", "Basal", "Respiratory", "Sleep", "Workout",
         "kcal", "km", "hours", "minutes", "bpm", "ms", "floors",
         "Deep", "Core", "REM", "Awake"
     ]
@@ -1034,21 +1108,36 @@ def detect_language_mismatch_v3(
     
     # 统计中文字符
     chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
+    total_chars = len(text_for_check.strip())
+    
+    if total_chars == 0:
+        return errors
+    
+    # 计算中文比例
+    chinese_ratio = chinese_chars / total_chars
     
     if expected_language == "EN":
-        # EN 模式：中文字符超过20个视为不匹配
-        if chinese_chars > 20:
-            errors.append(f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字")
+        # EN模式：中文比例应低于阈值
+        threshold = 0.05 if strict_mode else 0.10  # 5%或10%
+        if chinese_ratio > threshold:
+            errors.append(
+                f"语言配置不匹配: 设置为 EN(英文), "
+                f"但检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%})"
+            )
     elif expected_language == "CN":
-        # CN 模式：要求至少100个中文字符
-        if chinese_chars < 100:
-            errors.append(f"语言配置不匹配: 设置为 CN(中文), 但只检测到 {chinese_chars} 个中文字符")
+        # CN模式：中文比例应高于阈值
+        threshold = 0.30 if strict_mode else 0.20  # 30%或20%
+        if chinese_ratio < threshold:
+            errors.append(
+                f"语言配置不匹配: 设置为 CN(中文), "
+                f"但只检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%})"
+            )
     
     return errors
 
-
-# V5.8.2: 统一入口，保留旧函数名兼容性
+# 保留旧函数名兼容
 detect_language_mismatch = detect_language_mismatch_v3
+detect_language_mismatch_v2 = detect_language_mismatch_v3
 
 
 # ==================== 日志包装函数 ====================

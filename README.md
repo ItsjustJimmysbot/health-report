@@ -131,6 +131,17 @@ python3 -m playwright install chromium
 - `age`, `gender`, `height_cm`, `weight_kg`: 个人档案数据，用于 AI 生成个性化分析
 - `config.schema.json` 定义结构约束，`scripts/validate_config.py` 会执行 schema + 业务校验。
 
+### 关于 receiver_email 的说明
+
+`receiver_email` 是**全局回退邮箱**，当某个成员没有配置 `email` 字段时，会使用此地址。
+
+优先级:
+1. 成员自己的 `email` 字段 (members[i].email)
+2. 全局 `receiver_email` (顶层配置)
+3. 如果都没有配置，该成员将不会收到邮件
+
+建议: 为每个成员单独配置 `email`，`receiver_email` 作为备用。
+
 ### 4. 邮件发送配置（OAuth2 推荐）
 
 V5.8.1 支持多种邮件发送方式，推荐优先级：**OAuth2 > SMTP > Mail.app > Local**
@@ -210,6 +221,30 @@ python3 scripts/setup_oauth2.py
 - 文件名格式：`HealthAutoExport-YYYY-MM-DD.json`
 - 活动数据（步数、心率等）存储在当日文件中
 - 睡眠数据存储在次日文件中（系统会自动读取）
+
+### 关于时区的说明
+
+**重要**: 本工具使用系统本地时区处理所有时间数据。
+
+- 睡眠数据的时间解析基于运行脚本的机器时区
+- 如果 Health Auto Export 导出的数据使用不同时区，可能导致睡眠统计偏差
+- 建议: 确保 iPhone、Health Auto Export 设置、和运行本脚本的机器使用相同时区
+
+**sleep_config 说明**:
+```json
+"sleep_config": {
+    "read_mode": "next_day",  // next_day: 读取次日文件筛选当天睡眠; same_day: 读取当天文件
+    "start_hour": 20,         // 睡眠窗口开始时间（晚上8点）
+    "end_hour": 12            // 睡眠窗口结束时间（次日中午12点）
+}
+```
+
+此配置定义了睡眠数据的时间窗口:
+- 对于 2026-03-01 的睡眠报告
+- next_day 模式会读取 2026-03-02 的数据文件
+- 筛选时间段: 03-01 20:00 到 03-02 12:00
+
+如果跨越时区使用，请相应调整 `start_hour` 和 `end_hour`。
 
 **路径配置说明：**
 - `~/我的云端硬盘/` 是 Google Drive 的默认中文名称
@@ -634,6 +669,45 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 ### 多成员数据提取失败
 - **原因**：成员索引超出配置范围
 - **解决**：V5.8.1+ 已添加边界检查，会自动回退到第一个成员
+
+### AI分析数据格式要求（多成员）
+
+当使用 `all` 参数提取多成员数据时，AI分析的JSON输入支持以下格式:
+
+**格式1: 单成员对象**（仅有一个成员时）
+```json
+{
+  "hrv": "...",
+  "priority": {...}
+}
+```
+
+**格式2: 成员数组**（推荐）
+```json
+{
+  "members": [
+    {"hrv": "...", "priority": {...}},  // 成员0
+    {"hrv": "...", "priority": {...}},  // 成员1
+    {"hrv": "...", "priority": {...}}   // 成员2
+  ]
+}
+```
+
+**格式3: 成员名映射**（用于严格匹配）
+```json
+{
+  "张三": {"hrv": "...", "priority": {...}},
+  "李四": {"hrv": "...", "priority": {...}}
+}
+```
+
+**匹配优先级（从高到低）:**
+1. 成员名完全匹配
+2. 安全成员名匹配（safe_member_name转换后）
+3. 索引匹配（数组顺序）
+4. 兜底到第一个有效数据（非严格模式下）
+
+**推荐做法**: 使用格式2（members数组），顺序与config.json中的members顺序一致。
 
 ### 报告生成成功但内容为空/太少
 - **原因**：AI 分析字数未达到 `analysis_limits` 要求，或 `validation_mode` 为 `strict`
