@@ -1105,7 +1105,7 @@ def detect_language_mismatch_v3(
             errors.append("语言配置不匹配: 设置为 EN(英文), 但检测到中文内容")
         elif detected_lang == 'unknown':
             chinese_chars = len(__import__('re').findall(r'[一-龥]', text_for_check))
-            if chinese_chars > 20:
+            if chinese_chars > 100:
                 errors.append(f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字")
 
     elif expected_language == "CN":

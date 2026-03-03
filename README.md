@@ -392,7 +392,6 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **手动补发邮件**：`python3 scripts/send_health_report_email.py YYYY-MM-DD`
 *   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
 *   **配置校验**：`python3 scripts/validate_config.py`
-*   **配置校验**：`python3 scripts/validate_config.py`
 
 ---
 
