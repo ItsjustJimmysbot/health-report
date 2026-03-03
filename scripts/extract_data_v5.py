@@ -82,13 +82,13 @@ def extract_metric_sum(metrics, metric_name):
 
 def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     """
-    提取运动数据 - V5.8.0: 
+    提取运动数据 - V5.8.1: 
     1. 支持双文件名: YYYY-MM-DD.json 和 HealthAutoExport-YYYY-MM-DD.json
     2. 兼容 workout 结构: data.workouts.data 和 data.workouts
     """
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.8.0: 使用传入的路径或全局默认路径
+    # V5.8.1: 使用传入的路径或全局默认路径
     if workout_dir is None:
         workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
     else:
@@ -122,7 +122,7 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
         print(f"⚠️  读取运动文件失败: {workout_file} - {e}", file=sys.stderr)
         return []
     
-    # V5.8.0: 兼容两种 workout 结构
+    # V5.8.1: 兼容两种 workout 结构
     workouts = []
     
     # 尝试结构1: data.workouts.data
@@ -162,10 +162,10 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     return workouts
 
 def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None, sleep_config=None):
-    """提取完整的一天数据 - V5.7.0: 支持多成员路径传入"""
+    """提取完整的一天数据 - V5.8.1: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.7.0: 使用传入的路径或全局默认路径
+    # V5.8.1: 使用传入的路径或全局默认路径
     if health_dir is None:
         health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
     else:
@@ -302,7 +302,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     return result
 
 def extract_all_members_data(date_str):
-    """V5.7.0: 提取所有成员的数据"""
+    """V5.8.1: 提取所有成员的数据"""
     config = load_config()
     members = config.get('members', [])
     sleep_config = get_sleep_config()
@@ -349,7 +349,7 @@ if __name__ == '__main__':
         print("  python extract_data_v5.py 2026-03-01       # 提取第一个成员数据（默认）", file=sys.stderr)
         print("  python extract_data_v5.py 2026-03-01 1     # 提取第二个成员数据", file=sys.stderr)
         print("  python extract_data_v5.py 2026-03-01 2     # 提取第三个成员数据", file=sys.stderr)
-        print("  python extract_data_v5.py 2026-03-01 all   # 提取所有成员数据（V5.7.0+）", file=sys.stderr)
+        print("  python extract_data_v5.py 2026-03-01 all   # 提取所有成员数据（V5.8.1+）", file=sys.stderr)
         sys.exit(1)
     
     date_str = sys.argv[1]

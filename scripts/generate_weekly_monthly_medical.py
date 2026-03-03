@@ -197,7 +197,7 @@ def get_text(key):
 
 
 def load_cache(date_str, member_name="默认用户"):
-    """加载单日缓存数据 - V5.8.0: 支持 safe_name 命名规则"""
+    """加载单日缓存数据 - V5.8.1: 支持 safe_name 命名规则"""
     safe_name = safe_member_name(member_name)
     
     # 三级读取顺序：safe_name -> 原始name -> 旧格式
@@ -798,7 +798,7 @@ def main():
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
             
-            # 健壮的成员匹配逻辑 - V5.8.0: 使用 pick_member_ai_analysis
+            # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
             ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
             if not isinstance(ai_analysis, dict) or not ai_analysis:
                 print(f"⚠️ 未找到成员 {member_name} 的有效周报分析，跳过")
@@ -856,7 +856,7 @@ def main():
             member_cfg = get_member_config(idx)
             member_name = member_cfg['name']
             
-            # 健壮的成员匹配逻辑 - V5.8.0: 使用 pick_member_ai_analysis
+            # 健壮的成员匹配逻辑 - V5.8.1: 使用 pick_member_ai_analysis
             ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
             if not isinstance(ai_analysis, dict) or not ai_analysis:
                 print(f"⚠️ 未找到成员 {member_name} 的有效月报分析，跳过")

@@ -1,4 +1,4 @@
-# Health Agent V5.8.0 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.8.1 - OpenClaw 专业健康分析 Skill
 
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
 
@@ -43,11 +43,11 @@ python3 -m playwright install chromium
 安装完成后，OpenClaw 会自动通过 `SKILL.md` 发现并启用此 Skill。
 
 ### 3. 配置文件 (config.json)
-首次使用前，请编辑 `config.json` 配置你的数据路径（V5.8.0 新版配置结构）：
+首次使用前，请编辑 `config.json` 配置你的数据路径（V5.8.1 新版配置结构）：
 
 ```json
 {
-  "version": "5.8.0",
+  "version": "5.8.1",
   "members": [
     {
       "name": "Jimmy",
@@ -112,7 +112,7 @@ python3 -m playwright install chromium
 - `health_dir`: Apple Health 数据导出路径（需包含 `HealthAutoExport-YYYY-MM-DD.json` 文件）
 - `workout_dir`: 运动数据导出路径
 - `email`: 报告接收邮箱
-- `email_config`: 邮件发送配置（V5.8.0 新版 Provider 架构）
+- `email_config`: 邮件发送配置（V5.8.1 新版 Provider 架构）
   - `provider_priority`: 发送方式优先级，默认 `['oauth2', 'smtp', 'mail_app', 'local']`
   - `oauth2`: Gmail OAuth2 认证（推荐，最安全）
   - `smtp`: SMTP 服务器发送
@@ -125,7 +125,7 @@ python3 -m playwright install chromium
 
 ### 4. 邮件发送配置（OAuth2 推荐）
 
-V5.8.0 支持多种邮件发送方式，推荐优先级：**OAuth2 > SMTP > Mail.app > Local**
+V5.8.1 支持多种邮件发送方式，推荐优先级：**OAuth2 > SMTP > Mail.app > Local**
 
 #### 方式 A：Gmail OAuth2 认证（推荐，最安全）
 
@@ -209,7 +209,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每日健康日报 - V5.8.0 标准化流程】
+【每日健康日报 - V5.8.1 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
 2. 提取数据：为所有成员提取当日数据
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
@@ -241,7 +241,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每周健康周报 - V5.8.0 标准化流程】
+【每周健康周报 - V5.8.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算日期：获取上周一至上周日日期
    START_DATE=$(date -v-7d +%Y-%m-%d)
@@ -263,7 +263,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每月健康月报 - V5.8.0 标准化流程】
+【每月健康月报 - V5.8.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算月份：获取上月年份和月份
    YEAR=$(date -v-1m +%Y)
@@ -308,14 +308,14 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-## ✨ V5.8.0 核心特性（含 V5.7.1 兼容修复）
+## ✨ V5.8.1 核心特性（含 V5.8.1 兼容修复）
 
-> 版本说明：当前发布主版本为 **V5.8.0**。文中保留的 "V5.7.1" 标识表示该功能在 V5.7.1 首次引入，并在 V5.8.0 继续兼容。
+> 版本说明：当前发布主版本为 **V5.8.1**。文中保留的 "V5.8.1" 标识表示该功能在 V5.8.1 首次引入，并在 V5.8.1 继续兼容。
 
-*   **数据字段修复 (V5.7.1)**：修复了 `active_energy` 字段名（原 `active_energy_burned`），确保活动能量数据正确提取
-*   **睡眠数据结构兼容 (V5.7.1)**：增强睡眠数据解析，同时兼容 `data.sleep_analysis` 和 `data.metrics[].sleep_analysis` 两种数据结构
-*   **评分算法个性化 (V5.7.1)**：健康得分基于年龄、性别、BMI 计算，同一体征对不同人群评分不同
-*   **字数验证 (V5.7.1)**：支持 strict/warn 两种模式，确保 AI 分析内容质量
+*   **数据字段修复 (V5.8.1)**：修复了 `active_energy` 字段名（原 `active_energy_burned`），确保活动能量数据正确提取
+*   **睡眠数据结构兼容 (V5.8.1)**：增强睡眠数据解析，同时兼容 `data.sleep_analysis` 和 `data.metrics[].sleep_analysis` 两种数据结构
+*   **评分算法个性化 (V5.8.1)**：健康得分基于年龄、性别、BMI 计算，同一体征对不同人群评分不同
+*   **字数验证 (V5.8.1)**：支持 strict/warn 两种模式，确保 AI 分析内容质量
 *   **多语言支持**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）
 *   **个人档案数据**：支持 `age`, `gender`, `height_cm`, `weight_kg` 个人档案配置，AI 分析时参考这些数据生成个性化建议
 *   **智能邮件回退**：自动级联 - Mail.app → Gmail SMTP → 通用 SMTP → 本地副本
@@ -337,7 +337,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-## 📝 开发者规范 (V5.8.0)
+## 📝 开发者规范 (V5.8.1)
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
 *   **字数红线**：AI 指标分析段落必须在 150-200 字，核心行动建议 250-300 字
@@ -350,7 +350,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 ### config.json 结构
 ```json
 {
-  "version": "5.7.1",
+  "version": "5.8.1",
   "members": [
     {
       "name": "Jimmy",
@@ -392,7 +392,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ```json
 {
-  "version": "5.7.1",
+  "version": "5.8.1",
   "members": [
     {
       "name": "爸爸",
@@ -421,7 +421,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 }
 ```
 
-**✅ V5.7.1+ 完整多成员支持：**
+**✅ V5.8.1+ 完整多成员支持：**
 
 > 当前实现上限：最多处理前 3 位成员（提取 / 生成 / 发送保持一致）。超过 3 位时会打印 warning 并自动截断。
 
@@ -439,7 +439,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 1
 python3 scripts/extract_data_v5.py 2026-03-01 2
 ```
 
-**提取所有成员（V5.7.0+）：**
+**提取所有成员（V5.8.1+）：**
 ```bash
 # 使用 all 参数提取所有成员的数据（最多前 3 位）
 python3 scripts/extract_data_v5.py 2026-03-01 all
@@ -461,7 +461,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 **在定时任务中使用（推荐）：**
 在 OpenClaw 定时任务指令中使用 `all` 参数，一次生成所有成员的报告：
 ```text
-【每日健康日报 - V5.8.0 全成员流程】
+【每日健康日报 - V5.8.1 全成员流程】
 1. 读取 config.json：获取所有成员配置
 2. 提取数据：为每个成员分别提取数据
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
@@ -470,7 +470,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 5. 发送邮件：分别发送给每个成员配置的邮箱
 ```
 
-### 🌐 多语言支持 (V5.7.1)
+### 🌐 多语言支持 (V5.8.1)
 
 通过 `config.json` 中的 `language` 字段切换报告语言：
 
@@ -516,17 +516,17 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 3. 验证文件路径在 `config.json` 中配置正确
 
 ### 活动能量显示为 0 或缺失
-- **原因**：V5.7.0 之前版本使用 `active_energy_burned` 字段名，新版 Health Auto Export 使用 `active_energy`
-- **解决**：确保使用 V5.7.1+ 版本，已修复字段名兼容问题
+- **原因**：V5.8.1 之前版本使用 `active_energy_burned` 字段名，新版 Health Auto Export 使用 `active_energy`
+- **解决**：确保使用 V5.8.1+ 版本，已修复字段名兼容问题
 
 ### 睡眠数据缺失或显示为 0
 - **原因**：睡眠数据结构可能在 `data.sleep_analysis` 或 `data.metrics[].sleep_analysis` 中
-- **解决**：V5.7.1+ 已增强睡眠数据解析，同时兼容两种数据结构
+- **解决**：V5.8.1+ 已增强睡眠数据解析，同时兼容两种数据结构
 - **检查**：确认睡眠数据存储在次日文件中（如 2月21日的睡眠在 2月22日文件中）
 
 ### 多成员数据提取失败
 - **原因**：成员索引超出配置范围
-- **解决**：V5.7.1+ 已添加边界检查，会自动回退到第一个成员
+- **解决**：V5.8.1+ 已添加边界检查，会自动回退到第一个成员
 
 ### 报告生成成功但内容为空/太少
 - **原因**：AI 分析字数未达到 `analysis_limits` 要求，或 `validation_mode` 为 `strict`

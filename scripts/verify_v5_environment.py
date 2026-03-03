@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Health Agent V5.8.0 环境检查脚本"""
+"""Health Agent V5.8.1 环境检查脚本"""
 import sys
 import os
 import json
@@ -20,7 +20,7 @@ def load_config():
 
 
 def verify():
-    print("🔍 开始 Health Agent V5.8.0 环境检查...\n")
+    print("🔍 开始 Health Agent V5.8.1 环境检查...\n")
     
     home = Path.home()
     workspace = Path(__file__).parent.parent

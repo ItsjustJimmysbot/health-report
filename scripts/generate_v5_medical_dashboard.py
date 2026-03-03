@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V5.7.1 AI分析报告生成器 - Medical Dashboard 模板版
+V5.8.1 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
