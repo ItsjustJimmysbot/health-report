@@ -7,6 +7,40 @@ import sys
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Union
 
+try:
+    from langdetect import detect, LangDetectError
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+
+import logging
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# 创建模块级 logger
+logger = logging.getLogger('health_report')
+
+# 可选：添加文件日志处理器
+log_dir = Path.home() / '.openclaw' / 'workspace-health' / 'logs'
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / 'health_report.log'
+
+file_handler = logging.FileHandler(log_file, encoding='utf-8')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+))
+logger.addHandler(file_handler)
+import re
+import sys
+from pathlib import Path
+from typing import Optional, Dict, Any, List, Union
+
 # 全局常量
 MAX_MEMBERS = 3  # 支持的最大成员数
 
@@ -933,3 +967,86 @@ def validate_config_schema(config: dict) -> list:
             errors.append(f"未知的邮件 provider: {provider}")
     
     return errors
+
+
+# ==================== 改进的语言检测 V3 ====================
+
+def detect_language_advanced(text: str) -> str:
+    """使用 langdetect 检测文本语言
+    
+    返回: 'zh' (中文), 'en' (英文), 或其他语言代码
+    """
+    if not LANGDETECT_AVAILABLE:
+        return 'unknown'
+    
+    if not text or len(text.strip()) < 10:
+        return 'unknown'
+    
+    try:
+        sample = text[:500]
+        lang = detect(sample)
+        return lang
+    except Exception:
+        return 'unknown'
+
+
+def detect_language_mismatch_v3(
+    ai_analysis: dict, 
+    expected_language: str
+) -> list:
+    """改进的语言检测 V3 - 结合 langdetect 和字符统计"""
+    errors = []
+    
+    if expected_language not in ("CN", "EN"):
+        return errors
+    
+    full_text = json.dumps(ai_analysis, ensure_ascii=False)
+    
+    # 移除指标名
+    cn_metrics = ["心率", "HRV", "睡眠", "运动"]
+    text_for_check = full_text
+    for metric in cn_metrics:
+        text_for_check = text_for_check.replace(metric, "")
+    
+    # 尝试使用 langdetect
+    detected_lang = detect_language_advanced(text_for_check)
+    
+    if expected_language == "EN":
+        if detected_lang == 'zh':
+            errors.append("语言配置不匹配: 设置为 EN(英文), 但检测到中文内容")
+        elif detected_lang == 'unknown':
+            chinese_chars = len(__import__('re').findall(r'[一-龥]', text_for_check))
+            if chinese_chars > 50:
+                errors.append(f"语言配置不匹配: 设置为 EN(英文), 但检测到 {chinese_chars} 个中文汉字")
+    
+    elif expected_language == "CN":
+        if detected_lang == 'en':
+            errors.append("语言配置不匹配: 设置为 CN(中文), 但检测到英文内容")
+        elif detected_lang == 'unknown':
+            chinese_chars = len(__import__('re').findall(r'[一-龥]', text_for_check))
+            if chinese_chars < 100:
+                errors.append(f"语言配置不匹配: 设置为 CN(中文), 但只检测到 {chinese_chars} 个中文字符")
+    
+    return errors
+
+
+# ==================== 日志包装函数 ====================
+
+def log_info(message: str) -> None:
+    """记录信息日志"""
+    logger.info(message)
+
+
+def log_warning(message: str) -> None:
+    """记录警告日志"""
+    logger.warning(message)
+
+
+def log_error(message: str, exc_info: bool = False) -> None:
+    """记录错误日志"""
+    logger.error(message, exc_info=exc_info)
+
+
+def log_debug(message: str) -> None:
+    """记录调试日志"""
+    logger.debug(message)
