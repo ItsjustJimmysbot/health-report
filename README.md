@@ -211,12 +211,20 @@ python3 scripts/setup_oauth2.py
 在 OpenClaw 中添加日报任务，建议时间 `12:10`（确保当日数据已同步完成）。
 
 **📌 兼容性提示（date 命令）**
-- macOS(BSD): 使用 `date -v-1d +%Y-%m-%d`
-- Linux(GNU): 使用 `date -d 'yesterday' +%Y-%m-%d`
+- **macOS (BSD)**: 使用 `date -v-1d +%Y-%m-%d`
+- **Linux (GNU)**: 使用 `date -d 'yesterday' +%Y-%m-%d`
 
-示例对照：
+**示例对照：**
 - macOS: `date -v-1d +%Y-%m-%d` → 昨天日期
 - Linux: `date -d 'yesterday' +%Y-%m-%d` → 昨天日期
+
+### 日期命令速查表
+
+| 功能 | macOS (BSD) | Linux (GNU) |
+|------|-------------|-------------|
+| 昨天 | `date -v-1d +%Y-%m-%d` | `date -d 'yesterday' +%Y-%m-%d` |
+| 上周 | `date -v-7d +%Y-%m-%d` | `date -d '7 days ago' +%Y-%m-%d` |
+| 上月 | `date -v-1m +%Y-%m` | `date -d '1 month ago' +%Y-%m` |
 
 **指令内容模板：**
 ```text

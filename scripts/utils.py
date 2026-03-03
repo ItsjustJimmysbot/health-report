@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Union
 
+# 全局常量
+MAX_MEMBERS = 3  # 支持的最大成员数
+
 # ==================== 统一异常类 ====================
 
 class HealthReportError(Exception):
