@@ -135,17 +135,23 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             workout_list = data['data'].get('workouts', [])
     
     for workout in workout_list:
-        # 解析开始时间
+        # 解析开始时间（支持 timestamp 和 ISO 格式）
         start_ts = workout.get('start')
         if not start_ts:
             continue
-        
+
+        start_dt = None
         try:
             if isinstance(start_ts, (int, float)):
                 start_dt = datetime.fromtimestamp(start_ts)
             else:
-                # 字符串时间戳
-                start_dt = datetime.fromtimestamp(float(start_ts))
+                # 先尝试字符串时间戳
+                try:
+                    start_dt = datetime.fromtimestamp(float(start_ts))
+                except (ValueError, TypeError):
+                    # 尝试 ISO 格式
+                    iso_str = start_ts.replace('Z', '+00:00')
+                    start_dt = datetime.fromisoformat(iso_str)
         except (ValueError, TypeError):
             continue
         

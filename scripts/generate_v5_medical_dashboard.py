@@ -86,7 +86,7 @@ VALIDATION_MODE = CONFIG.get("validation_mode", "strict")  # 可选值: "strict"
 
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
-OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path(__file__).parent.parent / 'output'))).expanduser()
+OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path.home() / '.openclaw' / 'workspace' / 'shared' / 'health-reports' / 'upload'))).expanduser()
 DEFAULT_HEALTH_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Health Data'
 DEFAULT_WORKOUT_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Workout Data'
 
@@ -327,7 +327,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         if p.exists():
             wp = p
             break
-    if wp.exists():
+    if wp and wp.exists():
         try:
             wd = json.loads(wp.read_text(encoding='utf-8'))
         except Exception as e:
@@ -552,14 +552,19 @@ def calculate_scores(data, member_cfg=None):
     steps_v = data['steps'] or 0
     active_v = data.get('active_energy') or 0
     
-    # 获取成员档案信息
+    # 获取成员档案信息（带缺省值保护）
     if member_cfg:
-        age = member_cfg.get("age", 30)
-        gender = member_cfg.get("gender", "male")
-        height_cm = member_cfg.get("height_cm", 175)
-        weight_kg = member_cfg.get("weight_kg", 70)
+        raw_age = member_cfg.get("age")
+        raw_gender = member_cfg.get("gender")
+        raw_height = member_cfg.get("height_cm")
+        raw_weight = member_cfg.get("weight_kg")
     else:
-        age, gender, height_cm, weight_kg = 30, "male", 175, 70
+        raw_age = raw_gender = raw_height = raw_weight = None
+
+    age = int(raw_age) if isinstance(raw_age, (int, float)) and raw_age > 0 else 30
+    gender = raw_gender if raw_gender in ("male", "female", "other") else "male"
+    height_cm = float(raw_height) if isinstance(raw_height, (int, float)) and raw_height > 0 else 175.0
+    weight_kg = float(raw_weight) if isinstance(raw_weight, (int, float)) and raw_weight > 0 else 70.0
     
     # 计算BMI
     bmi = weight_kg / ((height_cm / 100) ** 2) if height_cm > 0 else 22
@@ -747,7 +752,10 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         raise ValueError("❌ 错误: 缺少基础代谢分析 - 必须在当前AI对话中生成")
     html = html.replace('{{METRIC9_VALUE}}', m9).replace('{{METRIC9_RATING_CLASS}}', c9).replace('{{METRIC9_RATING}}', t9).replace('{{METRIC9_ANALYSIS}}', basal_analysis)
 
-    m10 = real_text(data['respiratory_rate'], lambda v: f"{float(v):.1f} 次/分")
+    if LANGUAGE == 'EN':
+        m10 = real_text(data['respiratory_rate'], lambda v: f"{float(v):.1f} breaths/min")
+    else:
+        m10 = real_text(data['respiratory_rate'], lambda v: f"{float(v):.1f} 次/分")
     c10, t10 = gen_rating_from_value(m10)
     resp_analysis = ai_analysis.get('respiratory')
     if not resp_analysis:

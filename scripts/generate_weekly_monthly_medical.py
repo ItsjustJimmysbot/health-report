@@ -796,6 +796,11 @@ def main():
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]
     
+    # 初始化计数器
+    success_count = 0
+    fail_count = 0
+    skip_count = 0
+    
     if report_type == 'weekly':
         if len(sys.argv) < 4:
             print('Error: Weekly report requires start and end dates')
@@ -821,6 +826,7 @@ def main():
                 ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
                 if not isinstance(ai_analysis, dict) or not ai_analysis:
                     print(f"⚠️ 未找到成员 {member_name} 的有效周报分析，跳过")
+                    skip_count += 1
                     continue
                 
                 print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -829,7 +835,9 @@ def main():
                 # 生成报告
                 html = generate_weekly_report(start_date, end_date, ai_analysis, template, member_name)
                 if not html:
+                    fail_count += 1
                     continue
+                success_count += 1
                 
                 safe_name = safe_member_name(member_name)
                 
@@ -858,7 +866,11 @@ def main():
                 print(f"❌ 成员 {member_name} 处理失败: {e}")
                 import traceback
                 traceback.print_exc()
+                fail_count += 1
                 continue
+        
+        # 周报摘要
+        print(f"\n📊 周报生成摘要: 成功 {success_count}, 失败 {fail_count}, 跳过 {skip_count}")
         
     elif report_type == 'monthly':
         if len(sys.argv) < 4:
@@ -885,6 +897,7 @@ def main():
                 ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx)
                 if not isinstance(ai_analysis, dict) or not ai_analysis:
                     print(f"⚠️ 未找到成员 {member_name} 的有效月报分析，跳过")
+                    skip_count += 1
                     continue
                 
                 print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -893,7 +906,9 @@ def main():
                 # 生成报告
                 html = generate_monthly_report(year, month, ai_analysis, template, member_name)
                 if not html:
+                    fail_count += 1
                     continue
+                success_count += 1
                 
                 safe_name = safe_member_name(member_name)
                 
@@ -922,11 +937,20 @@ def main():
                 print(f"❌ 成员 {member_name} 处理失败: {e}")
                 import traceback
                 traceback.print_exc()
+                fail_count += 1
                 continue
-    
+        
+        # 月报摘要
+        print(f"\n📊 月报生成摘要: 成功 {success_count}, 失败 {fail_count}, 跳过 {skip_count}")
+        
     else:
         print(f'错误: 未知报告类型 {report_type}')
         sys.exit(1)
+    
+    # 最终退出码判定
+    if success_count == 0 or fail_count > 0:
+        sys.exit(1)
+    sys.exit(0)
 
 if __name__ == '__main__':
     main()

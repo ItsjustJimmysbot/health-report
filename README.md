@@ -336,8 +336,10 @@ python3 scripts/setup_oauth2.py
 ```
 
 **字数验证说明：**
+- `validation_mode` **仅影响**字数/语言阈值类校验（metric_min/max_words、action_min/max_words、daily/weekly/monthly_min_words）。
 - `validation_mode: strict` 时，字数不足/超限会报错退出。
 - `validation_mode: warn` 时，字数不足/超限仅警告，继续生成。
+- **注意**：缺少必填 AI 字段（如日报的 priority、饮食字段）是硬错误，不受 warn 模式影响，仍会失败。
 - 日报会校验 `analysis_limits.metric_min_words` 与 `metric_max_words`，并校验 `daily_min_words`。
 - 周报/月报总字数下限分别读取 `analysis_limits.weekly_min_words` 与 `analysis_limits.monthly_min_words`。
 
@@ -364,7 +366,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **睡眠数据结构兼容 (V5.8.1)**：增强睡眠数据解析，同时兼容 `data.sleep_analysis` 和 `data.metrics[].sleep_analysis` 两种数据结构
 *   **评分算法个性化 (V5.8.1)**：健康得分基于年龄、性别、BMI 计算，同一体征对不同人群评分不同
 *   **字数验证 (V5.8.1)**：支持 strict/warn 两种模式，确保 AI 分析内容质量
-*   **多语言支持**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）
+*   **多语言支持**：支持中英文界面切换，通过 `config.json` 的 `language` 字段一键切换（CN/EN）。呼吸率在 EN 模式下显示为 `breaths/min`，CN 模式下为 `次/分`。
 *   **个人档案数据**：支持 `age`, `gender`, `height_cm`, `weight_kg` 个人档案配置，AI 分析时参考这些数据生成个性化建议
 *   **智能邮件回退**：默认优先级 oauth2 → smtp → mail_app → local（可在 provider_priority 自定义）
 *   **配置化路径**：所有脚本统一从 `config.json` 读取数据路径，无需修改代码
@@ -389,13 +391,24 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
 *   **字数红线**：AI 指标分析段落必须在 150-200 字，核心行动建议 250-300 字
-*   **单日单源**：每份报告必须仅依赖当日产生的 Data Cache JSON
+*   **数据来源**：日报主要从 Apple Health 当日源文件读取并在生成后写缓存；周/月报从 daily cache 聚合。
 
 ---
 
 ## 📁 配置文件说明
 
-### config.json 结构
+#
+#配置文件查找顺序（按优先级）：
+1. 仓库根目录 `config.json`
+2. `~/.openclaw/workspace-health/config.json`
+
+## 邮件配置项补充说明
+
+`email_config` 可选字段：
+- `max_retries`: 发送失败重试次数（默认 3）
+- `retry_delay`: 重试间隔秒数（默认 5）
+
+## config.json 结构
 ```json
 {
   "version": "5.8.1",
