@@ -132,15 +132,18 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     # V5.8.1: 兼容两种 workout 结构
     workouts = []
     
-    # 尝试结构1: data.workouts.data
-    workout_data = data.get('data', {}).get('workouts', {})
-    if workout_data and 'data' in workout_data:
+    # 尝试结构1: data.workouts (直接是数组) 或 data.workouts.data
+    workout_data = data.get('data', {}).get('workouts', [])
+    
+    if isinstance(workout_data, list):
+        # 直接是数组
+        workout_list = workout_data
+    elif isinstance(workout_data, dict) and 'data' in workout_data:
+        # 嵌套结构: data.workouts.data
         workout_list = workout_data.get('data', [])
     else:
-        # 尝试结构2: data.workouts (直接是数组)
+        # 尝试顶层 workouts
         workout_list = data.get('workouts', [])
-        if not workout_list and 'data' in data:
-            workout_list = data['data'].get('workouts', [])
     
     for workout in workout_list:
         # 解析开始时间（支持 timestamp 和 ISO 格式）
@@ -157,10 +160,28 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
                 try:
                     start_dt = datetime.fromtimestamp(float(start_ts))
                 except (ValueError, TypeError):
-                    # 尝试 ISO 格式
-                    iso_str = start_ts.replace('Z', '+00:00')
-                    start_dt = datetime.fromisoformat(iso_str)
-        except (ValueError, TypeError):
+                    # 尝试 ISO 格式 (处理多种变体)
+                    try:
+                        # 标准 ISO 格式: 2026-03-02T16:53:53+08:00 或 2026-03-02T16:53:53Z
+                        iso_str = start_ts.replace('Z', '+00:00')
+                        start_dt = datetime.fromisoformat(iso_str)
+                    except (ValueError, TypeError):
+                        # 处理带空格的格式: "2026-03-02 16:53:53 +0800"
+                        # 转换为标准格式: "2026-03-02T16:53:53+08:00"
+                        import re
+                        # 匹配 "YYYY-MM-DD HH:MM:SS +HHMM" 或 "YYYY-MM-DD HH:MM:SS -HHMM"
+                        match = re.match(r'(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4})', start_ts)
+                        if match:
+                            date_part, time_part, tz_part = match.groups()
+                            # 将 +0800 转换为 +08:00
+                            tz_formatted = tz_part[:3] + ':' + tz_part[3:]
+                            iso_str = f"{date_part}T{time_part}{tz_formatted}"
+                            start_dt = datetime.fromisoformat(iso_str)
+                        else:
+                            # 最后尝试直接解析 (无时区)
+                            start_dt = datetime.strptime(start_ts, '%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError) as e:
+            print(f"⚠️  无法解析运动开始时间: {start_ts} - {e}", file=sys.stderr)
             continue
         
         # 计算 duration_min（使用智能单位推断）
@@ -171,13 +192,47 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
         else:
             duration_min = 0
 
+        # 提取能量（兼容多种字段名）
+        energy_kcal = 0
+        energy_data = workout.get('energy') or workout.get('activeEnergyBurned')
+        if energy_data:
+            if isinstance(energy_data, dict):
+                qty = energy_data.get('qty', 0)
+                units = energy_data.get('units', '').lower()
+                if 'kj' in units:
+                    energy_kcal = qty / KJ_TO_KCAL
+                else:
+                    energy_kcal = qty
+            else:
+                energy_kcal = energy_data / KJ_TO_KCAL
+        
+        # 提取心率（兼容多种字段名）
+        avg_hr = None
+        max_hr = None
+        
+        # 尝试 heartRate 对象
+        hr_data = workout.get('heartRate')
+        if hr_data and isinstance(hr_data, dict):
+            avg_hr = hr_data.get('avg', {}).get('qty') if isinstance(hr_data.get('avg'), dict) else hr_data.get('avg')
+            max_hr = hr_data.get('max', {}).get('qty') if isinstance(hr_data.get('max'), dict) else hr_data.get('max')
+        
+        # 尝试 avgHeartRate / maxHeartRate
+        if avg_hr is None:
+            avg_hr_data = workout.get('avgHeartRate')
+            if avg_hr_data and isinstance(avg_hr_data, dict):
+                avg_hr = avg_hr_data.get('qty')
+        if max_hr is None:
+            max_hr_data = workout.get('maxHeartRate')
+            if max_hr_data and isinstance(max_hr_data, dict):
+                max_hr = max_hr_data.get('qty')
+
         workouts.append({
             'type': workout.get('name', 'Unknown'),
             'start_time': start_dt.strftime('%H:%M'),
             'duration_min': duration_min,
-            'energy_kcal': workout.get('energy', 0) / KJ_TO_KCAL if workout.get('energy') else 0,
-            'avg_hr': workout.get('avg_hr'),
-            'max_hr': workout.get('max_hr')
+            'energy_kcal': energy_kcal,
+            'avg_hr': avg_hr,
+            'max_hr': max_hr
         })
     
     return workouts
