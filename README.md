@@ -287,6 +287,19 @@ python3 scripts/setup_oauth2.py
    python3 scripts/extract_data_v5.py $(date -d 'yesterday' +%Y-%m-%d) all
 3. AI 分析：基于提取的 JSON 数据生成详细分析。**必须严格使用 JSON 中 `profile` 字段的实际个人档案信息（如：年龄{X}岁、性别{Y}、身高{Z}cm、体重{W}kg）、计算BMI并据此给出个性化建议。** 每项指标分析 150-200 字，核心建议 250-300 字。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
    
+   **重要字段说明（AI 必须理解）**:
+   - `hrv.value`: HRV 平均值，单位毫秒（ms），正常范围 20-100ms，年轻人通常 50-80ms
+   - `hrv.measurement_count`: 测量数据点数量（如46 = 当天测量了46次），**这不是评分！**
+   - `resting_hr.value`: 静息心率，单位 bpm，正常范围 60-100bpm
+   - `steps`: 步数，建议每日 8000-10000 步
+   - `active_energy_kcal`: 活动能量，单位千卡（kcal）
+   - `sleep.total_hours`: 睡眠总时长，单位小时
+   
+   **评分说明**:
+   - 恢复度评分、睡眠评分、运动评分由代码 calculate_scores() 计算，范围 0-100
+   - AI 只分析数据，**禁止自行计算或猜测 0-100 评分**
+   - HRV 数据中没有 "points" 评分，只有测量次数（measurement_count）
+   
    **运动分析要求（必须遵守）**:
    - 必须检查 `workouts` 数组：如果数组非空，必须详细描述其中的运动记录
    - 描述内容包括：运动类型（如户外跑步、游泳）、时长（分钟）、能量消耗（千卡）、平均心率

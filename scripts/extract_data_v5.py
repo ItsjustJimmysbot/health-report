@@ -283,7 +283,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     metrics = {m['name']: m for m in metrics_list if 'name' in m}
     
     # HRV (心率变异性)
-    hrv_raw, hrv_points = extract_metric_avg(metrics, 'heart_rate_variability')
+    hrv_raw, hrv_measurement_count = extract_metric_avg(metrics, 'heart_rate_variability')
     
     # V5.8.1: 使用 resting_heart_rate 而不是 heart_rate
     resting_hr_raw, _ = extract_metric_avg(metrics, 'resting_heart_rate')
@@ -347,7 +347,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         'profile': user_profile,
         'hrv': {
             'value': round(hrv_raw, 1) if hrv_raw else None,
-            'points': hrv_points
+            'measurement_count': hrv_measurement_count,  # 测量次数，不是评分
+            'unit': 'ms'
         },
         'resting_hr': {
             'value': round(resting_hr_raw) if resting_hr_raw else None
