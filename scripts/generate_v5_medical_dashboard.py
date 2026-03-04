@@ -401,22 +401,11 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             avg_hr = round(sum(avgs) / len(avgs)) if avgs else None
             max_hr = int(max(mxs)) if mxs else None
 
-            # duration 兼容秒/分钟
+            # duration 使用智能单位推断
             dur_raw = w.get('duration')
             if isinstance(dur_raw, (int, float)) and dur_raw > 0:
-                # 1) 读取 unit
-                unit = str(w.get('durationUnit') or w.get('duration_unit') or '').lower()
-                # 2) 如果 unit 明确是秒（s/sec/second/seconds）=> duration_min = dur_raw / 60
-                if unit in ('s', 'sec', 'second', 'seconds'):
-                    duration_min = dur_raw / 60.0
-                # 3) 如果 unit 明确是分钟（m/min/minute/minutes）=> duration_min = dur_raw
-                elif unit in ('m', 'min', 'minute', 'minutes'):
-                    duration_min = float(dur_raw)
-                # 4) 否则用保守兜底：dur_raw > 1440 视为秒（/60），否则视为分钟
-                elif dur_raw > 1440:
-                    duration_min = dur_raw / 60.0
-                else:
-                    duration_min = float(dur_raw)
+                from utils import infer_duration_unit
+                duration_min, _ = infer_duration_unit(dur_raw, w)
             else:
                 duration_min = 0.0
 

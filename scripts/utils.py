@@ -1209,3 +1209,61 @@ def log_debug(message: str) -> None:
     """记录调试日志"""
     _setup_file_handler()
     logger.debug(message)
+
+
+def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
+    """
+    智能推断 duration 单位（秒或分钟）
+    返回: (duration_minutes, unit_inferred)
+    """
+    # 明确有单位的
+    unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
+    if unit in ('s', 'sec', 'second', 'seconds'):
+        return duration_raw / 60.0, 'seconds'
+    if unit in ('m', 'min', 'minute', 'minutes'):
+        return float(duration_raw), 'minutes'
+    
+    # 无单位时的智能判断
+    
+    # 规则1: >1440 一定是秒（>24小时运动不合理）
+    if duration_raw > 1440:
+        return duration_raw / 60.0, 'seconds'
+    
+    # 规则2: 能量辅助判断（最可靠）
+    energy = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0)  # kJ
+    if energy > 0 and duration_raw > 0:
+        kcal = energy / 4.184  # 转换为千卡
+        
+        # 假设是分钟：每分钟能量
+        kcal_per_min_if_minutes = kcal / duration_raw
+        # 假设是秒：每分钟能量
+        kcal_per_min_if_seconds = kcal / (duration_raw / 60.0)
+        
+        # 正常运动：3-25 kcal/分钟
+        # 如果按分钟算 <1 kcal/分钟，不合理（应该是秒）
+        if kcal_per_min_if_minutes < 1.0:
+            return duration_raw / 60.0, 'seconds'
+        
+        # 如果按分钟算 >30 kcal/分钟，不合理（应该是秒）
+        if kcal_per_min_if_minutes > 30.0:
+            return duration_raw / 60.0, 'seconds'
+    
+    # 规则3: 心率数据点辅助
+    hr_data = workout.get('heartRateData', [])
+    if len(hr_data) > 0:
+        # 心率点数应该 ≈ 分钟数（Apple Watch 约每分钟1个点）
+        expected_mins_from_hr = len(hr_data)
+        
+        diff_if_minutes = abs(expected_mins_from_hr - duration_raw)
+        diff_if_seconds = abs(expected_mins_from_hr - (duration_raw / 60.0))
+        
+        if diff_if_seconds < diff_if_minutes:
+            return duration_raw / 60.0, 'seconds'
+        else:
+            return float(duration_raw), 'minutes'
+    
+    # 规则4: 保守默认（>300秒假设为秒，避免显示过大数值）
+    if duration_raw > 300:
+        return duration_raw / 60.0, 'seconds'
+    else:
+        return float(duration_raw), 'minutes'

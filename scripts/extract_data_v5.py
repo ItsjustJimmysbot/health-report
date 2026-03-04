@@ -163,17 +163,11 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
         except (ValueError, TypeError):
             continue
         
-        # 计算 duration_min（支持 durationUnit/duration_unit，兜底阈值 1440）
+        # 计算 duration_min（使用智能单位推断）
         dur_raw = workout.get('duration', 0) or 0
         if dur_raw:
-            raw_unit = workout.get('durationUnit') or workout.get('duration_unit')
-            unit = str(raw_unit).lower() if raw_unit else ''
-            if unit in ('s', 'sec', 'second', 'seconds'):
-                duration_min = dur_raw / 60.0
-            elif unit in ('m', 'min', 'minute', 'minutes'):
-                duration_min = float(dur_raw)
-            else:
-                duration_min = dur_raw / 60.0 if dur_raw > 1440 else float(dur_raw)
+            from utils import infer_duration_unit
+            duration_min, inferred_unit = infer_duration_unit(dur_raw, workout)
         else:
             duration_min = 0
 
