@@ -812,8 +812,14 @@ def main():
     
     report_type = sys.argv[1]
 
-    # 读取AI分析
-    raw_ai_analyses = json.load(sys.stdin)
+    # 读取AI分析（使用安全解析）
+    from utils import safe_json_loads
+    input_text = sys.stdin.read()
+    try:
+        raw_ai_analyses = safe_json_loads(input_text, context="周报/月报AI分析JSON")
+    except json.JSONDecodeError as e:
+        print(f"❌ 错误: {e}")
+        sys.exit(1)
 
     if MEMBER_COUNT == 0:
         print("❌ 错误: config.json 未配置 members，无法生成周报/月报")

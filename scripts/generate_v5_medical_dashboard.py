@@ -102,13 +102,13 @@ MIN_LENGTH_PRIORITY_ACTION = ANALYSIS_LIMITS.get("action_min_words", 250)
 MAX_LENGTH_PRIORITY_ACTION = ANALYSIS_LIMITS.get("action_max_words", 300)
 MIN_LENGTH_PRIORITY_EXPECTATION = 70
 MIN_LENGTH_AI2_TITLE = 10
-MIN_LENGTH_AI2_PROBLEM = 80
-MIN_LENGTH_AI2_ACTION = 100
-MIN_LENGTH_AI2_EXPECTATION = 70
+MIN_LENGTH_AI2_PROBLEM = 70
+MIN_LENGTH_AI2_ACTION = 80
+MIN_LENGTH_AI2_EXPECTATION = 60
 MIN_LENGTH_AI3_TITLE = 10
-MIN_LENGTH_AI3_PROBLEM = 80
-MIN_LENGTH_AI3_ACTION = 100
-MIN_LENGTH_AI3_EXPECTATION = 70
+MIN_LENGTH_AI3_PROBLEM = 70
+MIN_LENGTH_AI3_ACTION = 80
+MIN_LENGTH_AI3_EXPECTATION = 60
 
 # 饮食方案字数限制
 MIN_LENGTH_BREAKFAST = 30      # 早餐最低字数
@@ -1015,7 +1015,14 @@ if __name__ == '__main__':
     print("")
     
     # 读取所有成员的AI分析（支持单对象或字典或列表）
-    raw_ai_analyses = json.load(sys.stdin)
+    # V5.8.1: 使用安全解析（自动修复中文引号）
+    from utils import safe_json_loads
+    input_text = sys.stdin.read()
+    try:
+        raw_ai_analyses = safe_json_loads(input_text, context="AI分析JSON")
+    except json.JSONDecodeError as e:
+        print(f"❌ 错误: {e}")
+        sys.exit(1)
     
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]

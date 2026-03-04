@@ -1231,6 +1231,10 @@ def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
     
     # 规则2: 能量辅助判断（最可靠）
     energy = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0)  # kJ
+    # 处理能量可能是字典的情况
+    if isinstance(energy, dict):
+        energy = energy.get('qty', 0) or energy.get('value', 0)
+    energy = float(energy) if energy else 0
     if energy > 0 and duration_raw > 0:
         kcal = energy / 4.184  # 转换为千卡
         
@@ -1267,3 +1271,69 @@ def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
         return duration_raw / 60.0, 'seconds'
     else:
         return float(duration_raw), 'minutes'
+
+
+def fix_json_quotes(json_text: str) -> str:
+    """
+    修复 JSON 中的中文引号为英文引号
+    同时处理其他可能导致 JSON 解析失败的字符
+    """
+    import re
+    
+    # 中文引号映射到英文引号
+    quote_mapping = {
+        '"': '"',  # 左弯双引号
+        '"': '"',  # 右弯双引号
+        ''': "'",   # 左弯单引号
+        ''': "'",   # 右弯单引号
+        '「': '"',  # 日式左引号
+        '」': '"',  # 日式右引号
+        '『': '"',  # 日式左双引号
+        '』': '"',  # 日式右双引号
+        '＂': '"',  # 全角双引号
+        '＇': "'",  # 全角单引号
+    }
+    
+    # 替换所有中文引号
+    for ch_quote, en_quote in quote_mapping.items():
+        json_text = json_text.replace(ch_quote, en_quote)
+    
+    return json_text
+
+
+def safe_json_loads(json_text: str, context: str = "") -> dict:
+    """
+    安全地解析 JSON，自动修复常见问题
+    
+    Args:
+        json_text: JSON 字符串
+        context: 上下文描述（用于错误报告）
+    
+    Returns:
+        解析后的字典
+    
+    Raises:
+        json.JSONDecodeError: 如果修复后仍无法解析
+    """
+    import json
+    
+    # 首先尝试直接解析
+    try:
+        return json.loads(json_text)
+    except json.JSONDecodeError:
+        pass
+    
+    # 尝试修复中文引号
+    fixed_text = fix_json_quotes(json_text)
+    
+    try:
+        result = json.loads(fixed_text)
+        print(f"⚠️  {context}: JSON 已自动修复中文引号")
+        return result
+    except json.JSONDecodeError as e:
+        # 修复失败，抛出原始错误
+        raise json.JSONDecodeError(
+            f"{context}: JSON 解析失败（已尝试修复中文引号）: {e}",
+            e.doc if hasattr(e, 'doc') else json_text,
+            e.pos if hasattr(e, 'pos') else 0
+        )
