@@ -804,6 +804,18 @@ def get_member_config(index: int):
     }
 
 def main():
+    # 自动删除旧的 ai_analysis.json 防止缓存问题
+    from pathlib import Path
+    workspace_dir = Path(__file__).parent.parent
+    ai_analysis_file = workspace_dir / 'ai_analysis.json'
+    
+    if ai_analysis_file.exists():
+        try:
+            ai_analysis_file.unlink()
+            print(f"🗑️  已删除旧的 AI 分析文件: {ai_analysis_file}")
+        except Exception as e:
+            print(f"⚠️  无法删除旧的 AI 分析文件: {e}", file=sys.stderr)
+    
     if len(sys.argv) < 2:
         print('用法:')
         print('  周报: python3 scripts/generate_weekly_monthly_medical.py weekly <start_date> <end_date> < ai_analysis.json')

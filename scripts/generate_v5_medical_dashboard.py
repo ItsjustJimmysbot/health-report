@@ -973,6 +973,20 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
 
 
 if __name__ == '__main__':
+    # ============================================
+    # 自动删除旧的 ai_analysis.json 防止缓存问题
+    # ============================================
+    workspace_dir = Path(__file__).parent.parent
+    ai_analysis_file = workspace_dir / 'ai_analysis.json'
+    
+    if ai_analysis_file.exists():
+        try:
+            ai_analysis_file.unlink()
+            print(f"🗑️  已删除旧的 AI 分析文件: {ai_analysis_file}")
+        except Exception as e:
+            print(f"⚠️  无法删除旧的 AI 分析文件: {e}", file=sys.stderr)
+    # ============================================
+    
     from datetime import datetime
     
     if len(sys.argv) < 2:
