@@ -93,9 +93,13 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     1. 支持双文件名: YYYY-MM-DD.json 和 HealthAutoExport-YYYY-MM-DD.json
     2. 兼容 workout 结构: data.workouts.data 和 data.workouts
     """
+    from datetime import datetime
+    from pathlib import Path
+    import re
+    
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.8.1: 使用传入的路径或全局默认路径
+    # 使用传入的路径或全局默认路径
     if workout_dir is None:
         workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
     else:
@@ -106,11 +110,12 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     else:
         health_dir = Path(health_dir).expanduser()
     
-    # 尝试两种文件名（按优先级）
+    # 尝试多种文件路径
     workout_paths = [
         workout_dir / f'{date_str}.json',
         workout_dir / f'HealthAutoExport-{date_str}.json',
         health_dir / f'HealthAutoExport-{date_str}.json',
+        health_dir / f'{date_str}.json',
     ]
     
     workout_file = None
@@ -129,111 +134,97 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
         print(f"⚠️  读取运动文件失败: {workout_file} - {e}", file=sys.stderr)
         return []
     
-    # V5.8.1: 兼容两种 workout 结构
+    # 兼容多种 workout 结构
     workouts = []
     
-    # 尝试结构1: data.workouts (直接是数组) 或 data.workouts.data
-    workout_data = data.get('data', {}).get('workouts', [])
-    
-    if isinstance(workout_data, list):
-        # 直接是数组
-        workout_list = workout_data
-    elif isinstance(workout_data, dict) and 'data' in workout_data:
-        # 嵌套结构: data.workouts.data
+    # 尝试结构1: data.workouts.data (字典嵌套)
+    workout_data = data.get('data', {}).get('workouts', {})
+    if isinstance(workout_data, dict) and 'data' in workout_data:
         workout_list = workout_data.get('data', [])
+    elif isinstance(workout_data, list):
+        # 结构: data.workouts = []
+        workout_list = workout_data
     else:
-        # 尝试顶层 workouts
+        # 尝试结构2: data.workouts (直接是数组)
         workout_list = data.get('workouts', [])
+        if not workout_list and 'data' in data:
+            workout_list = data['data'].get('workouts', [])
     
     for workout in workout_list:
-        # 解析开始时间（支持 timestamp 和 ISO 格式）
-        start_ts = workout.get('start')
-        if not start_ts:
-            continue
-
-        start_dt = None
         try:
-            if isinstance(start_ts, (int, float)):
-                start_dt = datetime.fromtimestamp(start_ts)
-            else:
-                # 先尝试字符串时间戳
-                try:
-                    start_dt = datetime.fromtimestamp(float(start_ts))
-                except (ValueError, TypeError):
-                    # 尝试 ISO 格式 (处理多种变体)
-                    try:
-                        # 标准 ISO 格式: 2026-03-02T16:53:53+08:00 或 2026-03-02T16:53:53Z
-                        iso_str = start_ts.replace('Z', '+00:00')
-                        start_dt = datetime.fromisoformat(iso_str)
-                    except (ValueError, TypeError):
-                        # 处理带空格的格式: "2026-03-02 16:53:53 +0800"
-                        # 转换为标准格式: "2026-03-02T16:53:53+08:00"
-                        import re
-                        # 匹配 "YYYY-MM-DD HH:MM:SS +HHMM" 或 "YYYY-MM-DD HH:MM:SS -HHMM"
-                        match = re.match(r'(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4})', start_ts)
-                        if match:
-                            date_part, time_part, tz_part = match.groups()
-                            # 将 +0800 转换为 +08:00
-                            tz_formatted = tz_part[:3] + ':' + tz_part[3:]
-                            iso_str = f"{date_part}T{time_part}{tz_formatted}"
-                            start_dt = datetime.fromisoformat(iso_str)
-                        else:
-                            # 最后尝试直接解析 (无时区)
-                            start_dt = datetime.strptime(start_ts, '%Y-%m-%d %H:%M:%S')
-        except (ValueError, TypeError) as e:
-            print(f"⚠️  无法解析运动开始时间: {start_ts} - {e}", file=sys.stderr)
-            continue
-        
-        # 计算 duration_min（使用智能单位推断）
-        dur_raw = workout.get('duration', 0) or 0
-        if dur_raw:
-            from utils import infer_duration_unit
-            duration_min, inferred_unit = infer_duration_unit(dur_raw, workout)
-        else:
-            duration_min = 0
+            # 解析开始时间（支持多种格式）
+            start_ts = workout.get('start') or workout.get('startDate')
+            if not start_ts:
+                continue
 
-        # 提取能量（兼容多种字段名）
-        energy_kcal = 0
-        energy_data = workout.get('energy') or workout.get('activeEnergyBurned')
-        if energy_data:
-            if isinstance(energy_data, dict):
-                qty = energy_data.get('qty', 0)
-                units = energy_data.get('units', '').lower()
-                if 'kj' in units:
-                    energy_kcal = qty / KJ_TO_KCAL
+            start_dt = None
+            try:
+                if isinstance(start_ts, (int, float)):
+                    start_dt = datetime.fromtimestamp(start_ts)
                 else:
-                    energy_kcal = qty
+                    # 尝试字符串时间戳
+                    try:
+                        start_dt = datetime.fromtimestamp(float(start_ts))
+                    except (ValueError, TypeError):
+                        # 尝试 ISO 格式（支持 +0800 时区）
+                        iso_str = str(start_ts).replace('Z', '+00:00')
+                        # 处理 +0800 格式
+                        match = re.match(r'(.+?)\s+([+-]\d{4})$', iso_str)
+                        if match:
+                            dt_str, tz_str = match.groups()
+                            tz_formatted = tz_str[:3] + ':' + tz_str[3:]
+                            iso_str = dt_str + tz_formatted
+                        start_dt = datetime.fromisoformat(iso_str)
+            except (ValueError, TypeError) as e:
+                print(f"⚠️  时间解析失败: {start_ts} - {e}", file=sys.stderr)
+                continue
+            
+            # 计算 duration_min（使用智能单位推断）
+            dur_raw = workout.get('duration', 0) or 0
+            if dur_raw:
+                from utils import infer_duration_unit
+                duration_min, _ = infer_duration_unit(dur_raw, workout)
             else:
-                energy_kcal = energy_data / KJ_TO_KCAL
-        
-        # 提取心率（兼容多种字段名）
-        avg_hr = None
-        max_hr = None
-        
-        # 尝试 heartRate 对象
-        hr_data = workout.get('heartRate')
-        if hr_data and isinstance(hr_data, dict):
-            avg_hr = hr_data.get('avg', {}).get('qty') if isinstance(hr_data.get('avg'), dict) else hr_data.get('avg')
-            max_hr = hr_data.get('max', {}).get('qty') if isinstance(hr_data.get('max'), dict) else hr_data.get('max')
-        
-        # 尝试 avgHeartRate / maxHeartRate
-        if avg_hr is None:
-            avg_hr_data = workout.get('avgHeartRate')
-            if avg_hr_data and isinstance(avg_hr_data, dict):
-                avg_hr = avg_hr_data.get('qty')
-        if max_hr is None:
-            max_hr_data = workout.get('maxHeartRate')
-            if max_hr_data and isinstance(max_hr_data, dict):
-                max_hr = max_hr_data.get('qty')
-
-        workouts.append({
-            'type': workout.get('name', 'Unknown'),
-            'start_time': start_dt.strftime('%H:%M'),
-            'duration_min': duration_min,
-            'energy_kcal': energy_kcal,
-            'avg_hr': avg_hr,
-            'max_hr': max_hr
-        })
+                duration_min = 0
+            
+            # 获取能量（兼容多种字段名）
+            from utils import get_workout_field
+            energy_kj = get_workout_field(workout, ['energy', 'activeEnergyBurned', 'totalEnergyBurned', 'activeEnergy'], 0)
+            energy_kcal = energy_kj / 4.184 if energy_kj else 0
+            
+            # 获取心率（兼容多种字段名）
+            from utils import get_workout_field
+            
+            # 首先尝试直接获取 avg_hr
+            avg_hr = get_workout_field(workout, ['avg_hr', 'avgHeartRate', 'averageHeartRate'])
+            
+            # 如果失败，尝试从 heartRate 嵌套结构获取
+            if avg_hr is None:
+                hr_data = workout.get('heartRate')
+                if hr_data and isinstance(hr_data, dict) and 'avg' in hr_data:
+                    avg_hr = get_workout_field(hr_data, ['avg'], None)
+            
+            # 获取最大心率
+            max_hr = get_workout_field(workout, ['max_hr', 'maxHeartRate', 'maximumHeartRate'])
+            if max_hr is None:
+                hr_data = workout.get('heartRate')
+                if hr_data and isinstance(hr_data, dict) and 'max' in hr_data:
+                    max_hr = get_workout_field(hr_data, ['max'], None)
+            
+            workouts.append({
+                'type': workout.get('name', 'Unknown'),
+                'name': workout.get('name', 'Unknown'),
+                'start_time': start_dt.strftime('%H:%M'),
+                'start': start_dt.strftime('%Y-%m-%d %H:%M'),
+                'duration_min': duration_min,
+                'energy_kcal': energy_kcal,
+                'avg_hr': avg_hr,
+                'max_hr': max_hr,
+                'hr_timeline': workout.get('heartRateData', []) or workout.get('hrData', [])
+            })
+        except Exception as e:
+            print(f"⚠️  解析单个 workout 失败: {e}", file=sys.stderr)
+            continue
     
     return workouts
 

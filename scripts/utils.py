@@ -1337,3 +1337,78 @@ def safe_json_loads(json_text: str, context: str = "") -> dict:
             e.doc if hasattr(e, 'doc') else json_text,
             e.pos if hasattr(e, 'pos') else 0
         )
+
+
+def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
+    """
+    智能推断 duration 单位（秒或分钟）
+    返回: (duration_minutes, unit_inferred)
+    """
+    # 明确有单位的
+    unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
+    if unit in ('s', 'sec', 'second', 'seconds'):
+        return duration_raw / 60.0, 'seconds'
+    if unit in ('m', 'min', 'minute', 'minutes'):
+        return float(duration_raw), 'minutes'
+    
+    # 无单位时的智能判断
+    
+    # 规则1: >1440 一定是秒（>24小时运动不合理）
+    if duration_raw > 1440:
+        return duration_raw / 60.0, 'seconds'
+    
+    # 规则2: 能量辅助判断（最可靠）
+    energy_raw = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0) or workout.get('totalEnergyBurned', 0)
+    # 处理字典格式
+    if isinstance(energy_raw, dict):
+        energy = energy_raw.get('qty', 0)
+    else:
+        energy = energy_raw
+    if energy > 0 and duration_raw > 0:
+        kcal = energy / 4.184  # 转换为千卡
+        kcal_per_min_if_minutes = kcal / duration_raw
+        
+        # 如果按分钟算 <1 kcal/分钟，不合理（应该是秒）
+        if kcal_per_min_if_minutes < 1.0:
+            return duration_raw / 60.0, 'seconds'
+        
+        # 如果按分钟算 >30 kcal/分钟，不合理（应该是秒）
+        if kcal_per_min_if_minutes > 30.0:
+            return duration_raw / 60.0, 'seconds'
+    
+    # 规则3: 心率数据点辅助
+    hr_data = workout.get('heartRateData', []) or workout.get('hrData', [])
+    if len(hr_data) > 0:
+        expected_mins_from_hr = len(hr_data)
+        diff_if_minutes = abs(expected_mins_from_hr - duration_raw)
+        diff_if_seconds = abs(expected_mins_from_hr - (duration_raw / 60.0))
+        
+        if diff_if_seconds < diff_if_minutes:
+            return duration_raw / 60.0, 'seconds'
+        else:
+            return float(duration_raw), 'minutes'
+    
+    # 规则4: 保守默认（>300秒假设为秒）
+    if duration_raw > 300:
+        return duration_raw / 60.0, 'seconds'
+    else:
+        return float(duration_raw), 'minutes'
+
+
+def get_workout_field(workout: dict, field_names: list, default=None):
+    """
+    兼容多种字段名获取workout数据
+    按优先级尝试多个字段名
+    """
+    for name in field_names:
+        if name in workout and workout[name] is not None:
+            value = workout[name]
+            # 处理字典格式（如 {"qty": 100, "units": "kJ"}）
+            if isinstance(value, dict):
+                # 如果是 heartRate 这种嵌套结构，提取 avg/max
+                if 'avg' in value and isinstance(value['avg'], dict) and 'qty' in value['avg']:
+                    return value['avg']['qty']
+                if 'qty' in value:
+                    return value.get('qty', default)
+            return value
+    return default
