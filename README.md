@@ -1,4 +1,4 @@
-# Health Agent V5.8.1 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.9.0 - OpenClaw 专业健康分析 Skill
 
 > ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
 > 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。
@@ -46,11 +46,11 @@ python3 -m playwright install chromium
 安装完成后，OpenClaw 会自动通过 `SKILL.md` 发现并启用此 Skill。
 
 ### 3. 配置文件 (config.json)
-首次使用前，请编辑 `config.json` 配置你的数据路径（V5.8.1 新版配置结构）：
+首次使用前，请编辑 `config.json` 配置你的数据路径（V5.9.0 配置结构）：
 
 ```json
 {
-  "version": "5.8.1",
+  "version": "5.9.0",
   "members": [
     {
       "name": "Jimmy",
@@ -285,7 +285,7 @@ python3 scripts/setup_oauth2.py
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
    # Linux:
    python3 scripts/extract_data_v5.py $(date -d 'yesterday' +%Y-%m-%d) all
-3. AI 分析：基于提取的 JSON 数据生成详细分析。**必须严格使用 JSON 中 `profile` 字段的实际个人档案信息（如：年龄{X}岁、性别{Y}、身高{Z}cm、体重{W}kg）、计算BMI并据此给出个性化建议。** 每项指标分析 150-200 字，核心建议 250-300 字。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
+3. AI 分析：基于提取的 JSON 数据生成详细分析。**必须严格使用 JSON 中 `profile` 字段的实际个人档案信息（如：年龄{X}岁、性别{Y}、身高{Z}cm、体重{W}kg）、计算BMI并据此给出个性化建议。** 每项指标分析 150-200 字，核心建议 250-300 字。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
    
    **重要字段说明（AI 必须理解）**:
    - `hrv.value`: HRV 平均值，单位毫秒（ms），正常范围 20-100ms，年轻人通常 50-80ms
@@ -342,7 +342,7 @@ python3 scripts/setup_oauth2.py
    # Linux:
    START_DATE=$(date -d '7 days ago' +%Y-%m-%d)
    END_DATE=$(date -d 'yesterday' +%Y-%m-%d)
-3. AI 分析：基于整周数据趋势生成周报分析（总字数≥800字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
+3. AI 分析：基于整周数据趋势生成周报分析（总字数≥800字）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
 5. 渲染生成：
    cd ~/.openclaw/skills/health-report/scripts && \
@@ -370,7 +370,7 @@ python3 scripts/setup_oauth2.py
    YEAR=$(date -d '1 month ago' +%Y)
    MONTH=$(date -d '1 month ago' +%m)
    LAST_DAY=$(date -d 'yesterday' +%Y-%m-%d)  # 上月最后一天
-3. AI 分析：基于整月数据趋势生成月报深度分析（总字数≥1000字）。**如果 language 为 EN，则必须全篇使用纯英文输出；如果为 CN，则使用纯中文。**
+3. AI 分析：基于整月数据趋势生成月报深度分析（总字数≥1000字）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
 5. 渲染生成：
    cd ~/.openclaw/skills/health-report/scripts && \
@@ -440,9 +440,9 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-## ✨ V5.8.1 核心特性（含 V5.8.1 兼容修复）
+## ✨ V5.9.0 核心特性（含 5.8.x 兼容修复）
 
-> 版本说明：当前发布主版本为 **V5.8.1**。文中保留的 "V5.8.1" 标识表示该功能在 V5.8.1 首次引入，并在 V5.8.1 继续兼容。
+> 版本说明：当前发布主版本为 **V5.9.0**。文中保留的 "V5.8.1" 标识表示该能力在 5.8.1 首次引入并在 5.9.x 继续兼容。
 
 *   **版本号支持**: config.json 支持 5.8.x 和 5.9.x 版本号(为未来兼容预留)
 *   **数据字段修复 (V5.8.1)**：修复了 `active_energy` 字段名（原 `active_energy_burned`），确保活动能量数据正确提取
@@ -454,7 +454,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **智能邮件回退**：默认优先级 oauth2 → smtp → mail_app → local（可在 provider_priority 自定义）
 *   **配置化路径**：所有脚本统一从 `config.json` 读取数据路径，无需修改代码
 *   **真·数据对齐**：彻底修正了 Apple Health 跨天导出的偏移问题。日间活动从当日文件读取，睡眠数据从次日文件读取
-*   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、11 项核心指标表、Chart.js 动态心率曲线和深度睡眠结构分析
+*   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、可配置动态指标表（默认12项，可扩展到30项）、心率图和深度睡眠结构分析
 *   **原子化工作流**：将原本不稳定的 `edit` 局部替换逻辑升级为全量 `write` JSON 模式
 *   **跨夜睡眠归属**：完善了睡眠统计逻辑，自动抓取 `当日 20:00` 至 `次日 12:00` 的睡眠记录并归属为当日恢复指标
 
@@ -503,7 +503,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 ## config.json 结构
 ```json
 {
-  "version": "5.8.1",
+  "version": "5.9.0",
   "members": [
     {
       "name": "Jimmy",
@@ -555,6 +555,39 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 }
 ```
 
+### 📊 report_metrics（日报动态指标表）
+
+`report_metrics` 用于控制日报"详细指标分析"区域展示哪些指标、如何排序、是否隐藏无数据行。
+
+```json
+"report_metrics": {
+  "selected": [
+    "hrv", "resting_hr", "steps", "distance", "active_energy", "spo2",
+    "flights_climbed", "apple_stand_time", "basal_energy_burned", "respiratory_rate",
+    "vo2_max", "apple_exercise_time"
+  ],
+  "sort_by_importance": true,
+  "show_empty_categories": true,
+  "show_sleep_in_metrics_table": false,
+  "hide_no_data_metrics": true,
+  "require_ai_for_selected": false,
+  "category_order": [
+    "core_health", "cardio_fitness", "sleep_recovery", "activity_mobility",
+    "running_advanced", "walking_gait", "stairs_strength", "environment_audio"
+  ],
+  "importance_overrides": {
+    "vo2_max": 10,
+    "sleep_total_hours": 10,
+    "environmental_audio_exposure": 0
+  }
+}
+```
+
+说明：
+- `selected`：选择显示的指标（默认 12 项，可扩展到 30 项）。
+- `importance_overrides`：可把某项重要性设为 `0`（从表中移除）。
+- `require_ai_for_selected=true`：若某指标映射到 AI 字段且缺失，校验会失败。
+
 ### 👥 多成员配置（最多3人）
 
 支持为家庭成员分别生成健康报告。**注意：硬编码限制最多3人。**
@@ -563,7 +596,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ```json
 {
-  "version": "5.8.1",
+  "version": "5.9.0",
   "members": [
     {
       "name": "爸爸",
@@ -626,7 +659,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 #       "date": "2026-03-01",
 #       "data_source": "Apple Health",
 #       "profile": {"name": "成员1", "age": 30, ...},
-#       "hrv": {"value": 45.2, "points": 10},
+#       "hrv": {"value": 45.2, "measurement_count": 10},
 #       "resting_hr": {"value": 62},
 #       ...
 #     },
@@ -634,7 +667,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 #       "date": "2026-03-01",
 #       "data_source": "Apple Health", 
 #       "profile": {"name": "成员2", "age": 28, ...},
-#       "hrv": {"value": 52.1, "points": 12},
+#       "hrv": {"value": 52.1, "measurement_count": 12},
 #       ...
 #     }
 #   ]
@@ -666,16 +699,18 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 2. 重新生成报告即可自动切换语言
 
 **支持翻译的界面元素：**
-- 所有标题（睡眠质量、运动记录、11项核心指标等）
+- 所有标题（睡眠质量、运动记录、动态指标分析区等）
 - 评分评级（Excellent / Good / Average / Normal）
 - 运动状态标签（Completed / 已完成）
 - 心率图表标签（Heart Rate / Avg / Max / Time）
 - 睡眠状态（Normal / Insufficient Data）
 - 日期格式（2026年2月 / Feb 2026）
 
-**重要：** AI 分析的语言必须与 `language` 配置严格一致：
-- `CN` 模式：AI 必须输出纯中文
-- `EN` 模式：AI 必须输出纯英文
+**重要：** AI 分析语言需与 `language` 配置一致：
+- `CN` 模式：应以中文为主
+- `EN` 模式：应以英文为主（允许少量指标术语）
+
+当前语言检测基于中文字符占比阈值（默认非 strict 模式下：EN 允许少量中文术语，CN 也允许少量英文术语）。
 
 **严格模式验证：**
 当 `validation_mode: strict` 时，脚本会检查：
@@ -780,7 +815,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 | 字段名 | 单位 | 说明 |
 |--------|------|------|
 | `hrv.value` | ms | 心率变异性平均值 |
-| `hrv.points` | 计数 | HRV 数据点数量 |
+| `hrv.measurement_count` | 计数 | HRV 数据点数量（测量次数） |
 | `resting_hr.value` | bpm | 静息心率 |
 | `steps` | 步 | 当日步数 |
 | `distance_km` | km | 步行/跑步距离 |
@@ -798,50 +833,32 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 
 ### AI 分析字段必填说明
 
-日报必须提供以下所有字段，否则报告生成将失败：
+日报字段分为"硬性必填"和"建议完整提供"两类：
 
-**指标分析（12项，每项150-200字）**: hrv, resting_hr, steps, distance, active_energy, spo2, flights, stand, basal, respiratory, sleep, workout
+**硬性必填（缺少会报错）**
+- `sleep`
+- `workout`（即使当天无运动也必须提供文本）
+- `priority.title`, `priority.problem`, `priority.action`, `priority.expectation`
+- `ai2_title`, `ai2_problem`, `ai2_action`, `ai2_expectation`
+- `ai3_title`, `ai3_problem`, `ai3_action`, `ai3_expectation`
+- `breakfast`, `lunch`, `dinner`, `snack`
 
-**最高优先级建议（1项）**: priority.title, priority.problem, priority.action, priority.expectation
-
-**次级建议（2项）**: ai2_title, ai2_problem, ai2_action, ai2_expectation, ai3_title, ai3_problem, ai3_action, ai3_expectation
-
-**饮食方案（4项）**: breakfast, lunch, dinner, snack（每项≥30字）
-
-> ⚠️ 注意: 以上所有字段都是**必填**的，即使无运动或无特殊饮食建议，也必须提供分析文本。
+**建议完整提供（默认缺失不阻断，但会影响质量）**
+- 指标分析 12 项：`hrv`, `resting_hr`, `steps`, `distance`, `active_energy`, `spo2`, `flights`, `stand`, `basal`, `respiratory`, `sleep`, `workout`
+- 若配置 `report_metrics.require_ai_for_selected=true`，则已选指标映射到 AI 字段但缺失时会触发校验失败。
 
 ### AI 分析 JSON 字段要求
 
-| 字段名 | 字数要求 | 说明 |
-|--------|----------|------|
-| `hrv` | 150-200字 | 【必填】HRV 分析 |
-| `resting_hr` | 150-200字 | 【必填】静息心率分析 |
-| `steps` | 150-200字 | 【必填】步数分析 |
-| `distance` | 150-200字 | 【必填】距离分析 |
-| `active_energy` | 150-200字 | 【必填】活动能量分析 |
-| `spo2` | 150-200字 | 【必填】血氧分析 |
-| `flights` | 150-200字 | 【必填】爬楼分析 |
-| `stand` | 150-200字 | 【必填】站立分析 |
-| `basal` | 150-200字 | 【必填】基础代谢分析 |
-| `respiratory` | 150-200字 | 【必填】呼吸率分析 |
-| `sleep` | 150-200字 | 【必填】睡眠分析 |
-| `workout` | 150-200字 | 【必填】运动分析 |
-| `priority.title` | ≥10字 | 【必填】最高优先级标题 |
-| `priority.problem` | ≥80字 | 【必填】问题识别 |
-| `priority.action` | 250-300字 | 【必填】行动计划 |
-| `priority.expectation` | ≥70字 | 【必填】预期效果 |
-| `ai2_title` | ≥10字 | 【必填】第二优先级标题 |
-| `ai2_problem` | ≥80字 | 【必填】第二优先级问题识别 |
-| `ai2_action` | ≥100字 | 【必填】第二优先级行动计划 |
-| `ai2_expectation` | ≥70字 | 【必填】第二优先级预期效果 |
-| `ai3_title` | ≥10字 | 【必填】第三优先级标题 |
-| `ai3_problem` | ≥80字 | 【必填】第三优先级问题识别 |
-| `ai3_action` | ≥100字 | 【必填】第三优先级行动计划 |
-| `ai3_expectation` | ≥70字 | 【必填】第三优先级预期效果 |
-| `breakfast` | ≥30字 | 【必填】早餐方案 |
-| `lunch` | ≥30字 | 【必填】午餐方案 |
-| `dinner` | ≥30字 | 【必填】晚餐方案 |
-| `snack` | ≥30字 | 【必填】加餐方案 |
+| 字段名 | 长度要求（默认） | 说明 |
+|--------|------------------|------|
+| `hrv` ~ `workout`（12项指标段落） | 150-200 字/段 | 建议完整提供；`sleep` / `workout` 同时属于硬性必填 |
+| `priority.action` | 250-300 字 | 硬性必填 |
+| `priority.title` `priority.problem` `priority.expectation` | ≥1 字 | 硬性必填 |
+| `ai2_*` / `ai3_*` | ≥1 字 | 硬性必填 |
+| `breakfast` `lunch` `dinner` `snack` | ≥1 字 | 硬性必填 |
+| `daily_min_words` | 默认 500（来自配置） | 日报总字数下限 |
+
+> 说明：以上阈值可通过 `analysis_limits` 配置覆盖。
 
 ---
 

@@ -10,6 +10,9 @@ requests>=2.28.0
 # 语言检测（可选，用于改进的语言检测）
 langdetect>=1.0.9
 
+# 配置结构校验（validate_config.py 依赖）
+jsonschema>=4.0.0
+
 # Google认证（OAuth2邮件发送，可选）
 google-auth>=2.22.0
 # google-auth-oauthlib>=1.0.0

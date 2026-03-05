@@ -1,6 +1,6 @@
 # Health Report 故障排查指南
 
-> 本文档汇总了 Health Report V5.8.x 的常见问题及解决方案。
+> 本文档汇总了 Health Report V5.9.x 的常见问题及解决方案。
 > 完整安装和使用说明请参见 [README.md](README.md)。
 
 ---
@@ -167,7 +167,7 @@ AI 分析内容的语言与 `config.json` 中的 `language` 设置不一致。
 
 **解决：**
 1. 如果 `language` 为 `CN`，AI 必须输出纯中文
-2. 如果 `language` 为 `EN`，AI 必须输出纯英文
+2. 如果 `language` 为 `EN`，AI 应以英文为主（允许少量指标术语）
 3. 临时改为 `warn` 模式跳过检测（不推荐长期使用）
 
 ---

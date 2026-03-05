@@ -1251,93 +1251,26 @@ def log_debug(message: str) -> None:
     logger.debug(message)
 
 
-def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
-    """
-    智能推断 duration 单位（秒或分钟）
-    返回: (duration_minutes, unit_inferred)
-    """
-    # 明确有单位的
-    unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
-    if unit in ('s', 'sec', 'second', 'seconds'):
-        return duration_raw / 60.0, 'seconds'
-    if unit in ('m', 'min', 'minute', 'minutes'):
-        return float(duration_raw), 'minutes'
-    
-    # 无单位时的智能判断
-    
-    # 规则1: >1440 一定是秒（>24小时运动不合理）
-    if duration_raw > 1440:
-        return duration_raw / 60.0, 'seconds'
-    
-    # 规则2: 能量辅助判断（最可靠）
-    energy = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0)  # kJ
-    # 处理能量可能是字典的情况
-    if isinstance(energy, dict):
-        energy = energy.get('qty', 0) or energy.get('value', 0)
-    energy = float(energy) if energy else 0
-    if energy > 0 and duration_raw > 0:
-        kcal = energy / 4.184  # 转换为千卡
-        
-        # 假设是分钟：每分钟能量
-        kcal_per_min_if_minutes = kcal / duration_raw
-        # 假设是秒：每分钟能量
-        kcal_per_min_if_seconds = kcal / (duration_raw / 60.0)
-        
-        # 正常运动：3-25 kcal/分钟
-        # 如果按分钟算 <1 kcal/分钟，不合理（应该是秒）
-        if kcal_per_min_if_minutes < 1.0:
-            return duration_raw / 60.0, 'seconds'
-        
-        # 如果按分钟算 >30 kcal/分钟，不合理（应该是秒）
-        if kcal_per_min_if_minutes > 30.0:
-            return duration_raw / 60.0, 'seconds'
-    
-    # 规则3: 心率数据点辅助
-    hr_data = workout.get('heartRateData', [])
-    if len(hr_data) > 0:
-        # 心率点数应该 ≈ 分钟数（Apple Watch 约每分钟1个点）
-        expected_mins_from_hr = len(hr_data)
-        
-        diff_if_minutes = abs(expected_mins_from_hr - duration_raw)
-        diff_if_seconds = abs(expected_mins_from_hr - (duration_raw / 60.0))
-        
-        if diff_if_seconds < diff_if_minutes:
-            return duration_raw / 60.0, 'seconds'
-        else:
-            return float(duration_raw), 'minutes'
-    
-    # 规则4: 保守默认（>300秒假设为秒，避免显示过大数值）
-    if duration_raw > 300:
-        return duration_raw / 60.0, 'seconds'
-    else:
-        return float(duration_raw), 'minutes'
-
-
 def fix_json_quotes(json_text: str) -> str:
     """
-    修复 JSON 中的中文引号为英文引号
-    同时处理其他可能导致 JSON 解析失败的字符
+    修复 JSON 中的弯引号/全角引号为标准英文引号
     """
-    import re
-    
-    # 中文引号映射到英文引号
     quote_mapping = {
-        '"': '"',  # 左弯双引号
-        '"': '"',  # 右弯双引号
-        ''': "'",   # 左弯单引号
-        ''': "'",   # 右弯单引号
-        '「': '"',  # 日式左引号
-        '」': '"',  # 日式右引号
-        '『': '"',  # 日式左双引号
-        '』': '"',  # 日式右双引号
-        '＂': '"',  # 全角双引号
-        '＇': "'",  # 全角单引号
+        '\u201c': '"',  # 左弯双引号 "
+        '\u201d': '"',  # 右弯双引号 "
+        '\u2018': "'",  # 左弯单引号 '
+        '\u2019': "'",  # 右弯单引号 '
+        '\u300c': '"',  # 日式左引号 「
+        '\u300d': '"',  # 日式右引号 」
+        '\u300e': '"',  # 日式左双引号 『
+        '\u300f': '"',  # 日式右双引号 』
+        '\uff02': '"',  # 全角双引号 ＂
+        '\uff07': "'",  # 全角单引号 ＇
     }
-    
-    # 替换所有中文引号
+
     for ch_quote, en_quote in quote_mapping.items():
         json_text = json_text.replace(ch_quote, en_quote)
-    
+
     return json_text
 
 
@@ -1377,62 +1310,6 @@ def safe_json_loads(json_text: str, context: str = "") -> dict:
             e.doc if hasattr(e, 'doc') else json_text,
             e.pos if hasattr(e, 'pos') else 0
         )
-
-
-def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
-    """
-    智能推断 duration 单位（秒或分钟）
-    返回: (duration_minutes, unit_inferred)
-    """
-    # 明确有单位的
-    unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
-    if unit in ('s', 'sec', 'second', 'seconds'):
-        return duration_raw / 60.0, 'seconds'
-    if unit in ('m', 'min', 'minute', 'minutes'):
-        return float(duration_raw), 'minutes'
-    
-    # 无单位时的智能判断
-    
-    # 规则1: >1440 一定是秒（>24小时运动不合理）
-    if duration_raw > 1440:
-        return duration_raw / 60.0, 'seconds'
-    
-    # 规则2: 能量辅助判断（最可靠）
-    energy_raw = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0) or workout.get('totalEnergyBurned', 0)
-    # 处理字典格式
-    if isinstance(energy_raw, dict):
-        energy = energy_raw.get('qty', 0)
-    else:
-        energy = energy_raw
-    if energy > 0 and duration_raw > 0:
-        kcal = energy / 4.184  # 转换为千卡
-        kcal_per_min_if_minutes = kcal / duration_raw
-        
-        # 如果按分钟算 <1 kcal/分钟，不合理（应该是秒）
-        if kcal_per_min_if_minutes < 1.0:
-            return duration_raw / 60.0, 'seconds'
-        
-        # 如果按分钟算 >30 kcal/分钟，不合理（应该是秒）
-        if kcal_per_min_if_minutes > 30.0:
-            return duration_raw / 60.0, 'seconds'
-    
-    # 规则3: 心率数据点辅助
-    hr_data = workout.get('heartRateData', []) or workout.get('hrData', [])
-    if len(hr_data) > 0:
-        expected_mins_from_hr = len(hr_data)
-        diff_if_minutes = abs(expected_mins_from_hr - duration_raw)
-        diff_if_seconds = abs(expected_mins_from_hr - (duration_raw / 60.0))
-        
-        if diff_if_seconds < diff_if_minutes:
-            return duration_raw / 60.0, 'seconds'
-        else:
-            return float(duration_raw), 'minutes'
-    
-    # 规则4: 保守默认（>300秒假设为秒）
-    if duration_raw > 300:
-        return duration_raw / 60.0, 'seconds'
-    else:
-        return float(duration_raw), 'minutes'
 
 
 def get_workout_field(workout: dict, field_names: list, default=None):

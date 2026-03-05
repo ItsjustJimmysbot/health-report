@@ -309,49 +309,6 @@ def get_member_config(index: int):
     }
 
 
-# ==================== 单位处理函数（V5.9.0 新增）====================
-def _metric_unit(metrics, name: str) -> str:
-    """从 metrics 中提取指定指标的单位"""
-    if isinstance(metrics, dict):
-        m = metrics.get(name, {})
-        if isinstance(m, dict):
-            return str(m.get('units', '')).strip().lower()
-        return ''
-    if isinstance(metrics, list):
-        for m in metrics:
-            if isinstance(m, dict) and m.get('name') == name:
-                return str(m.get('units', '')).strip().lower()
-    return ''
-
-
-def _convert_length_to_cm(v: float, unit: str) -> float:
-    """长度单位转换为厘米"""
-    if v is None:
-        return None
-    if unit in ('m', 'meter', 'meters'):
-        return v * 100.0
-    return v
-
-
-def _convert_speed_to_kmh(v: float, unit: str) -> float:
-    """速度单位转换为 km/h"""
-    if v is None:
-        return None
-    if unit in ('m/s', 'meter/s', 'meters/s'):
-        return v * 3.6
-    return v
-
-
-def _display_unit(data: dict, metric_key: str, fallback: str = '') -> str:
-    """从 data['_metric_units'] 中获取单位"""
-    units_map = data.get('_metric_units', {})
-    if not isinstance(units_map, dict):
-        return fallback
-    unit = units_map.get(metric_key)
-    return unit if unit else fallback
-# =====================================================
-
-
 def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> list:
     """
     验证AI分析字数是否符合要求（V5.9.0 支持动态指标）

@@ -8,15 +8,16 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 > 详细文档请看 `README.md`（安装、全量配置、故障排查都在那边）。
 
 ## 1) 核心能力
-- 提取 Apple Health JSON 数据（支持多成员）
+- 提取 Apple Health JSON 数据（支持多成员，最多 3 位）
 - 生成日报 / 周报 / 月报 PDF
 - 支持 CN / EN 模板切换
 - 支持 OAuth2 / SMTP / Mail.app / Local 发送
+- 支持 `report_metrics` 动态指标表（默认 12 项，可扩展到 30 项）
 
 ## 2) 最小配置（config.json）
 ```json
 {
-  "version": "5.8.1",
+  "version": "5.9.0",
   "members": [
     {
       "name": "Jimmy",
@@ -46,16 +47,28 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
     "daily_min_words": 500,
     "weekly_min_words": 800,
     "monthly_min_words": 1000
+  },
+  "report_metrics": {
+    "selected": [
+      "hrv","resting_hr","steps","distance","active_energy","spo2",
+      "flights_climbed","apple_stand_time","basal_energy_burned","respiratory_rate",
+      "vo2_max","apple_exercise_time"
+    ],
+    "sort_by_importance": true,
+    "show_empty_categories": true,
+    "show_sleep_in_metrics_table": false,
+    "hide_no_data_metrics": true,
+    "require_ai_for_selected": false
   }
 }
 ```
 
 - `members[*].email` 可选；为空时使用 `receiver_email`。
-- `sleep_config.read_mode`: 睡眠读取模式
-  - `"next_day"`: 读取次日文件（适合晚上8点到次日中午的睡眠）
-  - `"same_day"`: 读取当天文件（适合跨午夜睡眠数据在当日文件的情况）
-- `analysis_limits`: AI分析字数限制，用于验证AI输出是否符合要求
-```
+- `sleep_config.read_mode`:
+  - `next_day`: 读取次日文件（适合晚上8点到次日中午的睡眠）
+  - `same_day`: 读取当天文件（适合跨午夜睡眠数据在当日文件的情况）
+- `analysis_limits`: AI 分析长度限制。
+- `report_metrics`: 日报指标表选择与展示策略。
 
 ## 3) 标准命令
 ### 日报
@@ -96,47 +109,24 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 
 ## 4) AI 分析字段要求（日报）
 
-所有字段都是**必填**的，缺一不可：
+### 硬性必填（缺少会报错）
+- `sleep`
+- `workout`（即使当天无运动也要有文本）
+- `priority.title` `priority.problem` `priority.action` `priority.expectation`
+- `ai2_title` `ai2_problem` `ai2_action` `ai2_expectation`
+- `ai3_title` `ai3_problem` `ai3_action` `ai3_expectation`
+- `breakfast` `lunch` `dinner` `snack`
 
-### 指标分析（12项，每项150-200字）
+### 指标分析字段（建议完整提供）
 `hrv` `resting_hr` `steps` `distance` `active_energy` `spo2` `flights` `stand` `basal` `respiratory` `sleep` `workout`
 
-### 优先级建议（3项）
-- 最高: `priority.title` `priority.problem` `priority.action` `priority.expectation`
-- 第二: `ai2_title` `ai2_problem` `ai2_action` `ai2_expectation`
-- 第三: `ai3_title` `ai3_problem` `ai3_action` `ai3_expectation`
-
-### 饮食方案（4项，每项≥30字）
-`breakfast` `lunch` `dinner` `snack`
-
-> ⚠️ 即使当天无运动或无特殊饮食，也必须提供分析文本。
-
-**字段命名说明**：
-- 数据提取使用 `active_energy_kcal`（单位：千卡）
-- AI 分析 JSON 使用 `active_energy`（简写形式）
-- 内部缓存统一使用 `active_energy`
-
-周报必须包含：
-- `trend_analysis` 或 `weekly_analysis`（建议≥800字）
-- `recommendations` 数组（每项包含 `priority` `title` `content`）
-
-月报必须包含：
-- `hrv_analysis` 或 `monthly_analysis`
-- `sleep_analysis`
-- `activity_analysis` 或 `key_findings`
-- `trend_assessment` 或 `trend_forecast`
-- `recommendations` 数组（建议整篇≥1000字）
+> 当 `report_metrics.require_ai_for_selected=true` 时，已选指标若映射到 `ai_key` 且缺失，会触发校验错误。
 
 ## 5) 必须遵守
-- `language` 与 AI 输出语言必须一致（CN/EN）
-- `analysis_limits` 阈值会被脚本实际校验（strict 模式不满足将失败）。`validation_mode` 仅影响字数/语言阈值类校验，缺少必填 AI 字段是硬错误，不受 warn 模式影响。
-- 多成员默认最多处理前 3 位
-- 详细规则、限制与排障请查 `README.md`
+- `language` 与 AI 输出语言需一致（CN/EN）。
+- `analysis_limits` 会被脚本校验；`validation_mode` 仅影响字数/语言阈值类校验。
+- 多成员默认最多处理前 3 位。
+- 详细规则、限制与排障请查 `README.md`。
 
 ---
-如需：
-- 完整安装说明
-- OAuth2 详细步骤
-- 全量字段解释
-- 故障排查
-请查看 `README.md`。
+如需：完整安装说明 / OAuth2 详细步骤 / 全量字段解释 / 故障排查，请查看 `README.md`。
