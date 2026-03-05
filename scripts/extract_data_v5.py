@@ -9,7 +9,7 @@ from pathlib import Path
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL
+from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL, ConfigError, handle_error
 
 def get_member_config(member_idx=0):
     """获取指定成员的配置，优先从config.json读取"""
@@ -18,12 +18,12 @@ def get_member_config(member_idx=0):
     
     # 检查成员列表是否为空
     if not members:
-        print("⚠️ 警告: config.json 中未配置任何成员，使用默认配置", file=sys.stderr)
-        return {
-            'health_dir': '~/Health Auto Export/Health Data',
-            'workout_dir': '~/Health Auto Export/Workout Data',
-            'profile': {'name': '', 'age': None, 'gender': None, 'height_cm': None, 'weight_kg': None}
-        }
+        handle_error(
+            ConfigError("config.json 中未配置任何成员，请至少配置 1 位成员"),
+            "读取成员配置",
+            exit_on_fatal=False
+        )
+        return None
     
     # 检查成员数量限制（最多 MAX_MEMBERS 位）
     if len(members) > MAX_MEMBERS:
@@ -160,11 +160,17 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             start_dt = None
             try:
                 if isinstance(start_ts, (int, float)):
-                    start_dt = datetime.fromtimestamp(start_ts)
+                    ts = float(start_ts)
+                    if ts > 1e12:  # 毫秒时间戳
+                        ts /= 1000.0
+                    start_dt = datetime.fromtimestamp(ts)
                 else:
                     # 尝试字符串时间戳
                     try:
-                        start_dt = datetime.fromtimestamp(float(start_ts))
+                        ts = float(start_ts)
+                        if ts > 1e12:  # 毫秒时间戳字符串
+                            ts /= 1000.0
+                        start_dt = datetime.fromtimestamp(ts)
                     except (ValueError, TypeError):
                         # 尝试 ISO 格式（支持 +0800 时区）
                         iso_str = str(start_ts).replace('Z', '+00:00')
@@ -175,7 +181,7 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
                             tz_formatted = tz_str[:3] + ':' + tz_str[3:]
                             iso_str = dt_str + tz_formatted
                         start_dt = datetime.fromisoformat(iso_str)
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError, OSError, OverflowError) as e:
                 print(f"⚠️  时间解析失败: {start_ts} - {e}", file=sys.stderr)
                 continue
             
@@ -391,6 +397,9 @@ def extract_all_members_data(date_str):
     
     for idx, _ in enumerate(members):
         member_config = get_member_config(idx)
+        if not member_config:
+            print(f"Warning: 成员 {idx} 配置无效，已跳过", file=sys.stderr)
+            continue
         health_dir = member_config['health_dir']
         workout_dir = member_config['workout_dir']
         profile = member_config['profile']
@@ -437,11 +446,14 @@ if __name__ == '__main__':
             print(f"Error: member_index 必须是整数或 'all'，当前输入: {sys.argv[2]}", file=sys.stderr)
             sys.exit(1)
         member_config = get_member_config(member_idx)
+        if not member_config:
+            sys.exit(1)
+
         sleep_config = get_sleep_config()
-        
+
         data = extract_daily_data(
-            date_str, 
-            member_config['health_dir'], 
+            date_str,
+            member_config['health_dir'],
             member_config['workout_dir'], 
             member_config['profile'],
             sleep_config

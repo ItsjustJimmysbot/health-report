@@ -251,15 +251,30 @@ class MailAppProvider(EmailProvider):
     
     def send(self, receiver: str, attachments: List[str], subject: str, body: str) -> bool:
         try:
-            # 构建AppleScript
-            attachment_list = ', '.join([f'"{p}"' for p in attachments])
-            
+            def _esc_applescript(s: str) -> str:
+                s = '' if s is None else str(s)
+                # AppleScript 字符串转义：反斜杠、双引号、换行
+                return s.replace('\\', '\\\\').replace('"', '\\"').replace('\r\n', '\\n').replace('\n', '\\n')
+
+            esc_subject = _esc_applescript(subject)
+            esc_body = _esc_applescript(body)
+            esc_receiver = _esc_applescript(receiver)
+
+            attachment_cmds = []
+            for p in attachments:
+                esc_path = _esc_applescript(p)
+                attachment_cmds.append(
+                    f'make new attachment with properties {{file name:"{esc_path}"}} at after last paragraph'
+                )
+            attachment_block = '\n                    '.join(attachment_cmds)
+
+            # 构建 AppleScript
             applescript = f'''
             tell application "Mail"
-                set newMessage to make new outgoing message with properties {{subject:"{subject}", content:"{body}"}}
+                set newMessage to make new outgoing message with properties {{subject:"{esc_subject}", content:"{esc_body}"}}
                 tell newMessage
-                    make new to recipient at end of to recipients with properties {{address:"{receiver}"}}
-                    {' '.join([f'make new attachment with properties {{file name:"{p}"}} at after last paragraph' for p in attachments])}
+                    make new to recipient at end of to recipients with properties {{address:"{esc_receiver}"}}
+                    {attachment_block}
                     send newMessage
                 end tell
             end tell

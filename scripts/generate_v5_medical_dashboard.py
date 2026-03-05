@@ -24,7 +24,7 @@ from playwright.sync_api import sync_playwright
 
 # V5.9.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL
+from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL, count_text_units
 
 # ==================== 全局配置（从 config.json 加载）====================
 CONFIG = load_config()
@@ -362,20 +362,24 @@ def get_member_config(index: int):
 
 def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> list:
     """
-    验证AI分析字数是否符合要求（V5.9.0 支持动态指标）
+    验证AI分析长度是否符合要求（V5.9.0 支持动态指标）
     返回错误列表（为空表示验证通过）
     """
     errors = []
     seen = set()
+    unit_label = 'words' if LANGUAGE == 'EN' else '字'
 
     def add_err(msg: str):
         if msg not in seen:
             seen.add(msg)
             errors.append(msg)
 
-    total_text_len = 0
+    def count_units(text: str) -> int:
+        return count_text_units(text, LANGUAGE)
 
-    # 1) 核心字段字数校验（完整保留）
+    total_units = 0
+
+    # 1) 核心字段长度校验（完整保留）
     validations = [
         ('hrv', MIN_LENGTH_HRV, MAX_LENGTH_METRIC, 'HRV分析'),
         ('resting_hr', MIN_LENGTH_RESTING_HR, MAX_LENGTH_METRIC, '静息心率分析'),
@@ -394,11 +398,12 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
     for key, min_len, max_len, name in validations:
         text = ai_analysis.get(key, '')
         if text:
-            total_text_len += len(text)
-            if len(text) < min_len:
-                add_err(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
-            if len(text) > max_len:
-                add_err(f"❌ {name} 字数超限: {len(text)}字 (要求最多{max_len}字)")
+            units = count_units(text)
+            total_units += units
+            if units < min_len:
+                add_err(f"❌ {name}长度不足: {units}{unit_label} (要求至少{min_len}{unit_label})")
+            if units > max_len:
+                add_err(f"❌ {name}长度超限: {units}{unit_label} (要求最多{max_len}{unit_label})")
 
     # 最高优先级建议
     priority = ai_analysis.get('priority', {})
@@ -408,26 +413,26 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
     expectation = priority.get('expectation', '')
 
     if title:
-        total_text_len += len(title)
-        if len(title) < MIN_LENGTH_PRIORITY_TITLE:
-            add_err(f"❌ 最高优先级标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_PRIORITY_TITLE}字)")
+        total_units += count_units(title)
+        if count_units(title) < MIN_LENGTH_PRIORITY_TITLE:
+            add_err(f"❌ 最高优先级标题长度不足: {count_units(title)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_TITLE}{unit_label})")
 
     if problem:
-        total_text_len += len(problem)
-        if len(problem) < MIN_LENGTH_PRIORITY_PROBLEM:
-            add_err(f"❌ 问题识别 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}字)")
+        total_units += count_units(problem)
+        if count_units(problem) < MIN_LENGTH_PRIORITY_PROBLEM:
+            add_err(f"❌ 问题识别长度不足: {count_units(problem)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}{unit_label})")
 
     if action:
-        total_text_len += len(action)
-        if len(action) < MIN_LENGTH_PRIORITY_ACTION:
-            add_err(f"❌ 行动计划 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_PRIORITY_ACTION}字)")
-        if len(action) > MAX_LENGTH_PRIORITY_ACTION:
-            add_err(f"❌ 行动计划 字数超限: {len(action)}字 (要求最多{MAX_LENGTH_PRIORITY_ACTION}字)")
+        total_units += count_units(action)
+        if count_units(action) < MIN_LENGTH_PRIORITY_ACTION:
+            add_err(f"❌ 行动计划长度不足: {count_units(action)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_ACTION}{unit_label})")
+        if count_units(action) > MAX_LENGTH_PRIORITY_ACTION:
+            add_err(f"❌ 行动计划长度超限: {count_units(action)}{unit_label} (要求最多{MAX_LENGTH_PRIORITY_ACTION}{unit_label})")
 
     if expectation:
-        total_text_len += len(expectation)
-        if len(expectation) < MIN_LENGTH_PRIORITY_EXPECTATION:
-            add_err(f"❌ 预期效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}字)")
+        total_units += count_units(expectation)
+        if count_units(expectation) < MIN_LENGTH_PRIORITY_EXPECTATION:
+            add_err(f"❌ 预期效果长度不足: {count_units(expectation)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}{unit_label})")
 
     # 验证次级建议
     for prefix, label in [('ai2', '第二优先级'), ('ai3', '第三优先级')]:
@@ -437,21 +442,21 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
         expectation = ai_analysis.get(f'{prefix}_expectation', '')
 
         if title:
-            total_text_len += len(title)
-            if len(title) < MIN_LENGTH_AI2_TITLE:
-                add_err(f"❌ {label}标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_AI2_TITLE}字)")
+            total_units += count_units(title)
+            if count_units(title) < MIN_LENGTH_AI2_TITLE:
+                add_err(f"❌ {label}标题长度不足: {count_units(title)}{unit_label} (要求至少{MIN_LENGTH_AI2_TITLE}{unit_label})")
         if problem:
-            total_text_len += len(problem)
-            if len(problem) < MIN_LENGTH_AI2_PROBLEM:
-                add_err(f"❌ {label}问题 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_AI2_PROBLEM}字)")
+            total_units += count_units(problem)
+            if count_units(problem) < MIN_LENGTH_AI2_PROBLEM:
+                add_err(f"❌ {label}问题长度不足: {count_units(problem)}{unit_label} (要求至少{MIN_LENGTH_AI2_PROBLEM}{unit_label})")
         if action:
-            total_text_len += len(action)
-            if len(action) < MIN_LENGTH_AI2_ACTION:
-                add_err(f"❌ {label}行动 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_AI2_ACTION}字)")
+            total_units += count_units(action)
+            if count_units(action) < MIN_LENGTH_AI2_ACTION:
+                add_err(f"❌ {label}行动长度不足: {count_units(action)}{unit_label} (要求至少{MIN_LENGTH_AI2_ACTION}{unit_label})")
         if expectation:
-            total_text_len += len(expectation)
-            if len(expectation) < MIN_LENGTH_AI2_EXPECTATION:
-                add_err(f"❌ {label}效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_AI2_EXPECTATION}字)")
+            total_units += count_units(expectation)
+            if count_units(expectation) < MIN_LENGTH_AI2_EXPECTATION:
+                add_err(f"❌ {label}效果长度不足: {count_units(expectation)}{unit_label} (要求至少{MIN_LENGTH_AI2_EXPECTATION}{unit_label})")
 
     # 饮食方案（必填字段）
     diet_checks = [
@@ -465,13 +470,13 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
         if not text:
             add_err(f"❌ {name} 缺失: 必须提供{name}内容")
         else:
-            total_text_len += len(text)
-            if len(text) < min_len:
-                add_err(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
+            total_units += count_units(text)
+            if count_units(text) < min_len:
+                add_err(f"❌ {name}长度不足: {count_units(text)}{unit_label} (要求至少{min_len}{unit_label})")
 
-    # 每日总字数下限（来自 analysis_limits.daily_min_words）
-    if total_text_len < DAILY_MIN_WORDS:
-        add_err(f"❌ 日报AI总字数不足: {total_text_len}字 (要求至少{DAILY_MIN_WORDS}字)")
+    # 每日总长度下限（来自 analysis_limits.daily_min_words）
+    if total_units < DAILY_MIN_WORDS:
+        add_err(f"❌ 日报AI总长度不足: {total_units}{unit_label} (要求至少{DAILY_MIN_WORDS}{unit_label})")
 
     # 语言一致性
     from utils import detect_language_mismatch
@@ -1563,14 +1568,14 @@ if __name__ == '__main__':
                 return None
 
             # 验证AI分析
-            print(f"📏 验证AI分析字数...")
+            print(f"📏 验证AI分析长度...")
             validation_errors = verify_ai_analysis(ai_analysis)
             if validation_errors:
                 print(f"⚠️  发现 {len(validation_errors)} 处验证问题:")
                 for error in validation_errors:
                     print(f"   {error}")
                 if VALIDATION_MODE == "strict":
-                    raise ValidationError(f"字数验证失败: {len(validation_errors)} 处不符合要求")
+                    raise ValidationError(f"长度验证失败: {len(validation_errors)} 处不符合要求")
                 print(f"⚠️  警告模式: 继续生成")
 
             # 检查数据文件

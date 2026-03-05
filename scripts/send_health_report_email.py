@@ -277,8 +277,8 @@ def send_email_to_all(date_str: str, report_files_pattern: list = None) -> bool:
             member_files = []
             for f in report_files_pattern:
                 filename = Path(f).name
-                # 严格匹配: 文件名必须包含 -{safe_name}.pdf
-                if f"-{safe_name}.pdf" in filename:
+                # 严格匹配: 文件名必须以 -{safe_name}.pdf 结尾
+                if filename.endswith(f"-{safe_name}.pdf"):
                     member_files.append(f)
         else:
             # 自动查找

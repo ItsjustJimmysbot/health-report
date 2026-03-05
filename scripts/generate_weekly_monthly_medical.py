@@ -16,7 +16,7 @@ from playwright.sync_api import sync_playwright
 
 # V5.9.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS
+from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS, count_text_units
 
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
@@ -43,23 +43,48 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ==================== 验证函数 ====================
-def verify_ai_analysis_weekly(ai_analysis):
-    """验证周报AI分析字数"""
+
+def _validate_recommendations(recommendations, context='周/月报'):
+    """验证 recommendations 结构，避免输入异常导致 AttributeError。"""
     errors = []
-    total_text = ""
+
+    if not isinstance(recommendations, list):
+        return [f"❌ {context} recommendations 必须是数组(list)，当前类型: {type(recommendations).__name__}"]
+
+    for idx, rec in enumerate(recommendations):
+        if not isinstance(rec, dict):
+            errors.append(f"❌ {context} recommendations[{idx}] 必须是对象(dict)，当前类型: {type(rec).__name__}")
+            continue
+        if not rec.get('title'):
+            errors.append(f"❌ {context} recommendations[{idx}] 缺少 title")
+        if not rec.get('content'):
+            errors.append(f"❌ {context} recommendations[{idx}] 缺少 content")
+
+    return errors
+
+
+def verify_ai_analysis_weekly(ai_analysis):
+    """验证周报AI分析长度"""
+    errors = []
+    total_units = 0
+    unit_label = 'words' if LANGUAGE == 'EN' else '字'
 
     # 收集所有文本
     trend_analysis = ai_analysis.get('trend_analysis') or ai_analysis.get('weekly_analysis', '')
-    total_text += trend_analysis
+    total_units += count_text_units(trend_analysis, LANGUAGE)
 
     recommendations = ai_analysis.get('recommendations', [])
-    for rec in recommendations:
-        total_text += rec.get('title', '')
-        total_text += rec.get('content', '')
+    rec_errors = _validate_recommendations(recommendations, context='周报')
+    errors.extend(rec_errors)
 
-    # 检查周报总字数（要求≥800字）
-    if len(total_text) < WEEKLY_MIN_WORDS:
-        errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥{WEEKLY_MIN_WORDS}字)")
+    if not rec_errors:
+        for rec in recommendations:
+            total_units += count_text_units(rec.get('title', ''), LANGUAGE)
+            total_units += count_text_units(rec.get('content', ''), LANGUAGE)
+
+    # 检查周报总长度（要求≥WEEKLY_MIN_WORDS）
+    if total_units < WEEKLY_MIN_WORDS:
+        errors.append(f"❌ 周报总长度不足: {total_units}{unit_label} (要求≥{WEEKLY_MIN_WORDS}{unit_label})")
 
     # 语言一致性校验
     lang_errors = detect_language_mismatch(
@@ -72,10 +97,12 @@ def verify_ai_analysis_weekly(ai_analysis):
 
     return errors
 
+
 def verify_ai_analysis_monthly(ai_analysis):
-    """验证月报AI分析字数"""
+    """验证月报AI分析长度"""
     errors = []
-    total_text = ""
+    total_units = 0
+    unit_label = 'words' if LANGUAGE == 'EN' else '字'
 
     # 收集所有文本
     hrv_analysis = ai_analysis.get('hrv_analysis') or ai_analysis.get('monthly_analysis', '')
@@ -83,21 +110,29 @@ def verify_ai_analysis_monthly(ai_analysis):
     activity_analysis = ai_analysis.get('activity_analysis') or ai_analysis.get('key_findings', '')
     trend_assessment = ai_analysis.get('trend_assessment') or ai_analysis.get('trend_forecast', '')
 
-    total_text += hrv_analysis + sleep_analysis + activity_analysis + trend_assessment
+    total_units += count_text_units(hrv_analysis, LANGUAGE)
+    total_units += count_text_units(sleep_analysis, LANGUAGE)
+    total_units += count_text_units(activity_analysis, LANGUAGE)
+    total_units += count_text_units(trend_assessment, LANGUAGE)
 
     recommendations = ai_analysis.get('recommendations', [])
-    for rec in recommendations:
-        total_text += rec.get('title', '')
-        total_text += rec.get('content', '')
+    rec_errors = _validate_recommendations(recommendations, context='月报')
+    errors.extend(rec_errors)
 
-    # 检查月报总字数（要求≥1000字）
-    if len(total_text) < MONTHLY_MIN_WORDS:
-        errors.append(f"❌ 月报总字数不足: {len(total_text)}字 (要求≥{MONTHLY_MIN_WORDS}字)")
+    if not rec_errors:
+        for rec in recommendations:
+            total_units += count_text_units(rec.get('title', ''), LANGUAGE)
+            total_units += count_text_units(rec.get('content', ''), LANGUAGE)
 
-    # 同时检查 trend_assessment 单独字数（默认150，可由 analysis_limits.monthly_trend_min_words 覆盖）
+    # 检查月报总长度（要求≥MONTHLY_MIN_WORDS）
+    if total_units < MONTHLY_MIN_WORDS:
+        errors.append(f"❌ 月报总长度不足: {total_units}{unit_label} (要求≥{MONTHLY_MIN_WORDS}{unit_label})")
+
+    # 同时检查 trend_assessment 单独长度（默认150，可由 analysis_limits.monthly_trend_min_words 覆盖）
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
-    if len(trend_text_clean) < MONTHLY_TREND_MIN_WORDS:
-        errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥{MONTHLY_TREND_MIN_WORDS}字)")
+    trend_units = count_text_units(trend_text_clean, LANGUAGE)
+    if trend_units < MONTHLY_TREND_MIN_WORDS:
+        errors.append(f"❌ 月报趋势评估长度不足: {trend_units}{unit_label} (要求≥{MONTHLY_TREND_MIN_WORDS}{unit_label})")
 
     # 语言一致性校验
     lang_errors = detect_language_mismatch(
@@ -527,20 +562,20 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
 
-    # 验证AI分析字数
-    print(f"📏 验证AI分析字数...")
+    # 验证AI分析长度
+    print(f"📏 验证AI分析长度...")
     validation_errors = verify_ai_analysis_weekly(ai_analysis)
     if validation_errors:
-        print(f"⚠️  发现 {len(validation_errors)} 处字数不足:")
+        print(f"⚠️  发现 {len(validation_errors)} 处长度不足:")
         for error in validation_errors:
             print(f"   {error}")
         if VALIDATION_MODE == "strict":
-            print(f"❌ 严格模式: 字数验证失败，停止生成")
+            print(f"❌ 严格模式: 长度验证失败，停止生成")
             return None
         else:
             print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
     else:
-        print(f"   ✅ 字数验证通过")
+        print(f"   ✅ 长度验证通过")
 
     # 加载上一周期数据用于趋势对比
     print(f"📊 计算趋势变化...")
@@ -590,8 +625,9 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
 
     # 下周建议 - 严格检查，必须在当前session生成
     recommendations = ai_analysis.get('recommendations', [])
-    if not recommendations:
-        raise ValueError("❌ 错误: 缺少周报下周建议 - 必须在当前AI对话中生成（recommendations数组）")
+    rec_errors = _validate_recommendations(recommendations, context='周报')
+    if rec_errors:
+        raise ValueError("❌ 错误: 周报 recommendations 结构无效: " + '; '.join(rec_errors))
 
     html = html.replace('{{RECOMMENDATIONS}}', generate_recommendations_html(recommendations))
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
@@ -688,20 +724,20 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_CALORIES}}', f"{int(avg_calories):,}")
     html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
 
-    # 验证AI分析字数
-    print(f"📏 验证AI分析字数...")
+    # 验证AI分析长度
+    print(f"📏 验证AI分析长度...")
     validation_errors = verify_ai_analysis_monthly(ai_analysis)
     if validation_errors:
-        print(f"⚠️  发现 {len(validation_errors)} 处字数不足:")
+        print(f"⚠️  发现 {len(validation_errors)} 处长度不足:")
         for error in validation_errors:
             print(f"   {error}")
         if VALIDATION_MODE == "strict":
-            print(f"❌ 严格模式: 字数验证失败，停止生成")
+            print(f"❌ 严格模式: 长度验证失败，停止生成")
             return None
         else:
             print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
     else:
-        print(f"   ✅ 字数验证通过")
+        print(f"   ✅ 长度验证通过")
 
     # V5.8.1: 加载上一周期数据用于趋势对比（对比整月平均值）
     print(f"📊 计算趋势变化（对比整月平均值）...")
@@ -806,10 +842,12 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     if not trend_assessment:
         raise ValueError("❌ 错误: 缺少月报整体趋势评估 - 必须在当前AI对话中生成")
 
-    # 检查趋势评估字数（strict 报错，warn 仅警告）
+    # 检查趋势评估长度（strict 报错，warn 仅警告）
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
-    if len(trend_text_clean) < MONTHLY_TREND_MIN_WORDS:
-        msg = f"月报趋势评估字数不足（当前{len(trend_text_clean)}字，要求≥{MONTHLY_TREND_MIN_WORDS}字）"
+    trend_units = count_text_units(trend_text_clean, LANGUAGE)
+    unit_label = 'words' if LANGUAGE == 'EN' else '字'
+    if trend_units < MONTHLY_TREND_MIN_WORDS:
+        msg = f"月报趋势评估长度不足（当前{trend_units}{unit_label}，要求≥{MONTHLY_TREND_MIN_WORDS}{unit_label}）"
         if VALIDATION_MODE == "strict":
             raise ValueError(f"❌ 错误: {msg} - 请在当前AI对话中重新生成完整分析，必须包含具体数据点引用和指标间关联分析")
         else:
@@ -822,8 +860,9 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
 
     # 下月建议 - 严格检查，必须在当前session生成，直接使用recommendations数组
     recommendations = ai_analysis.get('recommendations', [])
-    if not recommendations:
-        raise ValueError("❌ 错误: 缺少月报下月建议 - 必须在当前AI对话中生成（recommendations数组）")
+    rec_errors = _validate_recommendations(recommendations, context='月报')
+    if rec_errors:
+        raise ValueError("❌ 错误: 月报 recommendations 结构无效: " + '; '.join(rec_errors))
 
     html = html.replace('{{RECOMMENDATIONS}}', generate_recommendations_html(recommendations))
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')

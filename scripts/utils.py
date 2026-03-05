@@ -1192,6 +1192,30 @@ def _collect_text_values(obj: Any) -> List[str]:
     return texts
 
 
+def count_text_units(text: Any, language: str = "CN") -> int:
+    """统计文本长度单位。
+
+    - EN: 按英文单词数统计
+    - CN/其他: 按非空白字符数统计（近似"字数"）
+    """
+    if not isinstance(text, str):
+        return 0
+
+    text = text.strip()
+    if not text:
+        return 0
+
+    lang = str(language or "CN").upper()
+
+    if lang == "EN":
+        # 支持普通英文词、缩写（don't）和数字
+        words = re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?|\d+(?:\.\d+)?", text)
+        return len(words)
+
+    # CN/其他语言：统计非空白字符（更符合"字数"语义，且兼容中英混排）
+    return len(re.sub(r"\s+", "", text))
+
+
 def detect_language_mismatch_v3(
     ai_analysis: dict,
     expected_language: str,

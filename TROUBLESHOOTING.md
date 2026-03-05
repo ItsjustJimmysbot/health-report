@@ -160,17 +160,17 @@ V5.8.0 及更早版本使用 `active_energy_burned` 字段名，新版 Health Au
 PDF 生成了，但 AI 分析内容很少或没有。
 
 **原因：**
-AI 分析字数未达到 `analysis_limits` 要求，且 `validation_mode` 为 `strict`。
+AI 分析长度未达到 `analysis_limits` 要求，且 `validation_mode` 为 `strict`。
 
 **解决：**
-1. 临时改为 `warn` 模式（跳过字数检查）：
+1. 临时改为 `warn` 模式（跳过长度检查）：
    ```json
    "validation_mode": "warn"
    ```
-2. 或重新生成符合字数要求的 AI 分析：
-   - 指标分析：150-200 字
-   - 核心建议：250-300 字
-   - 日报总字数：≥500 字
+2. 或重新生成符合长度要求的 AI 分析：
+   - 指标分析：150-200（CN按字数，EN按单词数）
+   - 核心建议：250-300（CN按字数，EN按单词数）
+   - 日报总长度：≥500（CN按字数，EN按单词数）
 
 ---
 

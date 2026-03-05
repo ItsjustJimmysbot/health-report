@@ -40,7 +40,7 @@ def _validate_with_jsonschema(config: dict, schema: dict) -> list[str]:
         return ["未安装 jsonschema，请先执行: pip3 install jsonschema"]
 
     errors = []
-    validator = jsonschema.Draft7Validator(schema)
+    validator = jsonschema.Draft7Validator(schema, format_checker=jsonschema.FormatChecker())
     for e in sorted(validator.iter_errors(config), key=lambda x: list(x.path)):
         path = '.'.join(str(i) for i in e.path) if e.path else 'root'
         errors.append(f"schema[{path}]: {e.message}")

@@ -130,7 +130,7 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 
 ## 5) 必须遵守
 - `language` 与 AI 输出语言需一致（CN/EN）。
-- `analysis_limits` 会被脚本校验；`validation_mode` 仅影响字数/语言阈值类校验。
+- `analysis_limits` 会被脚本校验；`validation_mode` 仅影响长度/语言阈值类校验（CN按字数，EN按单词数）。
 - 多成员默认最多处理前 3 位。
 - 详细规则、限制与排障请查 `README.md`。
 

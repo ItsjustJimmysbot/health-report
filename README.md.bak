@@ -70,8 +70,7 @@ python3 -m playwright install chromium
     "action_max_words": 300,
     "daily_min_words": 500,
     "weekly_min_words": 800,
-    "monthly_min_words": 1000,
-    "monthly_trend_min_words": 150
+    "monthly_min_words": 1000
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -135,7 +134,7 @@ python3 -m playwright install chromium
 ### 日志配置
 
 - `log_dir`: 错误日志保存目录，默认 `~/.openclaw/workspace-health/logs`
-- 通过 `handle_error` 处理的关键错误会同时写入 `health_report.log` 和终端输出（建议脚本主流程异常都统一走 `handle_error`）
+- 关键错误会同时写入 `health_report.log` 和终端输出
 
 ### 关于 receiver_email 的说明
 
@@ -286,7 +285,7 @@ python3 scripts/setup_oauth2.py
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
    # Linux:
    python3 scripts/extract_data_v5.py $(date -d 'yesterday' +%Y-%m-%d) all
-3. AI 分析：基于提取的 JSON 数据生成详细分析。**必须严格使用 JSON 中 `profile` 字段的实际个人档案信息（如：年龄{X}岁、性别{Y}、身高{Z}cm、体重{W}kg）、计算BMI并据此给出个性化建议。** 每项指标分析 150-200（CN按字数，EN按单词数），核心建议 250-300（CN按字数，EN按单词数）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
+3. AI 分析：基于提取的 JSON 数据生成详细分析。**必须严格使用 JSON 中 `profile` 字段的实际个人档案信息（如：年龄{X}岁、性别{Y}、身高{Z}cm、体重{W}kg）、计算BMI并据此给出个性化建议。** 每项指标分析 150-200 字，核心建议 250-300 字。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
    
    **重要字段说明（AI 必须理解）**:
    - `hrv.value`: HRV 平均值，单位毫秒（ms），正常范围 20-100ms，年轻人通常 50-80ms
@@ -319,9 +318,9 @@ python3 scripts/setup_oauth2.py
    - ❌ 错误："对于30岁男性，建议每日8,000-10,000步"
    - ✅ 正确："以您22岁、身高174cm、体重62kg（BMI 20.5）的年轻体型，建议每日8,000-10,000步，约对应5-6公里"
 4. 关键写入：使用 write 工具将 JSON 写入 ai_analysis.json
-5. 渲染生成（从仓库根目录执行）：
-   cd ~/.openclaw/skills/health-report && \
-   python3 scripts/generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ai_analysis.json
+5. 渲染生成：
+   cd ~/.openclaw/skills/health-report/scripts && \
+   python3 generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ../ai_analysis.json
 6. 发送邮件（给所有成员）：
    python3 scripts/send_health_report_email.py $(date -v-1d +%Y-%m-%d) all
 ```
@@ -343,11 +342,11 @@ python3 scripts/setup_oauth2.py
    # Linux:
    START_DATE=$(date -d '7 days ago' +%Y-%m-%d)
    END_DATE=$(date -d 'yesterday' +%Y-%m-%d)
-3. AI 分析：基于整周数据趋势生成周报分析（总长度≥800（CN按字数，EN按单词数））。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
+3. AI 分析：基于整周数据趋势生成周报分析（总字数≥800字）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
-5. 渲染生成（从仓库根目录执行）：
-   cd ~/.openclaw/skills/health-report && \
-   python3 scripts/generate_weekly_monthly_medical.py weekly "$START_DATE" "$END_DATE" < weekly_analysis.json
+5. 渲染生成：
+   cd ~/.openclaw/skills/health-report/scripts && \
+   python3 generate_weekly_monthly_medical.py weekly "$START_DATE" "$END_DATE" < ../weekly_analysis.json
 6. 发送邮件（给所有成员）：
    python3 scripts/send_health_report_email.py $END_DATE all
 ```
@@ -371,11 +370,11 @@ python3 scripts/setup_oauth2.py
    YEAR=$(date -d '1 month ago' +%Y)
    MONTH=$(date -d '1 month ago' +%m)
    LAST_DAY=$(date -d 'yesterday' +%Y-%m-%d)  # 上月最后一天
-3. AI 分析：基于整月数据趋势生成月报深度分析（总长度≥1000（CN按字数，EN按单词数））。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
+3. AI 分析：基于整月数据趋势生成月报深度分析（总字数≥1000字）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
-5. 渲染生成（从仓库根目录执行）：
-   cd ~/.openclaw/skills/health-report && \
-   python3 scripts/generate_weekly_monthly_medical.py monthly "$YEAR" "$MONTH" < monthly_analysis.json
+5. 渲染生成：
+   cd ~/.openclaw/skills/health-report/scripts && \
+   python3 generate_weekly_monthly_medical.py monthly "$YEAR" "$MONTH" < ../monthly_analysis.json
 6. 发送邮件（给所有成员）：
    python3 scripts/send_health_report_email.py $LAST_DAY all
 ```
@@ -383,7 +382,7 @@ python3 scripts/setup_oauth2.py
 **注意：** 周报与月报的 AI 分析字段要求不同，请分别提供：
 
 **周报（weekly）最小要求：**
-- `trend_analysis` 或 `weekly_analysis`（主体分析，建议总长度≥800（CN按字数，EN按单词数））
+- `trend_analysis` 或 `weekly_analysis`（主体分析，建议总字数≥800字）
 - `recommendations` 数组（每项需包含 `priority` / `title` / `content`）
 
 周报示例：
@@ -419,19 +418,15 @@ python3 scripts/setup_oauth2.py
 ```
 
 **字数验证说明：**
-- `validation_mode` **仅影响**字数/语言阈值类校验（metric_min/max_words、action_min/max_words、daily/weekly/monthly_min_words、monthly_trend_min_words）。
+- `validation_mode` **仅影响**字数/语言阈值类校验（metric_min/max_words、action_min/max_words、daily/weekly/monthly_min_words）。
 - `validation_mode: strict` 时，字数不足/超限会报错退出。
 - `validation_mode: warn` 时，字数不足/超限仅警告，继续生成。
 - **注意**：缺少必填 AI 字段（如日报的 priority、饮食字段）是硬错误，不受 warn 模式影响，仍会失败。
 - 日报会校验 `analysis_limits.metric_min_words` 与 `metric_max_words`，并校验 `daily_min_words`。
 - 周报/月报总字数下限分别读取 `analysis_limits.weekly_min_words` 与 `analysis_limits.monthly_min_words`。
-- 月报中 `trend_assessment` 的最小字数默认 150，可用 `analysis_limits.monthly_trend_min_words` 覆盖。
 - 月报 `trend_assessment/trend_forecast` 建议≥150字：`strict` 模式报错，`warn` 模式仅警告并继续生成。
 
 **邮件发送参数：**
-
-> 邮件主题/正文会跟随 `language`：`CN` 使用中文，`EN` 使用英文。
-
 ```bash
 # 发送给特定成员（索引从0开始）
 python3 scripts/send_health_report_email.py 2026-03-01 0    # 第一个成员
@@ -484,15 +479,6 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
 *   **配置校验**：`python3 scripts/validate_config.py`
 
-### AI 输入文件自动清理（Feature）
-
-为避免复用旧分析导致"缓存污染"，以下脚本在启动时会自动删除仓库根目录下的 `ai_analysis.json`（如果存在）：
-
-- `scripts/generate_v5_medical_dashboard.py`
-- `scripts/generate_weekly_monthly_medical.py`
-
-这是一项**有意设计的功能**。建议始终通过标准输入（`< xxx_analysis.json`）喂入当次 AI 结果，不要依赖仓库里的旧 `ai_analysis.json` 文件。
-
 ---
 
 ## 📝 开发者规范 (V5.8.1)
@@ -538,8 +524,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
     "action_max_words": 300,
     "daily_min_words": 500,
     "weekly_min_words": 800,
-    "monthly_min_words": 1000,
-    "monthly_trend_min_words": 150
+    "monthly_min_words": 1000
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -600,21 +585,10 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 ```
 
 说明：
-- `selected`：选择显示的指标（默认 12 项，可扩展到 32 项）。
+- `selected`：选择显示的指标（默认 12 项，可扩展到 30 项）。
 - `importance_overrides`：可把某项重要性设为 `0`（从表中移除）。
 - `require_ai_for_selected=true`：若某指标映射到 AI 字段且缺失，校验会失败。
 - `show_sleep_in_metrics_table`：当前生效字段。旧字段 `include_sleep_metrics_in_table` 仍兼容，但已废弃，建议迁移。
-
-#### 支持的 32 个指标（可用于 `report_metrics.selected`）
-
-- **core_health（10）**：`hrv`, `resting_hr`, `heart_rate_avg`, `steps`, `distance`, `active_energy`, `spo2`, `respiratory_rate`, `apple_stand_time`, `basal_energy_burned`
-- **cardio_fitness（2）**：`vo2_max`, `physical_effort`
-- **sleep_recovery（4）**：`sleep_total_hours`, `sleep_deep_hours`, `sleep_rem_hours`, `breathing_disturbances`
-- **activity_mobility（2）**：`apple_exercise_time`, `apple_stand_hour`
-- **stairs_strength（2）**：`flights_climbed`, `stair_speed_up`
-- **running_advanced（5）**：`running_speed`, `running_power`, `running_stride_length`, `running_ground_contact_time`, `running_vertical_oscillation`
-- **walking_gait（5）**：`walking_speed`, `walking_step_length`, `walking_heart_rate_average`, `walking_asymmetry_percentage`, `walking_double_support_percentage`
-- **environment_audio（2）**：`headphone_audio_exposure`, `environmental_audio_exposure`
 
 ### 👥 多成员配置（最多3人）
 
