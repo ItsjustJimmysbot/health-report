@@ -67,7 +67,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 - `sleep_config.read_mode`:
   - `next_day`: 读取次日文件（适合晚上8点到次日中午的睡眠）
   - `same_day`: 读取当天文件（适合跨午夜睡眠数据在当日文件的情况）
-- `analysis_limits`: AI 分析长度限制。
+- `analysis_limits`: AI 分析长度限制（可选 `monthly_trend_min_words`，默认150）。
 - `report_metrics`: 日报指标表选择与展示策略。
 
 ## 3) 标准命令
@@ -104,6 +104,7 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 | `stand_time_min` | `stand` | 站立时间（分钟）|
 | `sleep.total_hours` | `sleep` | 睡眠时长（小时）|
 | `workouts` | `workout` | 运动记录 |
+| `workout` | `workout` | 运动分析文本（必填） |
 
 注意：AI 分析 JSON 中使用简写形式，如 `active_energy` 而非 `active_energy_kcal`。
 

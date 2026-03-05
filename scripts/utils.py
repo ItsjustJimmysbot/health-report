@@ -1016,7 +1016,8 @@ def validate_config_schema(config: dict) -> list:
         int_keys = [
             'metric_min_words', 'metric_max_words',
             'action_min_words', 'action_max_words',
-            'daily_min_words', 'weekly_min_words', 'monthly_min_words'
+            'daily_min_words', 'weekly_min_words', 'monthly_min_words',
+            'monthly_trend_min_words'
         ]
         for k in int_keys:
             if k in limits:
@@ -1127,6 +1128,14 @@ def validate_config_schema(config: dict) -> list:
         category_order = report_metrics.get('category_order', [])
         if category_order and not isinstance(category_order, list):
             errors.append("report_metrics.category_order 必须是数组")
+        elif isinstance(category_order, list):
+            allowed_categories = set([
+                "core_health","cardio_fitness","sleep_recovery","activity_mobility",
+                "running_advanced","walking_gait","stairs_strength","environment_audio"
+            ])
+            for c in category_order:
+                if c not in allowed_categories:
+                    errors.append(f"report_metrics.category_order 包含未知类别: {c}")
 
         importance_overrides = report_metrics.get('importance_overrides', {})
         if importance_overrides and not isinstance(importance_overrides, dict):

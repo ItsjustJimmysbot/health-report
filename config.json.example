@@ -19,7 +19,8 @@
     "action_max_words": 300,
     "daily_min_words": 500,
     "weekly_min_words": 800,
-    "monthly_min_words": 1000
+    "monthly_min_words": 1000,
+    "monthly_trend_min_words": 150
   },
   "email_config": {
     "provider_priority": [

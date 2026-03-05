@@ -70,7 +70,8 @@ python3 -m playwright install chromium
     "action_max_words": 300,
     "daily_min_words": 500,
     "weekly_min_words": 800,
-    "monthly_min_words": 1000
+    "monthly_min_words": 1000,
+    "monthly_trend_min_words": 150
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -418,12 +419,13 @@ python3 scripts/setup_oauth2.py
 ```
 
 **字数验证说明：**
-- `validation_mode` **仅影响**字数/语言阈值类校验（metric_min/max_words、action_min/max_words、daily/weekly/monthly_min_words）。
+- `validation_mode` **仅影响**字数/语言阈值类校验（metric_min/max_words、action_min/max_words、daily/weekly/monthly_min_words、monthly_trend_min_words）。
 - `validation_mode: strict` 时，字数不足/超限会报错退出。
 - `validation_mode: warn` 时，字数不足/超限仅警告，继续生成。
 - **注意**：缺少必填 AI 字段（如日报的 priority、饮食字段）是硬错误，不受 warn 模式影响，仍会失败。
 - 日报会校验 `analysis_limits.metric_min_words` 与 `metric_max_words`，并校验 `daily_min_words`。
 - 周报/月报总字数下限分别读取 `analysis_limits.weekly_min_words` 与 `analysis_limits.monthly_min_words`。
+- 月报中 `trend_assessment` 的最小字数默认 150，可用 `analysis_limits.monthly_trend_min_words` 覆盖。
 - 月报 `trend_assessment/trend_forecast` 建议≥150字：`strict` 模式报错，`warn` 模式仅警告并继续生成。
 
 **邮件发送参数：**
@@ -524,7 +526,8 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
     "action_max_words": 300,
     "daily_min_words": 500,
     "weekly_min_words": 800,
-    "monthly_min_words": 1000
+    "monthly_min_words": 1000,
+    "monthly_trend_min_words": 150
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -585,10 +588,20 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 ```
 
 说明：
-- `selected`：选择显示的指标（默认 12 项，可扩展到 30 项）。
+- `selected`：选择显示的指标（默认 12 项，可扩展到 32 项）。
 - `importance_overrides`：可把某项重要性设为 `0`（从表中移除）。
 - `require_ai_for_selected=true`：若某指标映射到 AI 字段且缺失，校验会失败。
 - `show_sleep_in_metrics_table`：当前生效字段。旧字段 `include_sleep_metrics_in_table` 仍兼容，但已废弃，建议迁移。
+
+#### 支持的 32 个指标（可用于 `report_metrics.selected`）
+
+- **core_health（10）**：`hrv`, `resting_hr`, `heart_rate_avg`, `steps`, `distance`, `active_energy`, `spo2`, `respiratory_rate`, `apple_stand_time`, `basal_energy_burned`
+- **cardio_fitness（2）**：`vo2_max`, `physical_effort`
+- **sleep_recovery（4）**：`sleep_total_hours`, `sleep_deep_hours`, `sleep_rem_hours`, `breathing_disturbances`
+- **activity_mobility（4）**：`apple_exercise_time`, `flights_climbed`, `apple_stand_hour`, `stair_speed_up`
+- **running_advanced（5）**：`running_speed`, `running_power`, `running_stride_length`, `running_ground_contact_time`, `running_vertical_oscillation`
+- **walking_gait（5）**：`walking_speed`, `walking_step_length`, `walking_heart_rate_average`, `walking_asymmetry_percentage`, `walking_double_support_percentage`
+- **environment_audio（2）**：`headphone_audio_exposure`, `environmental_audio_exposure`
 
 ### 👥 多成员配置（最多3人）
 

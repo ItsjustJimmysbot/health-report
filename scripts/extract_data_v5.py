@@ -193,8 +193,6 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             energy_kcal = energy_kj / 4.184 if energy_kj else 0
             
             # 获取心率（兼容多种字段名）
-            from utils import get_workout_field
-            
             # 首先尝试直接获取 avg_hr
             avg_hr = get_workout_field(workout, ['avg_hr', 'avgHeartRate', 'averageHeartRate'])
             

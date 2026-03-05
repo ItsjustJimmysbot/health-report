@@ -3,8 +3,8 @@
 周报和月报生成器 - V5.8.1 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
-  python3 scripts/generate_weekly_monthly_medical.py weekly <start_date> <end_date> < ai_analysis.json
-  python3 scripts/generate_weekly_monthly_medical.py monthly <year> <month> < ai_analysis.json
+  python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < ai_analysis.json
+  python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < ai_analysis.json
 """
 import json
 import re
@@ -29,6 +29,7 @@ VALIDATION_MODE = CONFIG.get("validation_mode", "strict")
 ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 WEEKLY_MIN_WORDS = ANALYSIS_LIMITS.get("weekly_min_words", 800)
 MONTHLY_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_min_words", 1000)
+MONTHLY_TREND_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_trend_min_words", 150)
 
 OUTPUT_DIR = Path(
     CONFIG.get(
@@ -88,10 +89,10 @@ def verify_ai_analysis_monthly(ai_analysis):
     if len(total_text) < MONTHLY_MIN_WORDS:
         errors.append(f"❌ 月报总字数不足: {len(total_text)}字 (要求≥{MONTHLY_MIN_WORDS}字)")
 
-    # 同时检查 trend_assessment 单独字数（原逻辑保留）
+    # 同时检查 trend_assessment 单独字数（默认150，可由 analysis_limits.monthly_trend_min_words 覆盖）
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
-    if len(trend_text_clean) < 150:
-        errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥150字)")
+    if len(trend_text_clean) < MONTHLY_TREND_MIN_WORDS:
+        errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥{MONTHLY_TREND_MIN_WORDS}字)")
 
     # 语言一致性校验
     lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
@@ -757,8 +758,8 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
 
     # 检查趋势评估字数（strict 报错，warn 仅警告）
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
-    if len(trend_text_clean) < 150:
-        msg = f"月报趋势评估字数不足（当前{len(trend_text_clean)}字，要求≥150字）"
+    if len(trend_text_clean) < MONTHLY_TREND_MIN_WORDS:
+        msg = f"月报趋势评估字数不足（当前{len(trend_text_clean)}字，要求≥{MONTHLY_TREND_MIN_WORDS}字）"
         if VALIDATION_MODE == "strict":
             raise ValueError(f"❌ 错误: {msg} - 请在当前AI对话中重新生成完整分析，必须包含具体数据点引用和指标间关联分析")
         else:
