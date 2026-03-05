@@ -319,9 +319,9 @@ python3 scripts/setup_oauth2.py
    - ❌ 错误："对于30岁男性，建议每日8,000-10,000步"
    - ✅ 正确："以您22岁、身高174cm、体重62kg（BMI 20.5）的年轻体型，建议每日8,000-10,000步，约对应5-6公里"
 4. 关键写入：使用 write 工具将 JSON 写入 ai_analysis.json
-5. 渲染生成：
-   cd ~/.openclaw/skills/health-report/scripts && \
-   python3 generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ../ai_analysis.json
+5. 渲染生成（从仓库根目录执行）：
+   cd ~/.openclaw/skills/health-report && \
+   python3 scripts/generate_v5_medical_dashboard.py $(date -v-1d +%Y-%m-%d) < ai_analysis.json
 6. 发送邮件（给所有成员）：
    python3 scripts/send_health_report_email.py $(date -v-1d +%Y-%m-%d) all
 ```
@@ -345,9 +345,9 @@ python3 scripts/setup_oauth2.py
    END_DATE=$(date -d 'yesterday' +%Y-%m-%d)
 3. AI 分析：基于整周数据趋势生成周报分析（总字数≥800字）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
-5. 渲染生成：
-   cd ~/.openclaw/skills/health-report/scripts && \
-   python3 generate_weekly_monthly_medical.py weekly "$START_DATE" "$END_DATE" < ../weekly_analysis.json
+5. 渲染生成（从仓库根目录执行）：
+   cd ~/.openclaw/skills/health-report && \
+   python3 scripts/generate_weekly_monthly_medical.py weekly "$START_DATE" "$END_DATE" < weekly_analysis.json
 6. 发送邮件（给所有成员）：
    python3 scripts/send_health_report_email.py $END_DATE all
 ```
@@ -373,9 +373,9 @@ python3 scripts/setup_oauth2.py
    LAST_DAY=$(date -d 'yesterday' +%Y-%m-%d)  # 上月最后一天
 3. AI 分析：基于整月数据趋势生成月报深度分析（总字数≥1000字）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
-5. 渲染生成：
-   cd ~/.openclaw/skills/health-report/scripts && \
-   python3 generate_weekly_monthly_medical.py monthly "$YEAR" "$MONTH" < ../monthly_analysis.json
+5. 渲染生成（从仓库根目录执行）：
+   cd ~/.openclaw/skills/health-report && \
+   python3 scripts/generate_weekly_monthly_medical.py monthly "$YEAR" "$MONTH" < monthly_analysis.json
 6. 发送邮件（给所有成员）：
    python3 scripts/send_health_report_email.py $LAST_DAY all
 ```

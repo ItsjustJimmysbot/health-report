@@ -975,7 +975,7 @@ def validate_config_schema(config: dict) -> list:
         email = member.get('email', '')
         if email and '@' not in str(email):
             errors.append(f"members[{i}].email 格式无效: {email}")
-        
+
         # 放宽的数值范围验证（仅警告极端值，不排除边界情况）
         age = member.get('age')
         if age is not None:
@@ -997,6 +997,16 @@ def validate_config_schema(config: dict) -> list:
                 errors.append(f"members[{i}].weight_kg 必须是数字")
             elif weight_kg < 10 or weight_kg > 400:
                 errors.append(f"members[{i}].weight_kg 值 {weight_kg} 超出正常范围 (10-400 kg)")
+
+    # 检查成员名唯一性
+    member_names = []
+    for i, member in enumerate(members[:3]):
+        if isinstance(member, dict):
+            name = member.get('name', '')
+            if name:
+                if name in member_names:
+                    errors.append(f"members[{i}].name '{name}' 与其他成员重复")
+                member_names.append(name)
 
     # language
     language = config.get('language', 'CN')

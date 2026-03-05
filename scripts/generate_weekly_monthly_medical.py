@@ -683,8 +683,6 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
 
     if previous_data:
         print(f"   上月数据: {len(previous_data)}/{len(prev_month_dates)} 天")
-    else:
-        print(f"   ⚠️  未找到上月数据，趋势显示为持平")
 
     # 计算趋势变化（使用整月平均值，至少15天数据才计算趋势）
     if previous_data and len(previous_data) >= 15:
@@ -704,8 +702,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     else:
         if previous_data:
             print(f"   ⚠️  上月数据不足（仅{len(previous_data)}天），不计算趋势")
-        else:
-            print(f"   ⚠️  未找到上月数据，趋势显示为持平")
+        # 未找到数据的情况已在上方处理，此处不再重复打印
         # 设置为持平
         hrv_change_pct, hrv_trend = 0, 'stable'
         steps_change_pct, steps_trend = 0, 'stable'

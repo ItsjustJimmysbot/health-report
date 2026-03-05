@@ -175,7 +175,7 @@ CATEGORY_LABELS = {
     }
 }
 
-# 30项指标定义
+# 32项指标定义
 METRIC_DEFS = {
     # 核心健康（10）
     "hrv": {"category": "core_health", "importance": 10, "ai_key": "hrv", "label_cn": "HRV", "label_en": "HRV"},
@@ -1238,7 +1238,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     
     sleep_status_text = 'Severely Insufficient' if LANGUAGE == 'EN' else '严重不足'
     sleep_status_normal = 'Normal' if LANGUAGE == 'EN' else '正常'
-    html = html.replace('{{SLEEP_STATUS}}', sleep_status_text if sleep_hours < 3 else sleep_status_normal)
+    html = html.replace('{{SLEEP_STATUS}}', sleep_status_text if sleep_hours < 6 else sleep_status_normal)
     
     if LANGUAGE == 'EN':
         alert = f'<div class="sleep-alert warning"><div class="alert-icon">⚠️</div><div class="alert-content"><h4>Severe Sleep Deficiency</h4><p>Total sleep duration {sleep_hours:.1f} hours, far below the 7-9 hour recommended standard.</p></div></div>' if sleep_hours < 6 else ''
