@@ -1312,6 +1312,46 @@ def safe_json_loads(json_text: str, context: str = "") -> dict:
         )
 
 
+def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
+    """Infer duration unit (seconds or minutes).
+    Returns: (duration_minutes, unit_inferred)
+    """
+    unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
+    if unit in ('s', 'sec', 'second', 'seconds'):
+        return duration_raw / 60.0, 'seconds'
+    if unit in ('m', 'min', 'minute', 'minutes'):
+        return float(duration_raw), 'minutes'
+
+    if duration_raw > 1440:
+        return duration_raw / 60.0, 'seconds'
+
+    energy_raw = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0) or workout.get('totalEnergyBurned', 0)
+    if isinstance(energy_raw, dict):
+        energy = energy_raw.get('qty', 0)
+    else:
+        energy = energy_raw
+    if energy > 0 and duration_raw > 0:
+        kcal = energy / 4.184
+        kcal_per_min_if_minutes = kcal / duration_raw
+        if kcal_per_min_if_minutes < 1.0:
+            return duration_raw / 60.0, 'seconds'
+        if kcal_per_min_if_minutes > 30.0:
+            return duration_raw / 60.0, 'seconds'
+
+    hr_data = workout.get('heartRateData', []) or workout.get('hrData', [])
+    if len(hr_data) > 0:
+        expected_mins_from_hr = len(hr_data)
+        diff_if_minutes = abs(expected_mins_from_hr - duration_raw)
+        diff_if_seconds = abs(expected_mins_from_hr - (duration_raw / 60.0))
+        if diff_if_seconds < diff_if_minutes:
+            return duration_raw / 60.0, 'seconds'
+        return float(duration_raw), 'minutes'
+
+    if duration_raw > 300:
+        return duration_raw / 60.0, 'seconds'
+    return float(duration_raw), 'minutes'
+
+
 def get_workout_field(workout: dict, field_names: list, default=None):
     """
     兼容多种字段名获取workout数据
