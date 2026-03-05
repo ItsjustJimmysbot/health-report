@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康报告邮件发送脚本 V5.8.1
+"""健康报告邮件发送脚本 V5.9.0
 
 功能:
     - 支持可配置的 Provider 优先级 (OAuth2/SMTP/Mail.app/Local)
@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta
 
-# V5.8.1: 使用共用工具函数
+# V5.9.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, MAX_MEMBERS
 
@@ -107,7 +107,7 @@ def get_member_email(config: dict, member_idx: int = 0, strict: bool = True) -> 
         raise
 
 
-def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) -> list:
+def find_reports_for_member(date_str: str, upload_dir: str, member_name: str, member_idx: int = -1) -> list:
     """查找指定成员的报告文件 - V5.8.1 严格匹配版
     
     匹配规则（按优先级）：
@@ -146,7 +146,9 @@ def find_reports_for_member(date_str: str, upload_dir: str, member_name: str) ->
     reports.extend(monthly_reports)
     
     # 4. 旧格式兜底（仅当没有找到任何报告时，且成员名为空或默认）
-    if not reports and member_name in ['', '默认用户', 'User']:
+    is_default_name = member_name in ['', '默认用户', 'User']
+    is_first_member = (member_idx == 0)
+    if not reports and (is_default_name or is_first_member):
         old_daily = list(upload_path.glob(f"{date_str}-daily-v5-medical.pdf"))
         reports.extend(old_daily)
     
@@ -270,7 +272,7 @@ def send_email_to_all(date_str: str, report_files_pattern: list = None) -> bool:
                     member_files.append(f)
         else:
             # 自动查找
-            member_files = find_reports_for_member(date_str, upload_dir, member_name)
+            member_files = find_reports_for_member(date_str, upload_dir, member_name, idx)
         
         if not member_files:
             print(f"⚠️  未找到 {member_name} 的报告文件，跳过")
@@ -333,7 +335,7 @@ def main():
                 member_name = members[member_idx].get('name', '')
             else:
                 member_name = ''
-            report_files = find_reports_for_member(date_str, upload_dir, member_name)
+            report_files = find_reports_for_member(date_str, upload_dir, member_name, member_idx)
     
     # 执行发送
     if send_to_all:

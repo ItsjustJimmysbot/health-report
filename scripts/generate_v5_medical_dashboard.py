@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V5.8.1 AI分析报告生成器 - Medical Dashboard 模板版
+V5.9.0 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
@@ -19,9 +19,10 @@ import sys
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from html import escape as html_escape
 from playwright.sync_api import sync_playwright
 
-# V5.8.1: 使用共用工具函数
+# V5.9.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL
 
@@ -201,9 +202,9 @@ METRIC_DEFS = {
 
     # 活动与机能（4）
     "apple_exercise_time": {"category": "activity_mobility", "importance": 8, "ai_key": None, "label_cn": "锻炼时间", "label_en": "Exercise Time"},
-    "flights_climbed": {"category": "activity_mobility", "importance": 6, "ai_key": "flights", "label_cn": "爬楼层数", "label_en": "Flights Climbed"},
+    "flights_climbed": {"category": "stairs_strength", "importance": 6, "ai_key": "flights", "label_cn": "爬楼层数", "label_en": "Flights Climbed"},
     "apple_stand_hour": {"category": "activity_mobility", "importance": 5, "ai_key": None, "label_cn": "站立小时数", "label_en": "Stand Hours"},
-    "stair_speed_up": {"category": "activity_mobility", "importance": 5, "ai_key": None, "label_cn": "上楼速度", "label_en": "Stair Speed Up"},
+    "stair_speed_up": {"category": "stairs_strength", "importance": 5, "ai_key": None, "label_cn": "上楼速度", "label_en": "Stair Speed Up"},
 
     # 高级跑步（5）
     "running_speed": {"category": "running_advanced", "importance": 8, "ai_key": None, "label_cn": "跑步速度", "label_en": "Running Speed"},
@@ -282,7 +283,7 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 def get_member_config(index: int):
     """获取指定成员的配置（从 config.json 读取）"""
     members = CONFIG.get("members", [])
-    
+
     if index < len(members):
         member = members[index]
         return {
@@ -295,7 +296,7 @@ def get_member_config(index: int):
             "height_cm": member.get("height_cm"),
             "weight_kg": member.get("weight_kg")
         }
-    
+
     # 默认配置
     return {
         "name": f"成员{index+1}",
@@ -316,7 +317,7 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
     """
     errors = []
     seen = set()
-    
+
     def add_err(msg: str):
         if msg not in seen:
             seen.add(msg)
@@ -454,7 +455,7 @@ def _parse_metrics(date_str: str, health_dir: Path = None):
     except Exception as e:
         print(f"⚠️ 读取文件失败: {p} - {e}")
         return {}
-    
+
     metrics = {m.get('name'): m for m in data.get('data', {}).get('metrics', [])}
     if 'sleep_analysis' in data.get('data', {}):
         metrics['sleep_analysis'] = data['data']['sleep_analysis']
@@ -464,13 +465,16 @@ def _parse_metrics(date_str: str, health_dir: Path = None):
 def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
-    
-    # V5.8.1: 睡眠数据严格时间窗口过滤，防止次日数据污染当日指标
+
+    # V5.9.0: 睡眠数据严格时间窗口过滤，防止次日数据污染当日指标
     if target_date:
         filtered_arr = []
         for x in arr:
             st = x.get('startDate') or x.get('date')
-            if st and st.startswith(target_date):
+            if st is None:
+                continue
+            st_str = str(st)
+            if st_str.startswith(target_date):
                 filtered_arr.append(x)
         arr = filtered_arr
 
@@ -489,7 +493,7 @@ def _sum(vals):
 def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     health_dir = health_dir or DEFAULT_HEALTH_DIR
     workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
-    
+
     # V5.8.1: 活动数据读取当日文件，严格过滤当日时间戳
     metrics = _parse_metrics(date_str, health_dir)
     if not metrics:
@@ -573,7 +577,8 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
 
         for w in workout_list:
             timeline = []
-            for h in (w.get('heartRateData') or []):
+            hr_source = w.get('heartRateData') or w.get('hrData') or []
+            for h in hr_source:
                 a = h.get('avg') if h.get('avg') is not None else h.get('Avg')
                 m = h.get('max') if h.get('max') is not None else h.get('Max')
                 timeline.append({
@@ -595,21 +600,21 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             else:
                 duration_min = 0.0
 
-            # 能量兼容数字或对象；源数据通常是 kJ，转换为 kcal
-            e = w.get('activeEnergyBurned')
-            if isinstance(e, dict):
-                qty = e.get('qty') or 0
-                unit = (e.get('units') or '').lower()
-                energy_kcal = (qty / KJ_TO_KCAL) if 'kj' in unit else qty
-            else:
-                energy_kcal = e or 0
+            # 能量兼容多字段名；源数据通常是 kJ，转换为 kcal
+            from utils import get_workout_field
+            energy_raw = get_workout_field(
+                w,
+                ['energy', 'activeEnergyBurned', 'totalEnergyBurned', 'activeEnergy'],
+                0
+            )
+            energy_kcal = (float(energy_raw) / KJ_TO_KCAL) if isinstance(energy_raw, (int, float)) and energy_raw else 0
 
             # 处理开始和结束时间（兼容 start/startDate 和 end/endDate）
             start_dt = w.get('start') or w.get('startDate') or ''
             end_dt = w.get('end') or w.get('endDate') or ''
             start_str = start_dt[:16].replace('T', ' ') if start_dt else ''
             end_str = end_dt[:16].replace('T', ' ') if end_dt else ''
-            
+
             workouts.append({
                 'name': w.get('workoutActivityType') or w.get('name') or '运动',
                 'start': start_str,
@@ -629,7 +634,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     else:
         # 回退：当 active_energy 缺失时，使用 workout 能量
         total_active_kcal = workout_energy_total if workout_energy_total > 0 else None
-    
+
     # 睡眠数据 - V5.8.1: 使用统一解析函数
     from utils import parse_sleep_data_unified
     sleep_config = CONFIG.get('sleep_config', {})
@@ -681,41 +686,41 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         'apple_stand_time': int(_sum(stand_vals)) if stand_vals else None,
         'basal_energy_burned': int(round(basal_kcal)) if basal_kcal is not None else None,
         'respiratory_rate': round(_avg(resp_vals), 1) if resp_vals else None,
-        
+
         # V5.9.0: 新增指标
         'heart_rate_avg': round(_avg(heart_vals), 1) if heart_vals else None,
         'vo2_max': round(_avg(vo2_vals), 2) if vo2_vals else None,
         'apple_exercise_time': int(round(_sum(exercise_vals))) if exercise_vals else None,
         'apple_stand_hour': int(round(_sum(stand_hour_vals))) if stand_hour_vals else None,
         'physical_effort': round(_avg(physical_effort_vals), 2) if physical_effort_vals else None,
-        
+
         'walking_step_length': _convert_length_to_cm(_avg(walking_step_length_vals), walking_step_length_unit) if walking_step_length_vals else None,
         'walking_heart_rate_average': round(_avg(walking_hr_avg_vals), 1) if walking_hr_avg_vals else None,
         'walking_asymmetry_percentage': round(_avg(walking_asym_vals), 2) if walking_asym_vals else None,
         'walking_double_support_percentage': round(_avg(walking_double_support_vals), 2) if walking_double_support_vals else None,
         'walking_speed': _convert_speed_to_kmh(_avg(walking_speed_vals), walking_speed_unit) if walking_speed_vals else None,
-        
+
         'running_stride_length': round(_avg(running_stride_vals), 2) if running_stride_vals else None,
         'running_vertical_oscillation': round(_avg(running_vertical_vals), 2) if running_vertical_vals else None,
         'running_ground_contact_time': round(_avg(running_ground_vals), 2) if running_ground_vals else None,
         'running_power': round(_avg(running_power_vals), 2) if running_power_vals else None,
         'running_speed': _convert_speed_to_kmh(_avg(running_speed_vals), running_speed_unit) if running_speed_vals else None,
-        
+
         'stair_speed_up': round(_avg(stair_speed_vals), 3) if stair_speed_vals else None,
         'breathing_disturbances': round(_avg(breathing_disturb_vals), 2) if breathing_disturb_vals else None,
-        
+
         'headphone_audio_exposure': round(_avg(headphone_audio_vals), 1) if headphone_audio_vals else None,
         'environmental_audio_exposure': round(_avg(environmental_audio_vals), 1) if environmental_audio_vals else None,
-        
+
         # V5.9.0: 睡眠指标（从 sleep_result 填充）
         'sleep_total_hours': round(sleep_total_raw, 2) if sleep_total_raw is not None else None,
         'sleep_deep_hours': round(sleep_deep_raw, 2) if sleep_deep_raw is not None else None,
         'sleep_rem_hours': round(sleep_rem_raw, 2) if sleep_rem_raw is not None else None,
-        
+
         'sleep': sleep_result,
         'workouts': workouts,
         'has_workout': len(workouts) > 0,
-        
+
         # V5.9.0: 单位映射
         '_metric_units': {
             'running_power': _metric_unit(metrics, 'running_power') or 'W',
@@ -730,6 +735,16 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
 
 def real_text(v, fmt):
     return fmt(v) if v is not None else '--'
+
+
+def safe_html_text(value) -> str:
+    if value is None:
+        return ''
+    return html_escape(str(value), quote=True)
+
+
+def safe_html_paragraph(value) -> str:
+    return safe_html_text(value).replace('\n', '<br>')
 
 
 def badge(score):
@@ -773,10 +788,10 @@ def generate_hr_svg(hr_data):
     chart_height = 80
     left_margin = 40
     bottom_margin = 20
-    
+
     pts_avg, pts_max = [], []
     time_labels = []
-    
+
     for i, h in enumerate(hr_data):
         x = left_margin + i * (chart_width / max(n - 1, 1))
         a = h.get('avg', vals[0])
@@ -785,7 +800,7 @@ def generate_hr_svg(hr_data):
         y_m = bottom_margin + chart_height - ((m - y_min) / (y_max - y_min)) * chart_height
         pts_avg.append(f"{x:.1f},{y_a:.1f}")
         pts_max.append(f"{x:.1f},{y_m:.1f}")
-        
+
         # 时间标签 - 每隔几个点显示一个，避免重叠
         if n <= 10 or i % max(1, n // 5) == 0 or i == n - 1:
             time_str = h.get('time', '')
@@ -808,7 +823,7 @@ def generate_hr_svg(hr_data):
     max_text = 'Max' if LANGUAGE == 'EN' else '最高'
     time_axis = 'Time' if LANGUAGE == 'EN' else '时间'
     hr_axis = 'HR (bpm)' if LANGUAGE == 'EN' else '心率 (bpm)'
-    
+
     return f'''<div class="hr-chart-wrapper">
 <div class="hr-chart-title"><span>📈 {hr_title}</span>
 <div class="hr-chart-legend">
@@ -905,11 +920,11 @@ def metric_label(metric_key: str) -> str:
 def metric_value_text(metric_key: str, data: dict) -> str:
     """格式化指标值文本"""
     v = data.get(metric_key)
-    
+
     # 处理嵌套字典格式（如 hrv, resting_hr）
     if isinstance(v, dict):
         v = v.get('value')
-    
+
     if v is None:
         return '--'
 
@@ -970,11 +985,11 @@ def metric_value_text(metric_key: str, data: dict) -> str:
 def metric_rating(metric_key: str, data: dict):
     """计算指标评级"""
     v = data.get(metric_key)
-    
+
     # 处理嵌套字典格式（如 hrv, resting_hr）
     if isinstance(v, dict):
         v = v.get('value')
-    
+
     if v is None:
         return ('rating-average', '--')
 
@@ -1045,10 +1060,10 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
         if not cat_metrics:
             if REPORT_SHOW_EMPTY_CATEGORIES:
                 suffix = '（无数据）' if LANGUAGE == 'CN' else ' (No Data)'
-                rows.append(f'<tr class="metric-category-row"><td colspan="4">{cat_label}{suffix}</td></tr>')
+                rows.append(f'<tr class="metric-category-row"><td colspan="4">{safe_html_text(cat_label)}{safe_html_text(suffix)}</td></tr>')
             continue
 
-        rows.append(f'<tr class="metric-category-row"><td colspan="4">{cat_label}</td></tr>')
+        rows.append(f'<tr class="metric-category-row"><td colspan="4">{safe_html_text(cat_label)}</td></tr>')
 
         for k in cat_metrics:
             label = metric_label(k)
@@ -1059,10 +1074,10 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
 
             rows.append(
                 f'''<tr class="metric-row">
-<td><span class="metric-name">{label}</span><span class="metric-importance">P{imp}</span></td>
-<td class="metric-value-cell">{value_text}</td>
-<td><span class="rating {rating_class}">{rating_text}</span></td>
-<td><div class="metric-analysis">{analysis_text}</div></td>
+<td><span class="metric-name">{safe_html_text(label)}</span><span class="metric-importance">P{imp}</span></td>
+<td class="metric-value-cell">{safe_html_text(value_text)}</td>
+<td><span class="rating {rating_class}">{safe_html_text(rating_text)}</span></td>
+<td><div class="metric-analysis">{safe_html_paragraph(analysis_text)}</div></td>
 </tr>'''
             )
 
@@ -1072,7 +1087,7 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
 
 def calculate_scores(data, member_cfg=None):
     """V5.8.1: 计算个性化评分（考虑年龄、性别、BMI）
-    
+
     Returns:
         tuple: (recovery, sleep_score, exercise)
     """
@@ -1081,7 +1096,7 @@ def calculate_scores(data, member_cfg=None):
     rhr_v = data['resting_hr']['value'] or 999
     steps_v = data['steps'] or 0
     active_v = data.get('active_energy') or 0
-    
+
     # 获取成员档案信息（带缺省值保护）
     if member_cfg:
         raw_age = member_cfg.get("age")
@@ -1095,10 +1110,10 @@ def calculate_scores(data, member_cfg=None):
     gender = raw_gender if raw_gender in ("male", "female", "other") else "male"
     height_cm = float(raw_height) if isinstance(raw_height, (int, float)) and raw_height > 0 else 175.0
     weight_kg = float(raw_weight) if isinstance(raw_weight, (int, float)) and raw_weight > 0 else 70.0
-    
+
     # 计算BMI
     bmi = weight_kg / ((height_cm / 100) ** 2) if height_cm > 0 else 22
-    
+
     # === 恢复度评分 (Recovery) ===
     if age <= 25:
         hrv_threshold, rhr_threshold = 55, 60
@@ -1108,13 +1123,13 @@ def calculate_scores(data, member_cfg=None):
         hrv_threshold, rhr_threshold = 45, 68
     else:
         hrv_threshold, rhr_threshold = 40, 70
-    
+
     recovery_base = 60
     recovery_hrv = 15 if hrv_v > hrv_threshold + 10 else (10 if hrv_v > hrv_threshold else (5 if hrv_v > hrv_threshold - 10 else 0))
     recovery_rhr = 15 if rhr_v < rhr_threshold - 5 else (10 if rhr_v < rhr_threshold else (5 if rhr_v < rhr_threshold + 5 else 0))
     recovery_sleep = 10 if sleep_hours >= 7.5 else (7 if sleep_hours >= 7 else (4 if sleep_hours >= 6 else 0))
     recovery = min(100, recovery_base + recovery_hrv + recovery_rhr + recovery_sleep)
-    
+
     # === 睡眠评分 (Sleep Score) ===
     if age <= 25:
         sleep_optimal, sleep_min = 8.0, 7.0
@@ -1122,7 +1137,7 @@ def calculate_scores(data, member_cfg=None):
         sleep_optimal, sleep_min = 7.5, 6.5
     else:
         sleep_optimal, sleep_min = 7.0, 6.0
-    
+
     if sleep_hours >= sleep_optimal:
         sleep_score = 90 + min(10, int((sleep_hours - sleep_optimal) * 5))
     elif sleep_hours >= sleep_min:
@@ -1132,7 +1147,7 @@ def calculate_scores(data, member_cfg=None):
     else:
         sleep_score = max(30, int(sleep_hours * 15))
     sleep_score = min(100, sleep_score)
-    
+
     # === 运动评分 (Exercise Score) ===
     if bmi < 18.5:
         steps_target, active_target = 7000, 350
@@ -1142,32 +1157,32 @@ def calculate_scores(data, member_cfg=None):
         steps_target, active_target = 10000, 550
     else:
         steps_target, active_target = 12000, 650
-    
+
     if gender == "female":
         steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
-    
+
     if age > 40:
         steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
-    
+
     exercise_steps = min(40, int((steps_v / steps_target) * 40))
     exercise_active = min(30, int((active_v / active_target) * 30))
     exercise_workout = 20 if data.get('has_workout') else 0
     exercise_consistency = 10 if steps_v >= steps_target * 0.5 else 5
     exercise = min(100, exercise_steps + exercise_active + exercise_workout + exercise_consistency)
-    
+
     return recovery, sleep_score, exercise
 
 
 def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None, member_cfg=None):
     data = load_data(date_str, health_dir, workout_dir)
     html = template
-    
+
     # 清理AI分析中的markdown粗体标记 **
     def clean_markdown(text):
         if isinstance(text, str):
             return text.replace('**', '')
         return text
-    
+
     # 递归清理字典中的所有字符串
     def clean_dict(d):
         if isinstance(d, dict):
@@ -1175,17 +1190,17 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         elif isinstance(d, str):
             return clean_markdown(d)
         return d
-    
+
     ai_analysis = clean_dict(ai_analysis)
 
     # 基础信息 - V5.8.1: 使用统一的日期格式化
     from utils import format_date
-    
+
     html = html.replace('{{DATE}}', date_str)
     html = html.replace('{{DAY}}', date_str.split('-')[2])
-    
+
     month_year = format_date(date_str, "month_year", LANGUAGE)
-    
+
     if LANGUAGE == 'EN':
         header_subtitle = f'{date_str} · Apple Health · AI Analysis Edition'
     else:
@@ -1232,14 +1247,14 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     sleep_analysis = ai_analysis.get('sleep')
     if not sleep_analysis:
         raise ValueError(get_error_msg("missing_sleep"))
-    
+
     # 获取睡眠总时长
     sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
-    
+
     sleep_status_text = 'Severely Insufficient' if LANGUAGE == 'EN' else '严重不足'
     sleep_status_normal = 'Normal' if LANGUAGE == 'EN' else '正常'
     html = html.replace('{{SLEEP_STATUS}}', sleep_status_text if sleep_hours < 6 else sleep_status_normal)
-    
+
     if LANGUAGE == 'EN':
         alert = f'<div class="sleep-alert warning"><div class="alert-icon">⚠️</div><div class="alert-content"><h4>Severe Sleep Deficiency</h4><p>Total sleep duration {sleep_hours:.1f} hours, far below the 7-9 hour recommended standard.</p></div></div>' if sleep_hours < 6 else ''
     else:
@@ -1264,8 +1279,8 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SLEEP_CORE_PCT}}', str(int((s_core / t) * 100)))
     html = html.replace('{{SLEEP_REM_PCT}}', str(int((s_rem / t) * 100)))
     html = html.replace('{{SLEEP_AWAKE_PCT}}', str(int((s_awake / t) * 100)))
-    html = html.replace('{{SLEEP_ANALYSIS_TEXT}}', sleep_analysis)
-    
+    html = html.replace('{{SLEEP_ANALYSIS_TEXT}}', safe_html_paragraph(sleep_analysis))
+
     # V5.8.1: 添加入睡时间和起床时间
     html = html.replace('{{SLEEP_BEDTIME}}', s.get('bedtime', '--'))
     html = html.replace('{{SLEEP_WAKETIME}}', s.get('waketime', '--'))
@@ -1276,7 +1291,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         workout_analysis = ai_analysis.get('workout')
         if not workout_analysis:
             raise ValueError(get_error_msg("missing_workout"))
-        
+
         # 构建所有运动记录的HTML
         workout_entries = []
         for idx, w in enumerate(workouts, 1):
@@ -1287,31 +1302,31 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
                 start_display = start_time[11:16]
             else:
                 start_display = start_time or '--:--'
-            
+
             if end_time and len(end_time) >= 16:
                 end_display = end_time[11:16]
             else:
                 end_display = end_time or '--:--'
-            
+
             time_display = f"{start_display} - {end_display}" if start_display != '--:--' or end_display != '--:--' else ("Time not recorded" if LANGUAGE == 'EN' else "时间未记录")
-            
+
             # 为每个运动生成心率图（如果有数据）
             hr_timeline = w.get('hr_timeline', [])
             hr_chart = generate_hr_svg(hr_timeline) if hr_timeline else ""
-            
+
             completed_text = 'Completed' if LANGUAGE == 'EN' else '已完成'
             min_text = 'min' if LANGUAGE == 'EN' else '分钟'
             kcal_text = 'kcal' if LANGUAGE == 'EN' else '千卡'
             avg_hr_text = 'Avg HR' if LANGUAGE == 'EN' else '平均心率'
             max_hr_text = 'Max HR' if LANGUAGE == 'EN' else '最高心率'
-            
+
             entry = f'''<div class="workout-entry" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.5); border-radius: 8px;">
   <div class="workout-header" style="margin-bottom: 10px;">
     <div class="workout-type">
       <div class="workout-icon">💪</div>
       <div>
-        <div class="workout-name">{idx}. {w['name']}</div>
-        <div class="workout-time">{time_display}</div>
+        <div class="workout-name">{idx}. {safe_html_text(w['name'])}</div>
+        <div class="workout-time">{safe_html_text(time_display)}</div>
       </div>
     </div>
     <span class="badge badge-good">{completed_text}</span>
@@ -1325,7 +1340,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
   {hr_chart}
 </div>'''
             workout_entries.append(entry)
-        
+
         workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
         ai_analysis_title = 'Workout AI Analysis' if LANGUAGE == 'EN' else '运动AI综合分析'
         count_text = f"{len(workouts)} workouts" if LANGUAGE == 'EN' else f"{len(workouts)} 次运动"
@@ -1338,7 +1353,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
   {''.join(workout_entries)}
   <div class="workout-analysis">
     <div class="workout-analysis-title">{ai_analysis_title}</div>
-    <div class="workout-analysis-text">{workout_analysis}</div>
+    <div class="workout-analysis-text">{safe_html_paragraph(workout_analysis)}</div>
   </div>
 </div>'''
     else:
@@ -1348,7 +1363,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
             raise ValueError(get_error_msg("missing_workout"))
         workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
         no_workout_title = 'No Structured Exercise Today' if LANGUAGE == 'EN' else '今日无结构化运动'
-        workout_section = f'''<div class="workout-section no-break"><div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>{workout_title}</div></div><div class="workout-analysis"><div class="workout-analysis-title">{no_workout_title}</div><div class="workout-analysis-text">{workout_analysis}</div></div></div>'''
+        workout_section = f'''<div class="workout-section no-break"><div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>{workout_title}</div></div><div class="workout-analysis"><div class="workout-analysis-title">{no_workout_title}</div><div class="workout-analysis-text">{safe_html_paragraph(workout_analysis)}</div></div></div>'''
     html = html.replace('{{WORKOUT_SECTION}}', workout_section)
 
     # AI建议 - 必须有真实内容，禁止模板填充
@@ -1357,7 +1372,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         'ai3_title', 'ai3_problem', 'ai3_action', 'ai3_expectation',
         'breakfast', 'lunch', 'dinner', 'snack'
     ]
-    
+
     # 严格检查所有必填字段
     missing_fields = []
     for f in required_ai_fields:
@@ -1367,31 +1382,31 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
                 missing_fields.append('priority (title/problem/action/expectation)')
         elif not ai_analysis.get(f):
             missing_fields.append(f)
-    
+
     if missing_fields:
         raise ValueError(f"{get_error_msg('missing_fields')}: {missing_fields}")
-    
+
     # 最高优先级建议
     p = ai_analysis.get('priority', {})
-    html = html.replace('{{AI1_TITLE}}', p.get('title', ''))
-    html = html.replace('{{AI1_PROBLEM}}', p.get('problem', ''))
-    html = html.replace('{{AI1_ACTION}}', p.get('action', ''))
-    html = html.replace('{{AI1_EXPECTATION}}', p.get('expectation', ''))
-    
-    html = html.replace('{{AI2_TITLE}}', ai_analysis.get('ai2_title', ''))
-    html = html.replace('{{AI2_PROBLEM}}', ai_analysis.get('ai2_problem', ''))
-    html = html.replace('{{AI2_ACTION}}', ai_analysis.get('ai2_action', ''))
-    html = html.replace('{{AI2_EXPECTATION}}', ai_analysis.get('ai2_expectation', ''))
+    html = html.replace('{{AI1_TITLE}}', safe_html_text(p.get('title', '')))
+    html = html.replace('{{AI1_PROBLEM}}', safe_html_paragraph(p.get('problem', '')))
+    html = html.replace('{{AI1_ACTION}}', safe_html_paragraph(p.get('action', '')))
+    html = html.replace('{{AI1_EXPECTATION}}', safe_html_paragraph(p.get('expectation', '')))
 
-    html = html.replace('{{AI3_TITLE}}', ai_analysis.get('ai3_title', ''))
-    html = html.replace('{{AI3_PROBLEM}}', ai_analysis.get('ai3_problem', ''))
-    html = html.replace('{{AI3_ACTION}}', ai_analysis.get('ai3_action', ''))
-    html = html.replace('{{AI3_EXPECTATION}}', ai_analysis.get('ai3_expectation', ''))
+    html = html.replace('{{AI2_TITLE}}', safe_html_text(ai_analysis.get('ai2_title', '')))
+    html = html.replace('{{AI2_PROBLEM}}', safe_html_paragraph(ai_analysis.get('ai2_problem', '')))
+    html = html.replace('{{AI2_ACTION}}', safe_html_paragraph(ai_analysis.get('ai2_action', '')))
+    html = html.replace('{{AI2_EXPECTATION}}', safe_html_paragraph(ai_analysis.get('ai2_expectation', '')))
 
-    html = html.replace('{{AI4_BREAKFAST}}', ai_analysis.get('breakfast', ''))
-    html = html.replace('{{AI4_LUNCH}}', ai_analysis.get('lunch', ''))
-    html = html.replace('{{AI4_DINNER}}', ai_analysis.get('dinner', ''))
-    html = html.replace('{{AI4_SNACK}}', ai_analysis.get('snack', ''))
+    html = html.replace('{{AI3_TITLE}}', safe_html_text(ai_analysis.get('ai3_title', '')))
+    html = html.replace('{{AI3_PROBLEM}}', safe_html_paragraph(ai_analysis.get('ai3_problem', '')))
+    html = html.replace('{{AI3_ACTION}}', safe_html_paragraph(ai_analysis.get('ai3_action', '')))
+    html = html.replace('{{AI3_EXPECTATION}}', safe_html_paragraph(ai_analysis.get('ai3_expectation', '')))
+
+    html = html.replace('{{AI4_BREAKFAST}}', safe_html_paragraph(ai_analysis.get('breakfast', '')))
+    html = html.replace('{{AI4_LUNCH}}', safe_html_paragraph(ai_analysis.get('lunch', '')))
+    html = html.replace('{{AI4_DINNER}}', safe_html_paragraph(ai_analysis.get('dinner', '')))
+    html = html.replace('{{AI4_SNACK}}', safe_html_paragraph(ai_analysis.get('snack', '')))
 
     # V5.9.0: 占位符残留保护
     unresolved = re.findall(r'\{\{[^{}]+\}\}', html)
@@ -1407,7 +1422,7 @@ if __name__ == '__main__':
     # ============================================
     workspace_dir = Path(__file__).parent.parent
     ai_analysis_file = workspace_dir / 'ai_analysis.json'
-    
+
     if ai_analysis_file.exists():
         try:
             ai_analysis_file.unlink()
@@ -1415,9 +1430,9 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"⚠️  无法删除旧的 AI 分析文件: {e}", file=sys.stderr)
     # ============================================
-    
+
     from datetime import datetime
-    
+
     if len(sys.argv) < 2:
         print('用法: python3 scripts/generate_v5_medical_dashboard.py <YYYY-MM-DD> < ai_analysis.json')
         print('       支持多成员报告生成（最多3人）')
@@ -1434,7 +1449,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     date_str = sys.argv[1]
-    
+
     # V5.8.1: 预检查模板文件
     from utils import validate_templates_exist
     template_check = validate_templates_exist(TEMPLATE_DIR, LANGUAGE)
@@ -1444,19 +1459,19 @@ if __name__ == '__main__':
             print(f"   - {error}")
         sys.exit(1)
     print(get_error_msg("template_check_pass"))
-    
+
     # 限制成员数量在1-3之间（控制token消耗）
     if MEMBER_COUNT == 0:
         print("❌ 错误: config.json 未配置 members，无法生成报告")
         sys.exit(1)
-    
+
     member_count = min(MEMBER_COUNT, MAX_MEMBERS)
-    
+
     print(f"📊 多成员报告生成模式")
     print(f"   日期: {date_str}")
     print(f"   成员数: {member_count} (上限3人，控制token消耗)")
     print("")
-    
+
     # 读取所有成员的AI分析（支持单对象或字典或列表）
     # V5.8.1: 使用安全解析（自动修复中文引号）
     from utils import safe_json_loads
@@ -1466,31 +1481,31 @@ if __name__ == '__main__':
     except json.JSONDecodeError as e:
         print(f"❌ 错误: {e}")
         sys.exit(1)
-    
+
     if isinstance(raw_ai_analyses, dict) and "members" in raw_ai_analyses:
         raw_ai_analyses = raw_ai_analyses["members"]
-    
+
     # V5.8.1: 使用多成员处理器
     from utils import MultiMemberProcessor, ValidationError, DataError
-    
+
     processor = MultiMemberProcessor()
-    
+
     for idx in range(member_count):
         member_cfg = get_member_config(idx)
         member_name = member_cfg['name']
-        
+
         def process_single_member():
             """处理单个成员的闭包函数"""
             member_health_dir = Path(member_cfg['health_dir'])
             member_workout_dir = Path(member_cfg['workout_dir'])
-            
+
             # 健壮的成员匹配逻辑
             ai_analysis = pick_member_ai_analysis(raw_ai_analyses, member_name, idx, strict=True)
-            
+
             if not isinstance(ai_analysis, dict) or not ai_analysis:
                 print(f"⚠️  警告: 找不到成员 {member_name} 的有效分析数据")
                 return None
-            
+
             # 验证AI分析
             print(f"📏 验证AI分析字数...")
             validation_errors = verify_ai_analysis(ai_analysis)
@@ -1501,33 +1516,33 @@ if __name__ == '__main__':
                 if VALIDATION_MODE == "strict":
                     raise ValidationError(f"字数验证失败: {len(validation_errors)} 处不符合要求")
                 print(f"⚠️  警告模式: 继续生成")
-            
+
             # 检查数据文件
             data_file = member_health_dir / f'HealthAutoExport-{date_str}.json'
             if not data_file.exists():
                 raise DataError(f"数据文件不存在: {data_file}")
-            
+
             # 读取模板 - V5.8.1: 使用灵活的模板选择
             from utils import get_template_path
             template_path = get_template_path("daily", LANGUAGE, TEMPLATE_DIR, version="V2")
             print(f"📄 使用模板: {template_path.name}")
-            
+
             with open(template_path, 'r', encoding='utf-8') as f:
                 template = f.read()
-            
+
             # 重新加载该成员的数据
             data = load_data(date_str, member_health_dir, member_workout_dir)
-            
+
             # 生成报告HTML
             html = generate_report(date_str, ai_analysis, template, member_health_dir, member_workout_dir, member_cfg)
-            
+
             # 保存HTML
             safe_name = safe_member_name(member_name)
             html_path = OUTPUT_DIR / f'{date_str}-daily-v5-medical-{safe_name}.html'
             pdf_path = OUTPUT_DIR / f'{date_str}-daily-v5-medical-{safe_name}.pdf'
-            
+
             html_path.write_text(html, encoding='utf-8')
-            
+
             # 生成PDF
             max_retries = 3
             for attempt in range(max_retries):
@@ -1549,9 +1564,9 @@ if __name__ == '__main__':
                         time.sleep(1)
                     else:
                         raise Exception(f'PDF生成失败（已重试{max_retries}次）: {e}')
-            
+
             print(f'✅ 报告已生成: {pdf_path}')
-            
+
             # 保存缓存
             try:
                 cache_data = {
@@ -1573,15 +1588,15 @@ if __name__ == '__main__':
                 print(f'   数据缓存: {cache_path}')
             except Exception as e:
                 print(f'   缓存保存失败: {e}')
-            
+
             return str(pdf_path)
-        
+
         # 处理单个成员（错误会被捕获，不影响其他成员）
         processor.process_member(idx, member_name, process_single_member)
-    
+
     # 打印摘要
     all_success = processor.print_summary()
-    
+
     if not all_success:
         print("⚠️  部分成员处理失败，请检查上述错误信息")
         sys.exit(1)

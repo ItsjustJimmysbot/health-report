@@ -135,6 +135,25 @@ V5.8.0 及更早版本使用 `active_energy_burned` 字段名，新版 Health Au
 
 ## 🔴 报告生成问题
 
+### 问题："ai_analysis.json 不见了"
+
+**症状：**
+运行日报/周报/月报脚本后，仓库根目录的 `ai_analysis.json` 被删除。
+
+**原因：**
+这是设计内 Feature：
+- `generate_v5_medical_dashboard.py`
+- `generate_weekly_monthly_medical.py`
+
+在启动时会自动清理旧 `ai_analysis.json`，避免误用历史分析结果。
+
+**解决：**
+- 不要依赖仓库中持久化的 `ai_analysis.json`
+- 每次都通过标准输入传入当次分析文件，例如：
+  ```bash
+  python3 scripts/generate_v5_medical_dashboard.py 2026-03-01 < ai_analysis.json
+  ```
+
 ### 问题："报告生成成功但内容为空/太少"
 
 **症状：**

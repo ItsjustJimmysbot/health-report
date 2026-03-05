@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""邮件发送Provider实现 - V5.8.1"""
+"""邮件发送Provider实现 - V5.9.0"""
 
 import os
 import sys
@@ -8,6 +8,7 @@ import base64
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
+from uuid import uuid4
 from typing import List
 
 
@@ -322,7 +323,8 @@ class LocalProvider(EmailProvider):
             
             # 保存邮件正文为文本文件
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            body_file = output_dir / f"email_{timestamp}.txt"
+            suffix = f"{int(time.time() * 1000) % 1000:03d}_{uuid4().hex[:6]}"
+            body_file = output_dir / f"email_{timestamp}_{suffix}.txt"
             with open(body_file, 'w', encoding='utf-8') as f:
                 f.write(f"To: {receiver}\n")
                 f.write(f"Subject: {subject}\n")

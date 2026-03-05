@@ -481,6 +481,15 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
 *   **配置校验**：`python3 scripts/validate_config.py`
 
+### AI 输入文件自动清理（Feature）
+
+为避免复用旧分析导致"缓存污染"，以下脚本在启动时会自动删除仓库根目录下的 `ai_analysis.json`（如果存在）：
+
+- `scripts/generate_v5_medical_dashboard.py`
+- `scripts/generate_weekly_monthly_medical.py`
+
+这是一项**有意设计的功能**。建议始终通过标准输入（`< xxx_analysis.json`）喂入当次 AI 结果，不要依赖仓库里的旧 `ai_analysis.json` 文件。
+
 ---
 
 ## 📝 开发者规范 (V5.8.1)
@@ -598,7 +607,8 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 - **core_health（10）**：`hrv`, `resting_hr`, `heart_rate_avg`, `steps`, `distance`, `active_energy`, `spo2`, `respiratory_rate`, `apple_stand_time`, `basal_energy_burned`
 - **cardio_fitness（2）**：`vo2_max`, `physical_effort`
 - **sleep_recovery（4）**：`sleep_total_hours`, `sleep_deep_hours`, `sleep_rem_hours`, `breathing_disturbances`
-- **activity_mobility（4）**：`apple_exercise_time`, `flights_climbed`, `apple_stand_hour`, `stair_speed_up`
+- **activity_mobility（2）**：`apple_exercise_time`, `apple_stand_hour`
+- **stairs_strength（2）**：`flights_climbed`, `stair_speed_up`
 - **running_advanced（5）**：`running_speed`, `running_power`, `running_stride_length`, `running_ground_contact_time`, `running_vertical_oscillation`
 - **walking_gait（5）**：`walking_speed`, `walking_step_length`, `walking_heart_rate_average`, `walking_asymmetry_percentage`, `walking_double_support_percentage`
 - **environment_audio（2）**：`headphone_audio_exposure`, `environmental_audio_exposure`

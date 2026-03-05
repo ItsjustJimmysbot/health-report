@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V5.8.1 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V5.9.0 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < ai_analysis.json
@@ -11,9 +11,10 @@ import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from html import escape as html_escape
 from playwright.sync_api import sync_playwright
 
-# V5.8.1: 使用共用工具函数
+# V5.9.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS
 
@@ -214,6 +215,16 @@ def get_text(key):
         }
     }
     return texts.get(LANGUAGE, texts["CN"]).get(key, key)
+
+
+def safe_html_text(value) -> str:
+    if value is None:
+        return ''
+    return html_escape(str(value), quote=True)
+
+
+def safe_html_paragraph(value) -> str:
+    return safe_html_text(value).replace('\n', '<br>')
 
 
 def load_cache(date_str, member_name="默认用户"):
@@ -533,7 +544,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     trend_analysis = ai_analysis.get('trend_analysis') or ai_analysis.get('weekly_analysis')
     if not trend_analysis:
         raise ValueError("❌ 错误: 缺少周报AI趋势分析 - 必须在当前AI对话中生成")
-    html = html.replace('{{TREND_ANALYSIS}}', trend_analysis.replace('\n', '<br>'))
+    html = html.replace('{{TREND_ANALYSIS}}', safe_html_paragraph(trend_analysis))
 
     # 下周建议 - 严格检查，必须在当前session生成
     recommendations = ai_analysis.get('recommendations', [])
@@ -762,10 +773,10 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
         else:
             print(f"⚠️ 警告模式: {msg}，继续生成")
 
-    html = html.replace('{{HRV_ANALYSIS}}', hrv_analysis.replace('\n', '<br>'))
-    html = html.replace('{{SLEEP_ANALYSIS}}', sleep_analysis.replace('\n', '<br>'))
-    html = html.replace('{{ACTIVITY_ANALYSIS}}', activity_analysis.replace('\n', '<br>'))
-    html = html.replace('{{TREND_ASSESSMENT}}', trend_assessment.replace('\n', '<br>'))
+    html = html.replace('{{HRV_ANALYSIS}}', safe_html_paragraph(hrv_analysis))
+    html = html.replace('{{SLEEP_ANALYSIS}}', safe_html_paragraph(sleep_analysis))
+    html = html.replace('{{ACTIVITY_ANALYSIS}}', safe_html_paragraph(activity_analysis))
+    html = html.replace('{{TREND_ASSESSMENT}}', safe_html_paragraph(trend_assessment))
 
     # 下月建议 - 严格检查，必须在当前session生成，直接使用recommendations数组
     recommendations = ai_analysis.get('recommendations', [])
@@ -795,11 +806,12 @@ def generate_recommendations_html(recommendations):
         p_class = priority_classes.get(rec.get('priority', 'medium'), 'rec-medium')
         p_label = priority_labels.get(rec.get('priority', 'medium'), get_text('medium_priority'))
         # 将\n替换为<br>以正确显示换行
-        content = rec.get('content', '').replace('\n', '<br>')
+        title = safe_html_text(rec.get('title', ''))
+        content = safe_html_paragraph(rec.get('content', ''))
 
         html = f"""<div class="rec-card {p_class}">
-            <div class="rec-priority">{p_label}</div>
-            <div class="rec-title">{rec.get('title', '')}</div>
+            <div class="rec-priority">{safe_html_text(p_label)}</div>
+            <div class="rec-title">{title}</div>
             <div class="rec-content">{content}</div>
         </div>"""
         html_parts.append(html)

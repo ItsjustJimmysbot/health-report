@@ -88,6 +88,11 @@ python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < 
 python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_analysis.json
 ```
 
+### AI 输入文件自动清理（Feature）
+- `scripts/generate_v5_medical_dashboard.py` 与 `scripts/generate_weekly_monthly_medical.py` 在启动时会自动删除仓库根目录 `ai_analysis.json`（若存在）。
+- 这是有意设计，用于避免复用旧分析结果。
+- 请始终用标准输入传入当次分析文件（`< ai_analysis.json` / `< weekly_analysis.json` / `< monthly_analysis.json`）。
+
 ### 字段命名对照表
 
 | 数据提取字段 | AI JSON 字段 | 说明 |

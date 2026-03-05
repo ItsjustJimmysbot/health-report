@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Health Report 共用工具函数 - V5.8.1"""
+"""Health Report 共用工具函数 - V5.9.0"""
 
 import json
 import re
@@ -1179,6 +1179,19 @@ def detect_language_advanced(text: str) -> str:
         return 'unknown'
 
 
+def _collect_text_values(obj: Any) -> List[str]:
+    texts: List[str] = []
+    if isinstance(obj, dict):
+        for v in obj.values():
+            texts.extend(_collect_text_values(v))
+    elif isinstance(obj, list):
+        for item in obj:
+            texts.extend(_collect_text_values(item))
+    elif isinstance(obj, str):
+        texts.append(obj)
+    return texts
+
+
 def detect_language_mismatch_v3(
     ai_analysis: dict,
     expected_language: str,
@@ -1197,10 +1210,11 @@ def detect_language_mismatch_v3(
     errors = []
     if expected_language not in ("CN", "EN"):
         return errors
-    
-    # 提取所有文本内容
-    full_text = json.dumps(ai_analysis, ensure_ascii=False)
-    
+
+    # 提取所有文本内容（仅值，忽略key，减少误判）
+    text_values = _collect_text_values(ai_analysis)
+    full_text = "\n".join([t for t in text_values if t and isinstance(t, str)])
+
     # 默认指标名白名单（这些词不计入语言统计）
     default_cn_metrics = [
         "心率", "HRV", "静息心率", "步数", "距离", "活动能量", 
