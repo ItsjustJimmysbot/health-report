@@ -1,0 +1,79 @@
+---
+name: health-report
+description: 基于 Apple Health 数据生成日报/周报/月报，支持多成员与中英文模板，输出 PDF 并可邮件发送。
+---
+
+# Health Report（Skill Quick Card）
+
+> 详细文档请看 `README.md`（安装、全量配置、故障排查都在那边）。
+
+## 1) 核心能力
+- 提取 Apple Health JSON 数据（支持多成员）
+- 生成日报 / 周报 / 月报 PDF
+- 支持 CN / EN 模板切换
+- 支持 OAuth2 / SMTP / Mail.app / Local 发送
+
+## 2) 最小配置（config.json）
+```json
+{
+  "version": "5.8.1",
+  "members": [
+    {
+      "name": "Jimmy",
+      "age": 30,
+      "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
+      "health_dir": "~/.../Health Data",
+      "workout_dir": "~/.../Workout Data",
+      "email": "you@example.com"
+    }
+  ],
+  "language": "CN",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
+}
+```
+
+## 3) 标准命令
+### 日报
+```bash
+python3 scripts/extract_data_v5.py YYYY-MM-DD [member_index|all]
+python3 scripts/generate_v5_medical_dashboard.py YYYY-MM-DD < ai_analysis.json
+python3 scripts/send_health_report_email.py YYYY-MM-DD [member_index|all]
+```
+
+### 周报
+```bash
+python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < weekly_analysis.json
+```
+
+### 月报
+```bash
+python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_analysis.json
+```
+
+## 4) AI 分析最小字段要求
+日报必须包含：
+- 指标分析：`hrv` `resting_hr` `steps` `distance` `active_energy` `spo2` `flights` `stand` `basal` `respiratory` `sleep` `workout`
+- 优先级建议：`priority.title` `priority.problem` `priority.action` `priority.expectation`
+- 次级建议：`ai2_*` `ai3_*`
+- 饮食：`breakfast` `lunch` `dinner` `snack`
+
+周/月报必须包含：
+- 趋势分析主体（周报≥800字、月报≥1000字）
+- `recommendations` 数组
+
+## 5) 必须遵守
+- `language` 与 AI 输出语言必须一致（CN/EN）
+- 多成员默认最多处理前 3 位
+- 详细规则、限制与排障请查 `README.md`
+
+---
+如需：
+- 完整安装说明
+- OAuth2 详细步骤
+- 全量字段解释
+- 故障排查
+请查看 `README.md`。

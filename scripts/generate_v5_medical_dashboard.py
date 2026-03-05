@@ -140,7 +140,7 @@ MIN_LENGTH_DINNER = 1         # 晚餐最低字数
 MIN_LENGTH_SNACK = 1          # 加餐最低字数
 
 # 每日分析总字数下限
-DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 10)
+DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 500)
 
 # 验证模式：strict=严格模式(不满足则报错), warn=警告模式(只提示)
 VALIDATION_MODE = CONFIG.get("validation_mode", "strict")  # 可选值: "strict", "warn"

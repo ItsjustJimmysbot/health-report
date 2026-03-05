@@ -629,14 +629,23 @@ def parse_sleep_data_unified(
                 
                 return round(float(value), 2)
 
+            deep_h = normalize_hours(deep_raw, 'deep')
+            core_h = normalize_hours(core_raw, 'core')
+            rem_h = normalize_hours(rem_raw, 'rem')
+            awake_h = normalize_hours(awake_raw, 'awake')
+            stage_total = deep_h + core_h + rem_h + awake_h
+
+            # 若分期字段缺失，则回退到 start/end 计算出的时长，避免 total_hours 被错误算成 0
+            total_h = stage_total if stage_total > 0 else max(duration_hours, 0.0)
+
             sleep_records.append({
                 'start': start_dt.strftime('%H:%M'),
                 'end': end_dt.strftime('%H:%M'),
-                'total': duration_hours,
-                'deep': normalize_hours(deep_raw, 'deep'),
-                'core': normalize_hours(core_raw, 'core'),
-                'rem': normalize_hours(rem_raw, 'rem'),
-                'awake': normalize_hours(awake_raw, 'awake'),
+                'total': round(total_h, 2),
+                'deep': deep_h,
+                'core': core_h,
+                'rem': rem_h,
+                'awake': awake_h,
             })
 
             # 记录最早入睡和最晚起床（按完整 datetime 比较）
@@ -650,7 +659,7 @@ def parse_sleep_data_unified(
     core = sum(r['core'] for r in sleep_records)
     rem = sum(r['rem'] for r in sleep_records)
     awake = sum(r['awake'] for r in sleep_records)
-    total = deep + core + rem + awake
+    total = sum(r['total'] for r in sleep_records)
 
     return {
         'records': sleep_records,
@@ -973,21 +982,21 @@ def validate_config_schema(config: dict) -> list:
             if not isinstance(age, (int, float)):
                 errors.append(f"members[{i}].age 必须是数字")
             elif age < 1 or age > 130:
-                errors.append(f"members[{i}].age 值 {age} 超出正常范围 (1-150)")
+                errors.append(f"members[{i}].age 值 {age} 超出正常范围 (1-130)")
         
         height_cm = member.get('height_cm')
         if height_cm is not None:
             if not isinstance(height_cm, (int, float)):
                 errors.append(f"members[{i}].height_cm 必须是数字")
             elif height_cm < 50 or height_cm > 250:
-                errors.append(f"members[{i}].height_cm 值 {height_cm} 超出正常范围 (30-300 cm)")
+                errors.append(f"members[{i}].height_cm 值 {height_cm} 超出正常范围 (50-250 cm)")
         
         weight_kg = member.get('weight_kg')
         if weight_kg is not None:
             if not isinstance(weight_kg, (int, float)):
                 errors.append(f"members[{i}].weight_kg 必须是数字")
             elif weight_kg < 10 or weight_kg > 400:
-                errors.append(f"members[{i}].weight_kg 值 {weight_kg} 超出正常范围 (1-500 kg)")
+                errors.append(f"members[{i}].weight_kg 值 {weight_kg} 超出正常范围 (10-400 kg)")
 
     # language
     language = config.get('language', 'CN')

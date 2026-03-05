@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Health Report Config",
-  "description": "Configuration schema for Health Report V5.8.1",
+  "description": "Configuration schema for Health Report V5.9.0",
   "type": "object",
   "required": [
     "version",
@@ -272,6 +272,10 @@
         "sort_by_importance": { "type": "boolean", "default": true },
         "show_empty_categories": { "type": "boolean", "default": true },
         "show_sleep_in_metrics_table": { "type": "boolean", "default": false },
+        "include_sleep_metrics_in_table": {
+          "type": "boolean",
+          "description": "兼容旧字段，已废弃，请改用 show_sleep_in_metrics_table"
+        },
         "hide_no_data_metrics": { "type": "boolean", "default": true },
         "require_ai_for_selected": { "type": "boolean", "default": false },
         "category_order": {

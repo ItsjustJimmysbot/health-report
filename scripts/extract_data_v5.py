@@ -433,7 +433,11 @@ if __name__ == '__main__':
         data = extract_all_members_data(date_str)
     else:
         # 提取单个成员数据
-        member_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+        try:
+            member_idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+        except ValueError:
+            print(f"Error: member_index 必须是整数或 'all'，当前输入: {sys.argv[2]}", file=sys.stderr)
+            sys.exit(1)
         member_config = get_member_config(member_idx)
         sleep_config = get_sleep_config()
         
