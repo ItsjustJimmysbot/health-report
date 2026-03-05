@@ -292,6 +292,23 @@ body {
   color: var(--text-primary);
 }
 
+/* V5.9.0: Category row and importance styles */
+.metric-category-row td {
+  background: #EEF2FF;
+  color: #3730A3;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.metric-importance {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10pt;
+  color: #6366F1;
+  font-weight: 600;
+}
+
 /* ===== Sleep Section ===== */
 .sleep-alert {
   padding: 20px;
@@ -800,7 +817,7 @@ body {
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">📊</span>
-      Detailed Metric Analysis (11 items complete)
+      {{METRICS_SECTION_TITLE}}
     </div>
   </div>
   
@@ -810,70 +827,11 @@ body {
         <th>Metric</th>
         <th>Value</th>
         <th>Rating</th>
-        <th>AI Analysis(100-150 words)</th>
+        <th>{{METRIC_ANALYSIS_COL_HEADER}}</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">HRV</span></td>
-        <td class="metric-value-cell">{{METRIC1_VALUE}}</td>
-        <td><span class="rating {{METRIC1_RATING_CLASS}}">{{METRIC1_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC1_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">Resting HR</span></td>
-        <td class="metric-value-cell">{{METRIC2_VALUE}}</td>
-        <td><span class="rating {{METRIC2_RATING_CLASS}}">{{METRIC2_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC2_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">Steps</span></td>
-        <td class="metric-value-cell">{{METRIC3_VALUE}}</td>
-        <td><span class="rating {{METRIC3_RATING_CLASS}}">{{METRIC3_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC3_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">Walking Distance</span></td>
-        <td class="metric-value-cell">{{METRIC4_VALUE}}</td>
-        <td><span class="rating {{METRIC4_RATING_CLASS}}">{{METRIC4_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC4_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">Active Energy</span></td>
-        <td class="metric-value-cell">{{METRIC5_VALUE}}</td>
-        <td><span class="rating {{METRIC5_RATING_CLASS}}">{{METRIC5_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC5_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">Flightsfloors</span></td>
-        <td class="metric-value-cell">{{METRIC6_VALUE}}</td>
-        <td><span class="rating {{METRIC6_RATING_CLASS}}">{{METRIC6_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC6_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">Standing Time</span></td>
-        <td class="metric-value-cell">{{METRIC7_VALUE}}</td>
-        <td><span class="rating {{METRIC7_RATING_CLASS}}">{{METRIC7_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC7_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">Blood OxygenSaturation</span></td>
-        <td class="metric-value-cell">{{METRIC8_VALUE}}</td>
-        <td><span class="rating {{METRIC8_RATING_CLASS}}">{{METRIC8_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC8_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">Resting Energy</span></td>
-        <td class="metric-value-cell">{{METRIC9_VALUE}}</td>
-        <td><span class="rating {{METRIC9_RATING_CLASS}}">{{METRIC9_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC9_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">Respiratory Rate</span></td>
-        <td class="metric-value-cell">{{METRIC10_VALUE}}</td>
-        <td><span class="rating {{METRIC10_RATING_CLASS}}">{{METRIC10_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC10_ANALYSIS}}</div></td>
-      </tr>
+{{METRICS_TABLE_ROWS}}
     </tbody>
   </table>
 </div>

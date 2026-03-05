@@ -9,7 +9,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, validate_config_schema, ConfigError, handle_error
 
 
-def _find_config_path() -> Path | None:
+from typing import Optional
+
+
+def _find_config_path() -> Optional[Path]:
     """定位实际使用的 config.json 路径"""
     candidates = [
         Path(__file__).parent.parent / "config.json",

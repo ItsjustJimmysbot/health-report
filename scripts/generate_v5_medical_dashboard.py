@@ -36,7 +36,30 @@ ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 # 成员数量（最多3人）
 MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
-# 多语言错误消息
+# ==================== report_metrics 配置（V5.9.0 新增）====================
+REPORT_METRICS_CFG = CONFIG.get("report_metrics", {})
+REPORT_SELECTED_METRICS = REPORT_METRICS_CFG.get("selected", [])
+REPORT_SHOW_EMPTY_CATEGORIES = bool(REPORT_METRICS_CFG.get("show_empty_categories", True))
+REPORT_SORT_BY_IMPORTANCE = bool(REPORT_METRICS_CFG.get("sort_by_importance", True))
+REPORT_HIDE_NO_DATA_METRICS = bool(REPORT_METRICS_CFG.get("hide_no_data_metrics", True))
+REPORT_REQUIRE_AI_FOR_SELECTED = bool(REPORT_METRICS_CFG.get("require_ai_for_selected", False))
+
+# 新字段优先，旧字段兼容
+if "show_sleep_in_metrics_table" in REPORT_METRICS_CFG:
+    REPORT_INCLUDE_SLEEP_METRICS_IN_TABLE = bool(REPORT_METRICS_CFG.get("show_sleep_in_metrics_table", False))
+else:
+    REPORT_INCLUDE_SLEEP_METRICS_IN_TABLE = bool(REPORT_METRICS_CFG.get("include_sleep_metrics_in_table", False))
+
+CATEGORY_ORDER_OVERRIDE = REPORT_METRICS_CFG.get("category_order", [])
+IMPORTANCE_OVERRIDES = REPORT_METRICS_CFG.get("importance_overrides", {})
+
+DEFAULT_SELECTED_METRICS = [
+    'hrv', 'resting_hr', 'steps', 'distance', 'active_energy', 'spo2',
+    'flights_climbed', 'apple_stand_time', 'basal_energy_burned', 'respiratory_rate',
+    'vo2_max', 'apple_exercise_time'
+]
+
+# ==================== 多语言错误消息 ====================
 ERROR_MESSAGES = {
     "CN": {
         "missing_hrv": "❌ 错误: 缺少HRV分析 - 必须在当前AI对话中生成",
@@ -96,31 +119,152 @@ MIN_LENGTH_WORKOUT = ANALYSIS_LIMITS.get("metric_min_words", 150)
 MAX_LENGTH_METRIC = ANALYSIS_LIMITS.get("metric_max_words", 200)
 
 # 优先级建议字数限制
-MIN_LENGTH_PRIORITY_TITLE = 10
-MIN_LENGTH_PRIORITY_PROBLEM = 80
+MIN_LENGTH_PRIORITY_TITLE = 1
+MIN_LENGTH_PRIORITY_PROBLEM = 1
 MIN_LENGTH_PRIORITY_ACTION = ANALYSIS_LIMITS.get("action_min_words", 250)
 MAX_LENGTH_PRIORITY_ACTION = ANALYSIS_LIMITS.get("action_max_words", 300)
-MIN_LENGTH_PRIORITY_EXPECTATION = 70
-MIN_LENGTH_AI2_TITLE = 10
-MIN_LENGTH_AI2_PROBLEM = 70
-MIN_LENGTH_AI2_ACTION = 80
-MIN_LENGTH_AI2_EXPECTATION = 60
-MIN_LENGTH_AI3_TITLE = 10
-MIN_LENGTH_AI3_PROBLEM = 70
-MIN_LENGTH_AI3_ACTION = 80
-MIN_LENGTH_AI3_EXPECTATION = 60
+MIN_LENGTH_PRIORITY_EXPECTATION = 1
+MIN_LENGTH_AI2_TITLE = 1
+MIN_LENGTH_AI2_PROBLEM = 1
+MIN_LENGTH_AI2_ACTION = 1
+MIN_LENGTH_AI2_EXPECTATION = 1
+MIN_LENGTH_AI3_TITLE = 1
+MIN_LENGTH_AI3_PROBLEM = 1
+MIN_LENGTH_AI3_ACTION = 1
+MIN_LENGTH_AI3_EXPECTATION = 1
 
 # 饮食方案字数限制
-MIN_LENGTH_BREAKFAST = 30      # 早餐最低字数
-MIN_LENGTH_LUNCH = 30          # 午餐最低字数
-MIN_LENGTH_DINNER = 30         # 晚餐最低字数
-MIN_LENGTH_SNACK = 30          # 加餐最低字数
+MIN_LENGTH_BREAKFAST = 1      # 早餐最低字数
+MIN_LENGTH_LUNCH = 1          # 午餐最低字数
+MIN_LENGTH_DINNER = 1         # 晚餐最低字数
+MIN_LENGTH_SNACK = 1          # 加餐最低字数
 
 # 每日分析总字数下限
-DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 500)
+DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 10)
 
 # 验证模式：strict=严格模式(不满足则报错), warn=警告模式(只提示)
 VALIDATION_MODE = CONFIG.get("validation_mode", "strict")  # 可选值: "strict", "warn"
+# =====================================================
+
+# ==================== 动态指标表配置（V5.9.0 新增）====================
+CATEGORY_ORDER = [
+    "core_health", "cardio_fitness", "sleep_recovery", "activity_mobility",
+    "running_advanced", "walking_gait", "stairs_strength", "environment_audio"
+]
+
+CATEGORY_LABELS = {
+    "CN": {
+        "core_health": "核心健康",
+        "cardio_fitness": "心肺能力",
+        "sleep_recovery": "睡眠恢复",
+        "activity_mobility": "活动与机能",
+        "running_advanced": "高级跑步指标",
+        "walking_gait": "步行步态",
+        "stairs_strength": "爬楼与下肢",
+        "environment_audio": "环境与暴露",
+    },
+    "EN": {
+        "core_health": "Core Health",
+        "cardio_fitness": "Cardio Fitness",
+        "sleep_recovery": "Sleep & Recovery",
+        "activity_mobility": "Activity & Mobility",
+        "running_advanced": "Advanced Running",
+        "walking_gait": "Walking & Gait",
+        "stairs_strength": "Stairs & Lower Body",
+        "environment_audio": "Environment & Exposure",
+    }
+}
+
+# 30项指标定义
+METRIC_DEFS = {
+    # 核心健康（10）
+    "hrv": {"category": "core_health", "importance": 10, "ai_key": "hrv", "label_cn": "HRV", "label_en": "HRV"},
+    "resting_hr": {"category": "core_health", "importance": 10, "ai_key": "resting_hr", "label_cn": "静息心率", "label_en": "Resting HR"},
+    "heart_rate_avg": {"category": "core_health", "importance": 8, "ai_key": None, "label_cn": "平均心率", "label_en": "Avg Heart Rate"},
+    "steps": {"category": "core_health", "importance": 9, "ai_key": "steps", "label_cn": "步数", "label_en": "Steps"},
+    "distance": {"category": "core_health", "importance": 8, "ai_key": "distance", "label_cn": "行走距离", "label_en": "Walking Distance"},
+    "active_energy": {"category": "core_health", "importance": 9, "ai_key": "active_energy", "label_cn": "活动能量", "label_en": "Active Energy"},
+    "spo2": {"category": "core_health", "importance": 8, "ai_key": "spo2", "label_cn": "血氧饱和度", "label_en": "SpO2"},
+    "respiratory_rate": {"category": "core_health", "importance": 7, "ai_key": "respiratory", "label_cn": "呼吸率", "label_en": "Respiratory Rate"},
+    "apple_stand_time": {"category": "core_health", "importance": 6, "ai_key": "stand", "label_cn": "站立时间", "label_en": "Stand Time"},
+    "basal_energy_burned": {"category": "core_health", "importance": 5, "ai_key": "basal", "label_cn": "基础代谢", "label_en": "Basal Energy"},
+
+    # 心肺能力（2）
+    "vo2_max": {"category": "cardio_fitness", "importance": 9, "ai_key": None, "label_cn": "VO₂ Max", "label_en": "VO2 Max"},
+    "physical_effort": {"category": "cardio_fitness", "importance": 7, "ai_key": None, "label_cn": "体力消耗率", "label_en": "Physical Effort"},
+
+    # 睡眠恢复（4）
+    "sleep_total_hours": {"category": "sleep_recovery", "importance": 10, "ai_key": "sleep", "label_cn": "总睡眠时长", "label_en": "Total Sleep"},
+    "sleep_deep_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": None, "label_cn": "深睡时长", "label_en": "Deep Sleep"},
+    "sleep_rem_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": None, "label_cn": "REM时长", "label_en": "REM Sleep"},
+    "breathing_disturbances": {"category": "sleep_recovery", "importance": 7, "ai_key": None, "label_cn": "呼吸紊乱", "label_en": "Breathing Disturbances"},
+
+    # 活动与机能（4）
+    "apple_exercise_time": {"category": "activity_mobility", "importance": 8, "ai_key": None, "label_cn": "锻炼时间", "label_en": "Exercise Time"},
+    "flights_climbed": {"category": "activity_mobility", "importance": 6, "ai_key": "flights", "label_cn": "爬楼层数", "label_en": "Flights Climbed"},
+    "apple_stand_hour": {"category": "activity_mobility", "importance": 5, "ai_key": None, "label_cn": "站立小时数", "label_en": "Stand Hours"},
+    "stair_speed_up": {"category": "activity_mobility", "importance": 5, "ai_key": None, "label_cn": "上楼速度", "label_en": "Stair Speed Up"},
+
+    # 高级跑步（5）
+    "running_speed": {"category": "running_advanced", "importance": 8, "ai_key": None, "label_cn": "跑步速度", "label_en": "Running Speed"},
+    "running_power": {"category": "running_advanced", "importance": 8, "ai_key": None, "label_cn": "跑步功率", "label_en": "Running Power"},
+    "running_stride_length": {"category": "running_advanced", "importance": 7, "ai_key": None, "label_cn": "跑步步幅", "label_en": "Running Stride Length"},
+    "running_ground_contact_time": {"category": "running_advanced", "importance": 7, "ai_key": None, "label_cn": "触地时间", "label_en": "Ground Contact Time"},
+    "running_vertical_oscillation": {"category": "running_advanced", "importance": 6, "ai_key": None, "label_cn": "垂直振幅", "label_en": "Vertical Oscillation"},
+
+    # 步行步态（5）
+    "walking_speed": {"category": "walking_gait", "importance": 6, "ai_key": None, "label_cn": "步行速度", "label_en": "Walking Speed"},
+    "walking_step_length": {"category": "walking_gait", "importance": 6, "ai_key": None, "label_cn": "步行步长", "label_en": "Walking Step Length"},
+    "walking_heart_rate_average": {"category": "walking_gait", "importance": 5, "ai_key": None, "label_cn": "步行心率", "label_en": "Walking HR Avg"},
+    "walking_asymmetry_percentage": {"category": "walking_gait", "importance": 5, "ai_key": None, "label_cn": "步行不对称性", "label_en": "Walking Asymmetry"},
+    "walking_double_support_percentage": {"category": "walking_gait", "importance": 4, "ai_key": None, "label_cn": "双支撑时间占比", "label_en": "Double Support %"},
+
+    # 环境暴露（2）
+    "headphone_audio_exposure": {"category": "environment_audio", "importance": 5, "ai_key": None, "label_cn": "耳机音频暴露", "label_en": "Headphone Exposure"},
+    "environmental_audio_exposure": {"category": "environment_audio", "importance": 3, "ai_key": None, "label_cn": "环境音频暴露", "label_en": "Environmental Exposure"},
+}
+# =====================================================
+
+# ==================== 单位处理函数（V5.9.0 新增）====================
+def _metric_unit(metrics, name: str) -> str:
+    """从 metrics 中提取指定指标的单位"""
+    if isinstance(metrics, dict):
+        m = metrics.get(name, {})
+        if isinstance(m, dict):
+            return str(m.get('units', '')).strip().lower()
+        return ''
+    if isinstance(metrics, list):
+        for m in metrics:
+            if isinstance(m, dict) and m.get('name') == name:
+                return str(m.get('units', '')).strip().lower()
+    return ''
+
+
+def _convert_length_to_cm(v: float, unit: str) -> float:
+    """长度单位转换为厘米"""
+    if v is None:
+        return None
+    if unit in ('m', 'meter', 'meters'):
+        return v * 100.0
+    return v
+
+
+def _convert_speed_to_kmh(v: float, unit: str) -> float:
+    """速度单位转换为 km/h"""
+    if v is None:
+        return None
+    if unit in ('m/s', 'meter/s', 'meters/s'):
+        return v * 3.6
+    return v
+
+
+def _display_unit(data: dict, metric_key: str, fallback: str = '') -> str:
+    """从 data['_metric_units'] 中获取单位"""
+    units_map = data.get('_metric_units', {})
+    if not isinstance(units_map, dict):
+        return fallback
+    unit = units_map.get(metric_key)
+    return unit if unit else fallback
 # =====================================================
 
 HOME = Path.home()
@@ -165,15 +309,65 @@ def get_member_config(index: int):
     }
 
 
-def verify_ai_analysis(ai_analysis: dict) -> list:
+# ==================== 单位处理函数（V5.9.0 新增）====================
+def _metric_unit(metrics, name: str) -> str:
+    """从 metrics 中提取指定指标的单位"""
+    if isinstance(metrics, dict):
+        m = metrics.get(name, {})
+        if isinstance(m, dict):
+            return str(m.get('units', '')).strip().lower()
+        return ''
+    if isinstance(metrics, list):
+        for m in metrics:
+            if isinstance(m, dict) and m.get('name') == name:
+                return str(m.get('units', '')).strip().lower()
+    return ''
+
+
+def _convert_length_to_cm(v: float, unit: str) -> float:
+    """长度单位转换为厘米"""
+    if v is None:
+        return None
+    if unit in ('m', 'meter', 'meters'):
+        return v * 100.0
+    return v
+
+
+def _convert_speed_to_kmh(v: float, unit: str) -> float:
+    """速度单位转换为 km/h"""
+    if v is None:
+        return None
+    if unit in ('m/s', 'meter/s', 'meters/s'):
+        return v * 3.6
+    return v
+
+
+def _display_unit(data: dict, metric_key: str, fallback: str = '') -> str:
+    """从 data['_metric_units'] 中获取单位"""
+    units_map = data.get('_metric_units', {})
+    if not isinstance(units_map, dict):
+        return fallback
+    unit = units_map.get(metric_key)
+    return unit if unit else fallback
+# =====================================================
+
+
+def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> list:
     """
-    验证AI分析字数是否符合要求
+    验证AI分析字数是否符合要求（V5.9.0 支持动态指标）
     返回错误列表（为空表示验证通过）
     """
     errors = []
+    seen = set()
+    
+    def add_err(msg: str):
+        if msg not in seen:
+            seen.add(msg)
+            errors.append(msg)
+
     total_text_len = 0
 
-    # 指标字段：校验最小+最大字数
+    # 1) 核心字段字数校验（完整保留）
     validations = [
         ('hrv', MIN_LENGTH_HRV, MAX_LENGTH_METRIC, 'HRV分析'),
         ('resting_hr', MIN_LENGTH_RESTING_HR, MAX_LENGTH_METRIC, '静息心率分析'),
@@ -194,9 +388,9 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
         if text:
             total_text_len += len(text)
             if len(text) < min_len:
-                errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
+                add_err(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
             if len(text) > max_len:
-                errors.append(f"❌ {name} 字数超限: {len(text)}字 (要求最多{max_len}字)")
+                add_err(f"❌ {name} 字数超限: {len(text)}字 (要求最多{max_len}字)")
 
     # 最高优先级建议
     priority = ai_analysis.get('priority', {})
@@ -208,24 +402,24 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
     if title:
         total_text_len += len(title)
         if len(title) < MIN_LENGTH_PRIORITY_TITLE:
-            errors.append(f"❌ 最高优先级标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_PRIORITY_TITLE}字)")
+            add_err(f"❌ 最高优先级标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_PRIORITY_TITLE}字)")
 
     if problem:
         total_text_len += len(problem)
         if len(problem) < MIN_LENGTH_PRIORITY_PROBLEM:
-            errors.append(f"❌ 问题识别 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}字)")
+            add_err(f"❌ 问题识别 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}字)")
 
     if action:
         total_text_len += len(action)
         if len(action) < MIN_LENGTH_PRIORITY_ACTION:
-            errors.append(f"❌ 行动计划 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_PRIORITY_ACTION}字)")
+            add_err(f"❌ 行动计划 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_PRIORITY_ACTION}字)")
         if len(action) > MAX_LENGTH_PRIORITY_ACTION:
-            errors.append(f"❌ 行动计划 字数超限: {len(action)}字 (要求最多{MAX_LENGTH_PRIORITY_ACTION}字)")
+            add_err(f"❌ 行动计划 字数超限: {len(action)}字 (要求最多{MAX_LENGTH_PRIORITY_ACTION}字)")
 
     if expectation:
         total_text_len += len(expectation)
         if len(expectation) < MIN_LENGTH_PRIORITY_EXPECTATION:
-            errors.append(f"❌ 预期效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}字)")
+            add_err(f"❌ 预期效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}字)")
 
     # 验证次级建议
     for prefix, label in [('ai2', '第二优先级'), ('ai3', '第三优先级')]:
@@ -237,19 +431,19 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
         if title:
             total_text_len += len(title)
             if len(title) < MIN_LENGTH_AI2_TITLE:
-                errors.append(f"❌ {label}标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_AI2_TITLE}字)")
+                add_err(f"❌ {label}标题 字数不足: {len(title)}字 (要求至少{MIN_LENGTH_AI2_TITLE}字)")
         if problem:
             total_text_len += len(problem)
             if len(problem) < MIN_LENGTH_AI2_PROBLEM:
-                errors.append(f"❌ {label}问题 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_AI2_PROBLEM}字)")
+                add_err(f"❌ {label}问题 字数不足: {len(problem)}字 (要求至少{MIN_LENGTH_AI2_PROBLEM}字)")
         if action:
             total_text_len += len(action)
             if len(action) < MIN_LENGTH_AI2_ACTION:
-                errors.append(f"❌ {label}行动 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_AI2_ACTION}字)")
+                add_err(f"❌ {label}行动 字数不足: {len(action)}字 (要求至少{MIN_LENGTH_AI2_ACTION}字)")
         if expectation:
             total_text_len += len(expectation)
             if len(expectation) < MIN_LENGTH_AI2_EXPECTATION:
-                errors.append(f"❌ {label}效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_AI2_EXPECTATION}字)")
+                add_err(f"❌ {label}效果 字数不足: {len(expectation)}字 (要求至少{MIN_LENGTH_AI2_EXPECTATION}字)")
 
     # 饮食方案（必填字段）
     diet_checks = [
@@ -261,21 +455,31 @@ def verify_ai_analysis(ai_analysis: dict) -> list:
     for key, min_len, name in diet_checks:
         text = ai_analysis.get(key, '')
         if not text:
-            errors.append(f"❌ {name} 缺失: 必须提供{name}内容")
+            add_err(f"❌ {name} 缺失: 必须提供{name}内容")
         else:
             total_text_len += len(text)
             if len(text) < min_len:
-                errors.append(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
+                add_err(f"❌ {name} 字数不足: {len(text)}字 (要求至少{min_len}字)")
 
     # 每日总字数下限（来自 analysis_limits.daily_min_words）
     if total_text_len < DAILY_MIN_WORDS:
-        errors.append(f"❌ 日报AI总字数不足: {total_text_len}字 (要求至少{DAILY_MIN_WORDS}字)")
+        add_err(f"❌ 日报AI总字数不足: {total_text_len}字 (要求至少{DAILY_MIN_WORDS}字)")
 
     # 语言一致性
     from utils import detect_language_mismatch
     lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
     for error in lang_errors:
-        errors.append(f"❌ {error}")
+        add_err(f"❌ {error}")
+
+    # 3) selected 指标 AI 必填（可选严格模式）
+    if selected_metric_keys is None:
+        selected_metric_keys = get_selected_metric_keys()
+
+    if REPORT_REQUIRE_AI_FOR_SELECTED:
+        for mk in selected_metric_keys:
+            ai_key = METRIC_DEFS.get(mk, {}).get('ai_key')
+            if ai_key and not ai_analysis.get(ai_key):
+                add_err(f"❌ 已选指标缺少AI分析: {mk} -> {ai_key}")
 
     return errors
 
@@ -338,12 +542,37 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     rhr_vals = _values(metrics, 'resting_heart_rate', date_str)
     steps_vals = _values(metrics, 'step_count', date_str)
     dist_vals = _values(metrics, 'walking_running_distance', date_str)
-    active_vals = _values(metrics, 'active_energy', date_str)  # V5.8.1: 正确的指标名
+    active_vals = _values(metrics, 'active_energy', date_str)
     spo2_vals = _values(metrics, 'blood_oxygen_saturation', date_str)
     flights_vals = _values(metrics, 'flights_climbed', date_str)
     stand_vals = _values(metrics, 'apple_stand_time', date_str)
     basal_vals = _values(metrics, 'basal_energy_burned', date_str)
     resp_vals = _values(metrics, 'respiratory_rate', date_str)
+
+    # V5.9.0: 新增指标读取
+    heart_vals = _values(metrics, 'heart_rate', date_str)
+    vo2_vals = _values(metrics, 'vo2_max', date_str)
+    exercise_vals = _values(metrics, 'apple_exercise_time', date_str)
+    stand_hour_vals = _values(metrics, 'apple_stand_hour', date_str)
+    physical_effort_vals = _values(metrics, 'physical_effort', date_str)
+
+    walking_step_length_vals = _values(metrics, 'walking_step_length', date_str)
+    walking_hr_avg_vals = _values(metrics, 'walking_heart_rate_average', date_str)
+    walking_asym_vals = _values(metrics, 'walking_asymmetry_percentage', date_str)
+    walking_double_support_vals = _values(metrics, 'walking_double_support_percentage', date_str)
+    walking_speed_vals = _values(metrics, 'walking_speed', date_str)
+
+    running_stride_vals = _values(metrics, 'running_stride_length', date_str)
+    running_vertical_vals = _values(metrics, 'running_vertical_oscillation', date_str)
+    running_ground_vals = _values(metrics, 'running_ground_contact_time', date_str)
+    running_power_vals = _values(metrics, 'running_power', date_str)
+    running_speed_vals = _values(metrics, 'running_speed', date_str)
+
+    stair_speed_vals = _values(metrics, 'stair_speed_up', date_str)
+    breathing_disturb_vals = _values(metrics, 'breathing_disturbances', date_str)
+
+    headphone_audio_vals = _values(metrics, 'headphone_audio_exposure', date_str)
+    environmental_audio_vals = _values(metrics, 'environmental_audio_exposure', date_str)
 
     # 能量通常是kJ，转kcal
     active_kcal = (_sum(active_vals) / KJ_TO_KCAL) if active_vals else None
@@ -454,6 +683,31 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         end_hour=sleep_config.get('end_hour', 12)
     )
 
+    # V5.9.0: 睡眠数据精确处理（B3 修正）
+    sleep_total_raw = None
+    sleep_deep_raw = None
+    sleep_rem_raw = None
+    if isinstance(sleep_result, dict):
+        total_candidate = sleep_result.get('total_hours', 0)
+        if isinstance(total_candidate, (int, float)) and total_candidate > 0:
+            sleep_total_raw = total_candidate
+            deep_candidate = sleep_result.get('deep_hours', 0)
+            rem_candidate = sleep_result.get('rem_hours', 0)
+            sleep_deep_raw = deep_candidate if isinstance(deep_candidate, (int, float)) else None
+            sleep_rem_raw = rem_candidate if isinstance(rem_candidate, (int, float)) else None
+
+    # V5.9.0: 单位转换
+    walking_step_length_unit = _metric_unit(metrics, 'walking_step_length')
+    walking_speed_unit = _metric_unit(metrics, 'walking_speed')
+    running_speed_unit = _metric_unit(metrics, 'running_speed')
+
+    bd_unit = _metric_unit(metrics, 'breathing_disturbances')
+    pe_unit = _metric_unit(metrics, 'physical_effort')
+    if bd_unit not in ('count', 'count/min', '', 'index'):
+        print(f"⚠️ breathing_disturbances 非预期单位: {bd_unit}")
+    if pe_unit not in ('kcal/hr·kg', 'kcal/hr*kg', ''):
+        print(f"⚠️ physical_effort 非预期单位: {pe_unit}")
+
     data = {
         'date': date_str,
         'hrv': {'value': round(_avg(hrv_vals), 1) if hrv_vals else None, 'points': len(hrv_vals)},
@@ -463,12 +717,52 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         'active_energy': int(round(total_active_kcal)) if total_active_kcal is not None else None,
         'spo2': round(spo2, 1) if spo2 is not None else None,
         'flights_climbed': int(_sum(flights_vals)) if flights_vals else None,
-        'apple_stand_time': int(_sum(stand_vals)) if stand_vals else None,  # 分钟
+        'apple_stand_time': int(_sum(stand_vals)) if stand_vals else None,
         'basal_energy_burned': int(round(basal_kcal)) if basal_kcal is not None else None,
         'respiratory_rate': round(_avg(resp_vals), 1) if resp_vals else None,
+        
+        # V5.9.0: 新增指标
+        'heart_rate_avg': round(_avg(heart_vals), 1) if heart_vals else None,
+        'vo2_max': round(_avg(vo2_vals), 2) if vo2_vals else None,
+        'apple_exercise_time': int(round(_sum(exercise_vals))) if exercise_vals else None,
+        'apple_stand_hour': int(round(_sum(stand_hour_vals))) if stand_hour_vals else None,
+        'physical_effort': round(_avg(physical_effort_vals), 2) if physical_effort_vals else None,
+        
+        'walking_step_length': _convert_length_to_cm(_avg(walking_step_length_vals), walking_step_length_unit) if walking_step_length_vals else None,
+        'walking_heart_rate_average': round(_avg(walking_hr_avg_vals), 1) if walking_hr_avg_vals else None,
+        'walking_asymmetry_percentage': round(_avg(walking_asym_vals), 2) if walking_asym_vals else None,
+        'walking_double_support_percentage': round(_avg(walking_double_support_vals), 2) if walking_double_support_vals else None,
+        'walking_speed': _convert_speed_to_kmh(_avg(walking_speed_vals), walking_speed_unit) if walking_speed_vals else None,
+        
+        'running_stride_length': round(_avg(running_stride_vals), 2) if running_stride_vals else None,
+        'running_vertical_oscillation': round(_avg(running_vertical_vals), 2) if running_vertical_vals else None,
+        'running_ground_contact_time': round(_avg(running_ground_vals), 2) if running_ground_vals else None,
+        'running_power': round(_avg(running_power_vals), 2) if running_power_vals else None,
+        'running_speed': _convert_speed_to_kmh(_avg(running_speed_vals), running_speed_unit) if running_speed_vals else None,
+        
+        'stair_speed_up': round(_avg(stair_speed_vals), 3) if stair_speed_vals else None,
+        'breathing_disturbances': round(_avg(breathing_disturb_vals), 2) if breathing_disturb_vals else None,
+        
+        'headphone_audio_exposure': round(_avg(headphone_audio_vals), 1) if headphone_audio_vals else None,
+        'environmental_audio_exposure': round(_avg(environmental_audio_vals), 1) if environmental_audio_vals else None,
+        
+        # V5.9.0: 睡眠指标（从 sleep_result 填充）
+        'sleep_total_hours': round(sleep_total_raw, 2) if sleep_total_raw is not None else None,
+        'sleep_deep_hours': round(sleep_deep_raw, 2) if sleep_deep_raw is not None else None,
+        'sleep_rem_hours': round(sleep_rem_raw, 2) if sleep_rem_raw is not None else None,
+        
         'sleep': sleep_result,
         'workouts': workouts,
         'has_workout': len(workouts) > 0,
+        
+        # V5.9.0: 单位映射
+        '_metric_units': {
+            'running_power': _metric_unit(metrics, 'running_power') or 'W',
+            'physical_effort': _metric_unit(metrics, 'physical_effort') or 'kcal/hr·kg',
+            'breathing_disturbances': _metric_unit(metrics, 'breathing_disturbances') or 'index',
+            'walking_speed': _metric_unit(metrics, 'walking_speed') or 'km/hr',
+            'running_speed': _metric_unit(metrics, 'running_speed') or 'km/hr'
+        }
     }
     return data
 
@@ -580,6 +874,239 @@ def generate_hr_svg(hr_data):
 </svg>
 </div>
 </div>'''
+
+
+# ==================== 动态指标表渲染函数（V5.9.0 新增）====================
+def get_category_order():
+    """获取类别顺序（支持配置覆盖）"""
+    # 从 METRIC_DEFS 提取真实类别全集
+    all_cats = []
+    for d in METRIC_DEFS.values():
+        c = d.get('category')
+        if c and c not in all_cats:
+            all_cats.append(c)
+
+    ordered = []
+
+    # 用户配置优先
+    if isinstance(CATEGORY_ORDER_OVERRIDE, list):
+        for c in CATEGORY_ORDER_OVERRIDE:
+            if c in all_cats and c not in ordered:
+                ordered.append(c)
+
+    # 内置顺序补齐
+    for c in CATEGORY_ORDER:
+        if c in all_cats and c not in ordered:
+            ordered.append(c)
+
+    # 防漏兜底
+    for c in all_cats:
+        if c not in ordered:
+            ordered.append(c)
+
+    return ordered
+
+
+def metric_importance(metric_key: str) -> int:
+    """获取指标重要性（支持 override）"""
+    if isinstance(IMPORTANCE_OVERRIDES, dict) and metric_key in IMPORTANCE_OVERRIDES:
+        try:
+            x = int(IMPORTANCE_OVERRIDES[metric_key])
+            return max(0, min(10, x))
+        except Exception:
+            pass
+    return int(METRIC_DEFS[metric_key]['importance'])
+
+
+def get_selected_metric_keys():
+    """获取选中的指标列表"""
+    if not REPORT_SELECTED_METRICS:
+        selected = DEFAULT_SELECTED_METRICS.copy()
+    else:
+        selected = [k for k in REPORT_SELECTED_METRICS if k in METRIC_DEFS]
+
+    if not REPORT_INCLUDE_SLEEP_METRICS_IN_TABLE:
+        sleep_keys = {'sleep_total_hours', 'sleep_deep_hours', 'sleep_rem_hours'}
+        selected = [k for k in selected if k not in sleep_keys]
+
+    # 过滤 importance=0 的指标
+    selected = [k for k in selected if metric_importance(k) > 0]
+
+    return selected
+
+
+def metric_label(metric_key: str) -> str:
+    """获取指标标签"""
+    d = METRIC_DEFS[metric_key]
+    return d['label_en'] if LANGUAGE == 'EN' else d['label_cn']
+
+
+def metric_value_text(metric_key: str, data: dict) -> str:
+    """格式化指标值文本"""
+    v = data.get(metric_key)
+    
+    # 处理嵌套字典格式（如 hrv, resting_hr）
+    if isinstance(v, dict):
+        v = v.get('value')
+    
+    if v is None:
+        return '--'
+
+    # 按指标格式化
+    if metric_key in ('hrv',):
+        return f"{float(v):.1f} ms"
+    if metric_key in ('resting_hr', 'heart_rate_avg', 'walking_heart_rate_average'):
+        return f"{float(v):.1f} bpm"
+    if metric_key == 'respiratory_rate':
+        unit = 'breaths/min' if LANGUAGE == 'EN' else '次/分'
+        return f"{float(v):.1f} {unit}"
+    if metric_key in ('steps', 'flights_climbed', 'apple_stand_hour'):
+        suffix = ' floors' if (LANGUAGE == 'EN' and metric_key == 'flights_climbed') else (' 层' if metric_key == 'flights_climbed' else '')
+        return f"{int(round(v)):,}{suffix}"
+    if metric_key == 'distance':
+        return f"{float(v):.2f} km"
+    if metric_key in ('active_energy', 'basal_energy_burned'):
+        return f"{int(round(v))} kcal"
+    if metric_key in ('apple_stand_time', 'apple_exercise_time'):
+        unit = 'min' if LANGUAGE == 'EN' else '分钟'
+        return f"{int(round(v))} {unit}"
+    if metric_key == 'spo2':
+        return f"{float(v):.1f}%"
+    if metric_key == 'vo2_max':
+        return f"{float(v):.2f} ml/(kg·min)"
+    if metric_key == 'physical_effort':
+        unit = _display_unit(data, 'physical_effort', 'kcal/hr·kg')
+        return f"{float(v):.2f} {unit}"
+    if metric_key == 'walking_step_length':
+        return f"{float(v):.2f} cm"
+    if metric_key in ('walking_asymmetry_percentage', 'walking_double_support_percentage'):
+        return f"{float(v):.2f}%"
+    if metric_key in ('walking_speed', 'running_speed'):
+        unit = _display_unit(data, metric_key, 'km/hr')
+        return f"{float(v):.2f} {unit}"
+    if metric_key == 'running_stride_length':
+        return f"{float(v):.2f} m"
+    if metric_key == 'running_vertical_oscillation':
+        return f"{float(v):.2f} cm"
+    if metric_key == 'running_ground_contact_time':
+        return f"{float(v):.2f} ms"
+    if metric_key == 'running_power':
+        unit = _display_unit(data, 'running_power', 'W')
+        return f"{float(v):.2f} {unit}"
+    if metric_key == 'stair_speed_up':
+        return f"{float(v):.3f} m/s"
+    if metric_key in ('headphone_audio_exposure', 'environmental_audio_exposure'):
+        return f"{float(v):.1f} dBASPL"
+    if metric_key in ('sleep_total_hours', 'sleep_deep_hours', 'sleep_rem_hours'):
+        return f"{float(v):.2f} h"
+    if metric_key == 'breathing_disturbances':
+        unit = _display_unit(data, 'breathing_disturbances', 'index')
+        return f"{float(v):.2f} {unit}"
+
+    return str(v)
+
+
+def metric_rating(metric_key: str, data: dict):
+    """计算指标评级"""
+    v = data.get(metric_key)
+    
+    # 处理嵌套字典格式（如 hrv, resting_hr）
+    if isinstance(v, dict):
+        v = v.get('value')
+    
+    if v is None:
+        return ('rating-average', '--')
+
+    # 仅核心指标给评级
+    if metric_key == 'hrv':
+        if LANGUAGE == 'EN':
+            return ('rating-good', 'Good') if v >= 50 else ('rating-average', 'Average')
+        return ('rating-good', '良好') if v >= 50 else ('rating-average', '一般')
+    if metric_key == 'resting_hr':
+        if LANGUAGE == 'EN':
+            return ('rating-excellent', 'Excellent') if v < 60 else ('rating-good', 'Good')
+        return ('rating-excellent', '优秀') if v < 60 else ('rating-good', '良好')
+    if metric_key == 'spo2':
+        if LANGUAGE == 'EN':
+            return ('rating-good', 'Normal') if v >= 95 else ('rating-average', 'Average')
+        return ('rating-good', '正常') if v >= 95 else ('rating-average', '一般')
+    if metric_key == 'steps':
+        if LANGUAGE == 'EN':
+            return ('rating-good', 'Good') if v > 8000 else ('rating-average', 'Average')
+        return ('rating-good', '良好') if v > 8000 else ('rating-average', '一般')
+    if metric_key == 'sleep_total_hours':
+        if LANGUAGE == 'EN':
+            return ('rating-good', 'Normal') if v >= 6 else ('rating-average', 'Average')
+        return ('rating-good', '正常') if v >= 6 else ('rating-average', '一般')
+
+    # 非核心指标返回中立
+    return ('rating-average', '--')
+
+
+def metric_analysis_text(metric_key: str, ai_analysis: dict, data: dict):
+    """获取指标AI分析文本"""
+    ai_key = METRIC_DEFS[metric_key].get('ai_key')
+    if ai_key and ai_analysis.get(ai_key):
+        return ai_analysis.get(ai_key)
+
+    # 无AI文本时的自动兜底
+    value_text = metric_value_text(metric_key, data)
+    label = metric_label(metric_key)
+    if LANGUAGE == 'EN':
+        return f"{label}: current value is {value_text}. No dedicated AI paragraph was provided for this metric."
+    return f"{label}：当前值为 {value_text}。该指标未提供独立AI长文分析，建议结合趋势继续观察。"
+
+
+def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list):
+    """构建指标表格HTML行"""
+    rows = []
+    sleep_keys = {'sleep_total_hours', 'sleep_deep_hours', 'sleep_rem_hours'}
+
+    for cat in get_category_order():
+        cat_label = CATEGORY_LABELS[LANGUAGE].get(cat, cat)
+        cat_metrics = [k for k in selected_keys if METRIC_DEFS.get(k, {}).get('category') == cat]
+
+        # 无数据过滤（睡眠表格显式开启时，睡眠项即使无值也保留）
+        if REPORT_HIDE_NO_DATA_METRICS:
+            filtered = []
+            for k in cat_metrics:
+                v = data.get(k)
+                if REPORT_INCLUDE_SLEEP_METRICS_IN_TABLE and k in sleep_keys:
+                    filtered.append(k)
+                elif v is not None:
+                    filtered.append(k)
+            cat_metrics = filtered
+
+        if REPORT_SORT_BY_IMPORTANCE:
+            cat_metrics = sorted(cat_metrics, key=lambda k: metric_importance(k), reverse=True)
+
+        # 空类别
+        if not cat_metrics:
+            if REPORT_SHOW_EMPTY_CATEGORIES:
+                suffix = '（无数据）' if LANGUAGE == 'CN' else ' (No Data)'
+                rows.append(f'<tr class="metric-category-row"><td colspan="4">{cat_label}{suffix}</td></tr>')
+            continue
+
+        rows.append(f'<tr class="metric-category-row"><td colspan="4">{cat_label}</td></tr>')
+
+        for k in cat_metrics:
+            label = metric_label(k)
+            value_text = metric_value_text(k, data)
+            rating_class, rating_text = metric_rating(k, data)
+            analysis_text = metric_analysis_text(k, ai_analysis, data)
+            imp = metric_importance(k)
+
+            rows.append(
+                f'''<tr class="metric-row">
+<td><span class="metric-name">{label}</span><span class="metric-importance">P{imp}</span></td>
+<td class="metric-value-cell">{value_text}</td>
+<td><span class="rating {rating_class}">{rating_text}</span></td>
+<td><div class="metric-analysis">{analysis_text}</div></td>
+</tr>'''
+            )
+
+    return '\n'.join(rows)
+# =====================================================
 
 
 def calculate_scores(data, member_cfg=None):
@@ -720,89 +1247,25 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SCORE_SLEEP}}', str(sleep_score)).replace('{{BADGE_SLEEP_CLASS}}', sc).replace('{{BADGE_SLEEP_TEXT}}', st)
     html = html.replace('{{SCORE_EXERCISE}}', str(exercise)).replace('{{BADGE_EXERCISE_CLASS}}', ec).replace('{{BADGE_EXERCISE_TEXT}}', et)
 
-    # 指标（严格真实值）
-    # 指标分析 - 必须有真实AI内容，禁止为空
-    m1 = real_text(data['hrv']['value'], lambda v: f"{v:.1f} ms")
-    hrv_analysis = ai_analysis.get('hrv')
-    if not hrv_analysis:
-        raise ValueError(get_error_msg("missing_hrv"))
-    hrv_rating_text = 'Good' if LANGUAGE == 'EN' else '良好'
-    hrv_rating_text2 = 'Average' if LANGUAGE == 'EN' else '一般'
-    html = html.replace('{{METRIC1_VALUE}}', m1).replace('{{METRIC1_RATING_CLASS}}', 'rating-good' if data['hrv']['value'] and data['hrv']['value'] > 50 else 'rating-average').replace('{{METRIC1_RATING}}', hrv_rating_text if data['hrv']['value'] and data['hrv']['value'] > 50 else hrv_rating_text2).replace('{{METRIC1_ANALYSIS}}', hrv_analysis)
+    # V5.9.0: 动态指标表渲染
+    selected_metric_keys = get_selected_metric_keys()
+    rows_html = build_metrics_table_rows(data, ai_analysis, selected_metric_keys)
+    metric_min = ANALYSIS_LIMITS.get("metric_min_words", 150)
+    metric_max = ANALYSIS_LIMITS.get("metric_max_words", 200)
 
-    m2 = real_text(data['resting_hr']['value'], lambda v: f"{int(v)} bpm")
-    rhr_analysis = ai_analysis.get('resting_hr')
-    if not rhr_analysis:
-        raise ValueError(get_error_msg("missing_resting_hr"))
-    rhr_rating_text = 'Excellent' if LANGUAGE == 'EN' else '优秀'
-    rhr_rating_text2 = 'Good' if LANGUAGE == 'EN' else '良好'
-    html = html.replace('{{METRIC2_VALUE}}', m2).replace('{{METRIC2_RATING_CLASS}}', 'rating-excellent' if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else 'rating-good').replace('{{METRIC2_RATING}}', rhr_rating_text if data['resting_hr']['value'] and data['resting_hr']['value'] < 60 else rhr_rating_text2).replace('{{METRIC2_ANALYSIS}}', rhr_analysis)
-
-    m3 = real_text(data['steps'], lambda v: f"{int(v):,}")
-    steps_analysis = ai_analysis.get('steps')
-    if not steps_analysis:
-        raise ValueError(get_error_msg("missing_steps"))
-    steps_rating_text = 'Good' if LANGUAGE == 'EN' else '良好'
-    steps_rating_text2 = 'Average' if LANGUAGE == 'EN' else '一般'
-    html = html.replace('{{METRIC3_VALUE}}', m3).replace('{{METRIC3_RATING_CLASS}}', 'rating-good' if data['steps'] and data['steps'] > 8000 else 'rating-average').replace('{{METRIC3_RATING}}', steps_rating_text if data['steps'] and data['steps'] > 8000 else steps_rating_text2).replace('{{METRIC3_ANALYSIS}}', steps_analysis)
-
-    m4 = real_text(data['distance'], lambda v: f"{v:.1f} km")
-    c4, t4 = gen_rating_from_value(m4)
-    distance_analysis = ai_analysis.get('distance')
-    if not distance_analysis:
-        raise ValueError(get_error_msg("missing_distance"))
-    html = html.replace('{{METRIC4_VALUE}}', m4).replace('{{METRIC4_RATING_CLASS}}', c4).replace('{{METRIC4_RATING}}', t4).replace('{{METRIC4_ANALYSIS}}', distance_analysis)
-
-    m5 = real_text(data['active_energy'], lambda v: f"{int(v)} kcal")
-    c5, t5 = gen_rating_from_value(m5)
-    active_analysis = ai_analysis.get('active_energy')
-    if not active_analysis:
-        raise ValueError(get_error_msg("missing_active_energy"))
-    html = html.replace('{{METRIC5_VALUE}}', m5).replace('{{METRIC5_RATING_CLASS}}', c5).replace('{{METRIC5_RATING}}', t5).replace('{{METRIC5_ANALYSIS}}', active_analysis)
-
+    # A6: 英文单复数处理
+    n_metrics = len(selected_metric_keys)
     if LANGUAGE == 'EN':
-        m6 = real_text(data['flights_climbed'], lambda v: f"{int(v)} floors")
+        unit_word = 'metric' if n_metrics == 1 else 'metrics'
+        section_title = f"Detailed Metric Analysis ({n_metrics} {unit_word} selected)"
+        col_header = f"AI Analysis ({metric_min}-{metric_max} words)"
     else:
-        m6 = real_text(data['flights_climbed'], lambda v: f"{int(v)} 层")
-    c6, t6 = gen_rating_from_value(m6)
-    flights_analysis = ai_analysis.get('flights')
-    if not flights_analysis:
-        raise ValueError(get_error_msg("missing_flights"))
-    html = html.replace('{{METRIC6_VALUE}}', m6).replace('{{METRIC6_RATING_CLASS}}', c6).replace('{{METRIC6_RATING}}', t6).replace('{{METRIC6_ANALYSIS}}', flights_analysis)
+        section_title = f"详细指标分析（已选{n_metrics}项）"
+        col_header = f"AI分析（{metric_min}-{metric_max}字）"
 
-    if LANGUAGE == 'EN':
-        m7 = real_text(data['apple_stand_time'], lambda v: f"{int(v)//60}h {int(v)%60}min")
-    else:
-        m7 = real_text(data['apple_stand_time'], lambda v: f"{int(v)//60}h {int(v)%60}分钟")
-    c7, t7 = gen_rating_from_value(m7)
-    stand_analysis = ai_analysis.get('stand')
-    if not stand_analysis:
-        raise ValueError(get_error_msg("missing_stand"))
-    html = html.replace('{{METRIC7_VALUE}}', m7).replace('{{METRIC7_RATING_CLASS}}', c7).replace('{{METRIC7_RATING}}', t7).replace('{{METRIC7_ANALYSIS}}', stand_analysis)
-
-    m8 = real_text(data['spo2'], lambda v: f"{v:.1f}%")
-    c8, t8 = gen_rating_from_value(m8)
-    spo2_analysis = ai_analysis.get('spo2')
-    if not spo2_analysis:
-        raise ValueError(get_error_msg("missing_spo2"))
-    html = html.replace('{{METRIC8_VALUE}}', m8).replace('{{METRIC8_RATING_CLASS}}', c8).replace('{{METRIC8_RATING}}', t8).replace('{{METRIC8_ANALYSIS}}', spo2_analysis)
-
-    m9 = real_text(data['basal_energy_burned'], lambda v: f"{int(v):,} kcal")
-    c9, t9 = gen_rating_from_value(m9)
-    basal_analysis = ai_analysis.get('basal')
-    if not basal_analysis:
-        raise ValueError(get_error_msg("missing_basal"))
-    html = html.replace('{{METRIC9_VALUE}}', m9).replace('{{METRIC9_RATING_CLASS}}', c9).replace('{{METRIC9_RATING}}', t9).replace('{{METRIC9_ANALYSIS}}', basal_analysis)
-
-    if LANGUAGE == 'EN':
-        m10 = real_text(data['respiratory_rate'], lambda v: f"{float(v):.1f} breaths/min")
-    else:
-        m10 = real_text(data['respiratory_rate'], lambda v: f"{float(v):.1f} 次/分")
-    c10, t10 = gen_rating_from_value(m10)
-    resp_analysis = ai_analysis.get('respiratory')
-    if not resp_analysis:
-        raise ValueError(get_error_msg("missing_respiratory"))
-    html = html.replace('{{METRIC10_VALUE}}', m10).replace('{{METRIC10_RATING_CLASS}}', c10).replace('{{METRIC10_RATING}}', t10).replace('{{METRIC10_ANALYSIS}}', resp_analysis)
+    html = html.replace('{{METRICS_SECTION_TITLE}}', section_title)
+    html = html.replace('{{METRIC_ANALYSIS_COL_HEADER}}', col_header)
+    html = html.replace('{{METRICS_TABLE_ROWS}}', rows_html)
 
     # 睡眠 - 必须有真实AI内容
     sleep_analysis = ai_analysis.get('sleep')
@@ -968,6 +1431,11 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{AI4_LUNCH}}', ai_analysis.get('lunch', ''))
     html = html.replace('{{AI4_DINNER}}', ai_analysis.get('dinner', ''))
     html = html.replace('{{AI4_SNACK}}', ai_analysis.get('snack', ''))
+
+    # V5.9.0: 占位符残留保护
+    unresolved = re.findall(r'\{\{[^{}]+\}\}', html)
+    if unresolved:
+        raise ValueError(f"模板占位符未替换: {unresolved[:10]}")
 
     return html
 

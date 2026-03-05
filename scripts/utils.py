@@ -1087,6 +1087,46 @@ def validate_config_schema(config: dict) -> list:
             if not local_cfg.get('output_dir'):
                 errors.append("email_config.local 启用时缺少字段: output_dir")
 
+    # report_metrics 校验
+    report_metrics = config.get('report_metrics', {})
+    if report_metrics and not isinstance(report_metrics, dict):
+        errors.append("report_metrics 必须是对象")
+    elif isinstance(report_metrics, dict):
+        selected = report_metrics.get('selected', [])
+        if selected and not isinstance(selected, list):
+            errors.append("report_metrics.selected 必须是数组")
+        elif isinstance(selected, list):
+            allowed = set([
+                "hrv","resting_hr","heart_rate_avg","steps","distance","active_energy","spo2","respiratory_rate","apple_stand_time","basal_energy_burned",
+                "vo2_max","physical_effort","sleep_total_hours","sleep_deep_hours","sleep_rem_hours","breathing_disturbances",
+                "apple_exercise_time","flights_climbed","apple_stand_hour","stair_speed_up",
+                "running_speed","running_power","running_stride_length","running_ground_contact_time","running_vertical_oscillation",
+                "walking_speed","walking_step_length","walking_heart_rate_average","walking_asymmetry_percentage","walking_double_support_percentage",
+                "headphone_audio_exposure","environmental_audio_exposure"
+            ])
+            for k in selected:
+                if k not in allowed:
+                    errors.append(f"report_metrics.selected 包含未知指标: {k}")
+
+        for b in [
+            "sort_by_importance", "show_empty_categories", "show_sleep_in_metrics_table",
+            "hide_no_data_metrics", "require_ai_for_selected"
+        ]:
+            if b in report_metrics and not isinstance(report_metrics[b], bool):
+                errors.append(f"report_metrics.{b} 必须是布尔值")
+
+        category_order = report_metrics.get('category_order', [])
+        if category_order and not isinstance(category_order, list):
+            errors.append("report_metrics.category_order 必须是数组")
+
+        importance_overrides = report_metrics.get('importance_overrides', {})
+        if importance_overrides and not isinstance(importance_overrides, dict):
+            errors.append("report_metrics.importance_overrides 必须是对象")
+        elif isinstance(importance_overrides, dict):
+            for k, v in importance_overrides.items():
+                if not isinstance(v, int) or v < 0 or v > 10:
+                    errors.append(f"report_metrics.importance_overrides.{k} 必须是 0-10 的整数")
+
     return errors
 
 

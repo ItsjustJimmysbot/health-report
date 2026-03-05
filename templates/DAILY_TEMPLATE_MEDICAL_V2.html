@@ -292,6 +292,23 @@ body {
   color: var(--text-primary);
 }
 
+/* V5.9.0: 新增类别行和重要性样式 */
+.metric-category-row td {
+  background: #EEF2FF;
+  color: #3730A3;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.metric-importance {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10pt;
+  color: #6366F1;
+  font-weight: 600;
+}
+
 /* ===== Sleep Section ===== */
 .sleep-alert {
   padding: 20px;
@@ -800,7 +817,7 @@ body {
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">📊</span>
-      详细指标分析（11项完整版）
+      {{METRICS_SECTION_TITLE}}
     </div>
   </div>
   
@@ -810,70 +827,11 @@ body {
         <th>指标</th>
         <th>数值</th>
         <th>评级</th>
-        <th>AI分析（100-150字）</th>
+        <th>{{METRIC_ANALYSIS_COL_HEADER}}</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">HRV</span></td>
-        <td class="metric-value-cell">{{METRIC1_VALUE}}</td>
-        <td><span class="rating {{METRIC1_RATING_CLASS}}">{{METRIC1_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC1_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">静息心率</span></td>
-        <td class="metric-value-cell">{{METRIC2_VALUE}}</td>
-        <td><span class="rating {{METRIC2_RATING_CLASS}}">{{METRIC2_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC2_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">步数</span></td>
-        <td class="metric-value-cell">{{METRIC3_VALUE}}</td>
-        <td><span class="rating {{METRIC3_RATING_CLASS}}">{{METRIC3_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC3_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">行走距离</span></td>
-        <td class="metric-value-cell">{{METRIC4_VALUE}}</td>
-        <td><span class="rating {{METRIC4_RATING_CLASS}}">{{METRIC4_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC4_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">活动能量</span></td>
-        <td class="metric-value-cell">{{METRIC5_VALUE}}</td>
-        <td><span class="rating {{METRIC5_RATING_CLASS}}">{{METRIC5_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC5_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">爬楼层数</span></td>
-        <td class="metric-value-cell">{{METRIC6_VALUE}}</td>
-        <td><span class="rating {{METRIC6_RATING_CLASS}}">{{METRIC6_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC6_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">站立时间</span></td>
-        <td class="metric-value-cell">{{METRIC7_VALUE}}</td>
-        <td><span class="rating {{METRIC7_RATING_CLASS}}">{{METRIC7_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC7_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">血氧饱和度</span></td>
-        <td class="metric-value-cell">{{METRIC8_VALUE}}</td>
-        <td><span class="rating {{METRIC8_RATING_CLASS}}">{{METRIC8_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC8_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name metric-name-main">静息能量</span></td>
-        <td class="metric-value-cell">{{METRIC9_VALUE}}</td>
-        <td><span class="rating {{METRIC9_RATING_CLASS}}">{{METRIC9_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC9_ANALYSIS}}</div></td>
-      </tr>
-      <tr class="metric-row">
-        <td><span class="metric-name">呼吸率</span></td>
-        <td class="metric-value-cell">{{METRIC10_VALUE}}</td>
-        <td><span class="rating {{METRIC10_RATING_CLASS}}">{{METRIC10_RATING}}</span></td>
-        <td><div class="metric-analysis">{{METRIC10_ANALYSIS}}</div></td>
-      </tr>
+{{METRICS_TABLE_ROWS}}
     </tbody>
   </table>
 </div>
