@@ -207,8 +207,18 @@ def send_email(date_str: str, report_files: list, member_idx: int = 0) -> bool:
     member_name = (members[member_idx].get('name', f'成员{member_idx+1}') 
                    if members and len(members) > member_idx else '用户')
     
-    subject = f"健康报告 - {date_str}"
-    body = f"您好 {member_name}，\n\n您的健康报告 ({date_str}) 已生成，请查收附件。\n\n祝您健康！"
+    language = str(config.get('language', 'CN')).upper()
+    if language == 'EN':
+        subject = f"Health Report - {date_str}"
+        body = (
+            f"Hello {member_name},\n\n"
+            f"Your health report ({date_str}) has been generated. "
+            f"Please check the attachments.\n\n"
+            "Wishing you good health!"
+        )
+    else:
+        subject = f"健康报告 - {date_str}"
+        body = f"您好 {member_name}，\n\n您的健康报告 ({date_str}) 已生成，请查收附件。\n\n祝您健康！"
     
     print(f"\n📧 准备发送邮件至: {receiver}")
     print(f"📎 附件数量: {len(existing_files)}")

@@ -135,7 +135,7 @@ python3 -m playwright install chromium
 ### 日志配置
 
 - `log_dir`: 错误日志保存目录，默认 `~/.openclaw/workspace-health/logs`
-- 关键错误会同时写入 `health_report.log` 和终端输出
+- 通过 `handle_error` 处理的关键错误会同时写入 `health_report.log` 和终端输出（建议脚本主流程异常都统一走 `handle_error`）
 
 ### 关于 receiver_email 的说明
 
@@ -429,6 +429,9 @@ python3 scripts/setup_oauth2.py
 - 月报 `trend_assessment/trend_forecast` 建议≥150字：`strict` 模式报错，`warn` 模式仅警告并继续生成。
 
 **邮件发送参数：**
+
+> 邮件主题/正文会跟随 `language`：`CN` 使用中文，`EN` 使用英文。
+
 ```bash
 # 发送给特定成员（索引从0开始）
 python3 scripts/send_health_report_email.py 2026-03-01 0    # 第一个成员

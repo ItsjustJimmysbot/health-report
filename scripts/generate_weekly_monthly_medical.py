@@ -62,7 +62,11 @@ def verify_ai_analysis_weekly(ai_analysis):
         errors.append(f"❌ 周报总字数不足: {len(total_text)}字 (要求≥{WEEKLY_MIN_WORDS}字)")
 
     # 语言一致性校验
-    lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
+    lang_errors = detect_language_mismatch(
+        ai_analysis,
+        LANGUAGE,
+        strict_mode=(VALIDATION_MODE == "strict")
+    )
     for err in lang_errors:
         errors.append(f"❌ {err}")
 
@@ -96,7 +100,11 @@ def verify_ai_analysis_monthly(ai_analysis):
         errors.append(f"❌ 月报趋势评估字数不足: {len(trend_text_clean)}字 (要求≥{MONTHLY_TREND_MIN_WORDS}字)")
 
     # 语言一致性校验
-    lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
+    lang_errors = detect_language_mismatch(
+        ai_analysis,
+        LANGUAGE,
+        strict_mode=(VALIDATION_MODE == "strict")
+    )
     for err in lang_errors:
         errors.append(f"❌ {err}")
 
@@ -251,25 +259,40 @@ def _sleep_total(sleep_obj: dict) -> float:
     return float(sleep_obj.get('total_hours', sleep_obj.get('total', 0)) or 0)
 
 def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px):
-    # 动态计算 Y 轴范围
+    # 动态计算 Y 轴范围（忽略 None）
     def calc_range(values, min_default, max_default, padding=0.1):
-        if not values:
+        valid = [v for v in values if isinstance(v, (int, float))]
+        if not valid:
             return min_default, max_default
-        min_val = min(values)
-        max_val = max(values)
+        min_val = min(valid)
+        max_val = max(valid)
         range_val = max_val - min_val
         if range_val == 0:
-            range_val = max_val * 0.1  # 避免除以零
+            range_val = max(abs(max_val), 1.0) * 0.1  # 避免除以零
         padding_val = range_val * padding
         return max(0, min_val - padding_val), max_val + padding_val
+
+    def js_array(values, transform=None):
+        arr = []
+        for v in values:
+            if isinstance(v, (int, float)):
+                val = transform(v) if transform else v
+                arr.append(f"{float(val):.6g}")
+            else:
+                arr.append('null')
+        return ','.join(arr)
 
     # 计算各轴范围
     hrv_min, hrv_max = calc_range(hrv_values, 30, 100)
     sleep_min, sleep_max = calc_range(sleep_values, 0, 10)
 
     # 步数范围：除以1000后的值
-    steps_normalized = [s/1000 for s in steps_values] if steps_values else []
+    steps_normalized = [s / 1000 for s in steps_values if isinstance(s, (int, float))]
     steps_min, steps_max = calc_range(steps_normalized, 0, 15)
+
+    hrv_js = js_array(hrv_values)
+    steps_js = js_array(steps_values, transform=lambda x: x / 1000)
+    sleep_js = js_array(sleep_values)
     return f'''<div style="height: {height_px}px;">
   <canvas id="{canvas_id}"></canvas>
 </div>
@@ -283,7 +306,7 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
       datasets: [
         {{
           label: '{lang_labels["hrv"]}',
-          data: {hrv_values},
+          data: [{hrv_js}],
           borderColor: '#22C55E',
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
           yAxisID: 'y',
@@ -294,7 +317,7 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
         }},
         {{
           label: '{lang_labels["steps"]}',
-          data: [{','.join([str(s/1000) for s in steps_values])}],
+          data: [{steps_js}],
           borderColor: '#3B82F6',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           yAxisID: 'y1',
@@ -305,7 +328,7 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
         }},
         {{
           label: '{lang_labels["sleep"]}',
-          data: {sleep_values},
+          data: [{sleep_js}],
           borderColor: '#A855F7',
           backgroundColor: 'rgba(168, 85, 247, 0.1)',
           yAxisID: 'y2',
@@ -368,7 +391,8 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
 
 def generate_trend_chart(dates, hrv_values, steps_values, sleep_values, chart_type='weekly'):
     """生成Chart.js趋势图表"""
-    if not dates or not hrv_values:
+    valid_hrv = [v for v in hrv_values if isinstance(v, (int, float))]
+    if not dates or not valid_hrv:
         return f'<div style="text-align:center;color:#999;padding:40px;">{get_text("no_trend_data")}</div>'
 
     # 格式化日期显示
@@ -426,10 +450,28 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         print(f"⚠️ 警告: 未找到 {start_date} 至 {end_date} 的缓存数据")
         return None
 
-    # 计算统计数据
-    hrv_values = [d['hrv']['value'] for d in weekly_data if d.get('hrv', {}).get('value')]
-    steps_values = [d['steps'] for d in weekly_data if d.get('steps')]
-    sleep_values = [_sleep_total(d.get('sleep')) for d in weekly_data if _sleep_total(d.get('sleep')) > 0]
+    # 计算统计数据（按完整日期对齐，缺失天补 None，避免图表错位）
+    daily_map = {d.get('date'): d for d in weekly_data if d.get('date')}
+
+    hrv_series = []
+    steps_series = []
+    sleep_series = []
+    for date in week_dates:
+        item = daily_map.get(date, {})
+
+        hrv_val = item.get('hrv', {}).get('value') if isinstance(item.get('hrv'), dict) else None
+        hrv_series.append(hrv_val if isinstance(hrv_val, (int, float)) else None)
+
+        steps_val = item.get('steps')
+        steps_series.append(steps_val if isinstance(steps_val, (int, float)) else None)
+
+        sleep_val = _sleep_total(item.get('sleep'))
+        sleep_series.append(sleep_val if sleep_val > 0 else None)
+
+    hrv_values = [v for v in hrv_series if isinstance(v, (int, float))]
+    steps_values = [v for v in steps_series if isinstance(v, (int, float))]
+    sleep_values = [v for v in sleep_series if isinstance(v, (int, float))]
+
     workout_days = sum(1 for d in weekly_data if d.get('has_workout'))
 
     avg_hrv = sum(hrv_values) / len(hrv_values) if hrv_values else 0
@@ -537,7 +579,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{DAILY_ROWS}}', '\n'.join(daily_rows))
 
     # 生成真实趋势图表
-    trend_chart = generate_trend_chart(week_dates, hrv_values, steps_values, sleep_values, 'weekly')
+    trend_chart = generate_trend_chart(week_dates, hrv_series, steps_series, sleep_series, 'weekly')
     html = html.replace('{{TREND_CHART}}', trend_chart)
 
     # AI趋势分析 - 严格检查，必须在当前session生成

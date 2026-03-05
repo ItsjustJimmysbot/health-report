@@ -266,6 +266,56 @@ def _display_unit(data: dict, metric_key: str, fallback: str = '') -> str:
         return fallback
     unit = units_map.get(metric_key)
     return unit if unit else fallback
+
+
+def _parse_datetime_flexible(value):
+    """解析多种时间格式（秒/毫秒时间戳、ISO、常见日期字符串）。"""
+    if value is None or value == '':
+        return None
+
+    # 1) 数值类型时间戳
+    if isinstance(value, (int, float)):
+        ts = float(value)
+        if ts > 1e12:  # 毫秒
+            ts /= 1000.0
+        try:
+            return datetime.fromtimestamp(ts)
+        except Exception:
+            return None
+
+    # 2) 字符串
+    text = str(value).strip()
+    if not text:
+        return None
+
+    # 2.1 纯数字字符串
+    try:
+        ts = float(text)
+        if ts > 1e12:
+            ts /= 1000.0
+        return datetime.fromtimestamp(ts)
+    except Exception:
+        pass
+
+    # 2.2 ISO / 带时区
+    iso_text = text.replace('Z', '+00:00')
+    match = re.match(r'(.+?)\s+([+-]\d{4})$', iso_text)
+    if match:
+        dt_part, tz_part = match.groups()
+        iso_text = f"{dt_part}{tz_part[:3]}:{tz_part[3:]}"
+    try:
+        return datetime.fromisoformat(iso_text)
+    except Exception:
+        pass
+
+    # 2.3 常见格式兜底
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y/%m/%d %H:%M:%S', '%Y/%m/%d %H:%M'):
+        try:
+            return datetime.strptime(text, fmt)
+        except Exception:
+            continue
+
+    return None
 # =====================================================
 
 HOME = Path.home()
@@ -425,7 +475,11 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
 
     # 语言一致性
     from utils import detect_language_mismatch
-    lang_errors = detect_language_mismatch(ai_analysis, LANGUAGE)
+    lang_errors = detect_language_mismatch(
+        ai_analysis,
+        LANGUAGE,
+        strict_mode=(VALIDATION_MODE == "strict")
+    )
     for error in lang_errors:
         add_err(f"❌ {error}")
 
@@ -610,10 +664,12 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             energy_kcal = (float(energy_raw) / KJ_TO_KCAL) if isinstance(energy_raw, (int, float)) and energy_raw else 0
 
             # 处理开始和结束时间（兼容 start/startDate 和 end/endDate）
-            start_dt = w.get('start') or w.get('startDate') or ''
-            end_dt = w.get('end') or w.get('endDate') or ''
-            start_str = start_dt[:16].replace('T', ' ') if start_dt else ''
-            end_str = end_dt[:16].replace('T', ' ') if end_dt else ''
+            start_raw = w.get('start') or w.get('startDate')
+            end_raw = w.get('end') or w.get('endDate')
+            start_dt = _parse_datetime_flexible(start_raw)
+            end_dt = _parse_datetime_flexible(end_raw)
+            start_str = start_dt.strftime('%Y-%m-%d %H:%M') if start_dt else ''
+            end_str = end_dt.strftime('%Y-%m-%d %H:%M') if end_dt else ''
 
             workouts.append({
                 'name': w.get('workoutActivityType') or w.get('name') or '运动',
@@ -1173,8 +1229,8 @@ def calculate_scores(data, member_cfg=None):
     return recovery, sleep_score, exercise
 
 
-def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None, member_cfg=None):
-    data = load_data(date_str, health_dir, workout_dir)
+def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None, member_cfg=None, preloaded_data=None):
+    data = preloaded_data if preloaded_data is not None else load_data(date_str, health_dir, workout_dir)
     html = template
 
     # 清理AI分析中的markdown粗体标记 **
@@ -1534,7 +1590,15 @@ if __name__ == '__main__':
             data = load_data(date_str, member_health_dir, member_workout_dir)
 
             # 生成报告HTML
-            html = generate_report(date_str, ai_analysis, template, member_health_dir, member_workout_dir, member_cfg)
+            html = generate_report(
+                date_str,
+                ai_analysis,
+                template,
+                member_health_dir,
+                member_workout_dir,
+                member_cfg,
+                preloaded_data=data
+            )
 
             # 保存HTML
             safe_name = safe_member_name(member_name)
