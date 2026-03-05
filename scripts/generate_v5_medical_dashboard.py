@@ -667,7 +667,11 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
 
     data = {
         'date': date_str,
-        'hrv': {'value': round(_avg(hrv_vals), 1) if hrv_vals else None, 'points': len(hrv_vals)},
+        'hrv': {
+            'value': round(_avg(hrv_vals), 1) if hrv_vals else None,
+            'measurement_count': len(hrv_vals),
+            'points': len(hrv_vals),  # 兼容旧字段
+        },
         'resting_hr': {'value': round(_avg(rhr_vals)) if rhr_vals else None},
         'steps': int(_sum(steps_vals)) if steps_vals else None,
         'distance': round(_sum(dist_vals), 2) if dist_vals else None,
@@ -1557,6 +1561,7 @@ if __name__ == '__main__':
                     'resting_hr': data['resting_hr'],
                     'steps': data['steps'],
                     'active_energy': data.get('active_energy') or 0,
+                    'apple_stand_time': data.get('apple_stand_time') or 0,
                     'spo2': data['spo2'],
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],

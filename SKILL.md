@@ -12,7 +12,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 - 生成日报 / 周报 / 月报 PDF
 - 支持 CN / EN 模板切换
 - 支持 OAuth2 / SMTP / Mail.app / Local 发送
-- 支持 `report_metrics` 动态指标表（默认 12 项，可扩展到 30 项）
+- 支持 `report_metrics` 动态指标表（默认 12 项，可扩展到 32 项）
 
 ## 2) 最小配置（config.json）
 ```json

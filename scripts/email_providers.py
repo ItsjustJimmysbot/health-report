@@ -324,9 +324,9 @@ class LocalProvider(EmailProvider):
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             body_file = output_dir / f"email_{timestamp}.txt"
             with open(body_file, 'w', encoding='utf-8') as f:
-                f.write(f"To: {receiver}\\n")
-                f.write(f"Subject: {subject}\\n")
-                f.write(f"\\n{body}\\n")
+                f.write(f"To: {receiver}\n")
+                f.write(f"Subject: {subject}\n")
+                f.write(f"\n{body}\n")
             
             print(f"  ✅ 本地保存完成")
             return True

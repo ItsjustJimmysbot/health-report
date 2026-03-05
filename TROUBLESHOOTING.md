@@ -166,7 +166,7 @@ AI 分析字数未达到 `analysis_limits` 要求，且 `validation_mode` 为 `s
 AI 分析内容的语言与 `config.json` 中的 `language` 设置不一致。
 
 **解决：**
-1. 如果 `language` 为 `CN`，AI 必须输出纯中文
+1. 如果 `language` 为 `CN`，AI 应以中文为主（允许少量英文术语）
 2. 如果 `language` 为 `EN`，AI 应以英文为主（允许少量指标术语）
 3. 临时改为 `warn` 模式跳过检测（不推荐长期使用）
 

@@ -755,10 +755,14 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     if not trend_assessment:
         raise ValueError("❌ 错误: 缺少月报整体趋势评估 - 必须在当前AI对话中生成")
 
-    # V5.8.1: 检查字数，如果不足要求抛出错误
+    # 检查趋势评估字数（strict 报错，warn 仅警告）
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
     if len(trend_text_clean) < 150:
-        raise ValueError(f"❌ 错误: 月报趋势评估字数不足（当前{len(trend_text_clean)}字，要求≥150字）- 请在当前AI对话中重新生成完整分析，必须包含具体数据点引用和指标间关联分析")
+        msg = f"月报趋势评估字数不足（当前{len(trend_text_clean)}字，要求≥150字）"
+        if VALIDATION_MODE == "strict":
+            raise ValueError(f"❌ 错误: {msg} - 请在当前AI对话中重新生成完整分析，必须包含具体数据点引用和指标间关联分析")
+        else:
+            print(f"⚠️ 警告模式: {msg}，继续生成")
 
     html = html.replace('{{HRV_ANALYSIS}}', hrv_analysis.replace('\n', '<br>'))
     html = html.replace('{{SLEEP_ANALYSIS}}', sleep_analysis.replace('\n', '<br>'))

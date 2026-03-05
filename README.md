@@ -424,6 +424,7 @@ python3 scripts/setup_oauth2.py
 - **注意**：缺少必填 AI 字段（如日报的 priority、饮食字段）是硬错误，不受 warn 模式影响，仍会失败。
 - 日报会校验 `analysis_limits.metric_min_words` 与 `metric_max_words`，并校验 `daily_min_words`。
 - 周报/月报总字数下限分别读取 `analysis_limits.weekly_min_words` 与 `analysis_limits.monthly_min_words`。
+- 月报 `trend_assessment/trend_forecast` 建议≥150字：`strict` 模式报错，`warn` 模式仅警告并继续生成。
 
 **邮件发送参数：**
 ```bash
@@ -454,7 +455,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **智能邮件回退**：默认优先级 oauth2 → smtp → mail_app → local（可在 provider_priority 自定义）
 *   **配置化路径**：所有脚本统一从 `config.json` 读取数据路径，无需修改代码
 *   **真·数据对齐**：彻底修正了 Apple Health 跨天导出的偏移问题。日间活动从当日文件读取，睡眠数据从次日文件读取
-*   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、可配置动态指标表（默认12项，可扩展到30项）、心率图和深度睡眠结构分析
+*   **医疗级 UI**：采用全新的 V2 Medical 紫色主题模板，包含评分卡片、可配置动态指标表（默认12项，可扩展到32项）、心率图和深度睡眠结构分析
 *   **原子化工作流**：将原本不稳定的 `edit` 局部替换逻辑升级为全量 `write` JSON 模式
 *   **跨夜睡眠归属**：完善了睡眠统计逻辑，自动抓取 `当日 20:00` 至 `次日 12:00` 的睡眠记录并归属为当日恢复指标
 
@@ -474,7 +475,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **测试数据提取**：`python3 scripts/extract_data_v5.py YYYY-MM-DD`
 *   **生成日报**：`python3 scripts/generate_v5_medical_dashboard.py YYYY-MM-DD < ai_analysis.json`
 *   **生成周报/月报**：`python3 scripts/generate_weekly_monthly_medical.py weekly|monthly ...`
-*   **手动补发邮件**：`python3 scripts/send_health_report_email.py YYYY-MM-DD`
+*   **手动补发邮件**：`python3 scripts/send_health_report_email.py YYYY-MM-DD`（默认会按成员文件名自动匹配该日期关联的日报/周报/月报）
 *   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
 *   **配置校验**：`python3 scripts/validate_config.py`
 
