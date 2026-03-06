@@ -702,17 +702,6 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
                 'hr_timeline': [x for x in timeline if x.get('avg') is not None or x.get('max') is not None]
             })
 
-            workouts.append({
-                'name': w.get('workoutActivityType') or w.get('name') or '运动',
-                'start': start_str,
-                'end': end_str,
-                'duration_min': duration_min,
-                'energy_kcal': float(energy_kcal) if isinstance(energy_kcal, (int, float)) else 0,
-                'avg_hr': int(avg_hr) if avg_hr is not None else None,
-                'max_hr': int(max_hr) if max_hr is not None else None,
-                'hr_timeline': [x for x in timeline if x.get('avg') is not None or x.get('max') is not None]
-            })
-
     # V5.8.1: 计算总活动能量（日常活动 + 运动能量）
     workout_energy_total = sum(w.get('energy_kcal', 0) for w in workouts)
     if active_kcal is not None and active_kcal > 0:

@@ -500,6 +500,35 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
+### ✅ 回归验证（建议每次改动后执行）
+
+```bash
+# 1) 语法检查
+python3 -m py_compile scripts/*.py
+
+# 2) 配置校验（以 example 为基准）
+python3 - <<'PY'
+import json,sys
+from pathlib import Path
+sys.path.insert(0,'scripts')
+import utils
+import jsonschema
+root=Path('.')
+cfg=json.loads((root/'config.json.example').read_text())
+schema=json.loads((root/'config.schema.json').read_text())
+errs=list(jsonschema.Draft7Validator(schema, format_checker=jsonschema.FormatChecker()).iter_errors(cfg))
+print('schema_errors',len(errs))
+berr=utils.validate_config_schema(cfg)
+print('business_errors',len(berr))
+PY
+
+# 3) 关键回归：workout 不应重复 append
+grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
+# 预期：只出现 1 行
+```
+
+---
+
 ## 📝 开发者规范 (V5.8.1)
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
