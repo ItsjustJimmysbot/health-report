@@ -184,6 +184,10 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             except (ValueError, TypeError, OSError, OverflowError) as e:
                 print(f"⚠️  时间解析失败: {start_ts} - {e}", file=sys.stderr)
                 continue
+
+            # V5.9.1: 仅保留目标日期的运动记录，避免跨天数据混入
+            if start_dt.strftime('%Y-%m-%d') != date_str:
+                continue
             
             # 计算 duration_min（使用智能单位推断）
             dur_raw = workout.get('duration', 0) or 0

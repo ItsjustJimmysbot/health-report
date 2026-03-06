@@ -57,11 +57,12 @@ jobs:
       - name: Regression smoke - timestamp parsing and sleep units
         run: |
           python - <<'PY'
-          import json, tempfile, datetime, sys
+          import json, tempfile, datetime, sys, subprocess
           from pathlib import Path
 
           sys.path.insert(0, 'scripts')
           import generate_v5_medical_dashboard as g
+          import extract_data_v5 as e
           from utils import parse_sleep_data_unified
 
           # 1) numeric timestamp metrics should not be filtered out
@@ -124,7 +125,39 @@ jobs:
               names = [w['name'] for w in d['workouts']]
               assert names == ['RunA'], f'Expected only RunA, got {names}'
 
-          # 3) sleep stage unit compatibility (hours vs minutes)
+          # 3) extract_data_v5 should also exclude cross-day workouts
+          with tempfile.TemporaryDirectory() as td:
+              td = Path(td)
+              hd = td / 'health'
+              wd = td / 'workout'
+              hd.mkdir(); wd.mkdir()
+              date = '2026-03-01'
+
+              workouts = {
+                  'data': {
+                      'workouts': [
+                          {'name': 'RunA', 'start': '2026-03-01 10:00:00 +0800', 'duration': 60, 'durationUnit': 'minutes', 'energy': 500},
+                          {'name': 'RunPrev', 'start': '2026-02-28 10:00:00 +0800', 'duration': 60, 'durationUnit': 'minutes', 'energy': 500}
+                      ]
+                  }
+              }
+              (wd / f'HealthAutoExport-{date}.json').write_text(json.dumps(workouts), encoding='utf-8')
+              w = e.extract_workout_data(date, wd, hd)
+              names = [x['name'] for x in w]
+              assert names == ['RunA'], f'Expected only RunA in extract_data_v5, got {names}'
+
+          # 4) monthly args should fail gracefully (no traceback)
+          p = subprocess.run(
+              ['python', 'scripts/generate_weekly_monthly_medical.py', 'monthly', 'X', 'Y'],
+              input='{}',
+              text=True,
+              capture_output=True
+          )
+          combined = (p.stdout or '') + (p.stderr or '')
+          assert p.returncode != 0, 'Monthly invalid args should fail with non-zero exit code'
+          assert 'Traceback' not in combined, f'Unexpected traceback for invalid monthly args: {combined[:200]}'
+
+          # 5) sleep stage unit compatibility (hours vs minutes)
           with tempfile.TemporaryDirectory() as td:
               hd = Path(td)
               data = {

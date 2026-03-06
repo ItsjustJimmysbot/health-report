@@ -1,4 +1,4 @@
-# Health Agent V5.9.0 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.9.1 - OpenClaw 专业健康分析 Skill
 
 > ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
 > 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。

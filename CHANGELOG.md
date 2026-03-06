@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file.
 - Sleep stage unit inference improved (hours/minutes auto-detection using duration consistency).
 - Added stricter email validation for `receiver_email`, `email_config.oauth2.sender_email`, `email_config.smtp.sender_email`.
 - Monthly CLI args hardened (`year/month` integer parse + month range check).
+- Workout cross-day filtering now applies consistently in both daily loader and extract script.
 - Fixed regression where workout records were appended twice in daily loader.
 
 ### Docs

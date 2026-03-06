@@ -1176,8 +1176,16 @@ def main():
             print(_err('monthly_args_error'))
             sys.exit(1)
 
-        year = int(sys.argv[2])
-        month = int(sys.argv[3])
+        try:
+            year = int(sys.argv[2])
+            month = int(sys.argv[3])
+        except ValueError:
+            print(_err('year_month_parse_error'))
+            sys.exit(1)
+
+        if month < 1 or month > 12:
+            print(_err('month_range_error', month=month))
+            sys.exit(1)
 
         # 加载模板 - V5.8.1: 使用灵活的模板选择
         from utils import get_template_path
