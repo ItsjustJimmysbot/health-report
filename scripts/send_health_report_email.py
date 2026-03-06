@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康报告邮件发送脚本 V5.9.0
+"""健康报告邮件发送脚本 V5.9.1
 
 功能:
     - 支持可配置的 Provider 优先级 (OAuth2/SMTP/Mail.app/Local)
@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 
-# V5.9.0: 使用共用工具函数
+# V5.9.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, MAX_MEMBERS
 

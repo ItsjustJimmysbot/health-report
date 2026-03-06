@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V5.9.0 AI分析报告生成器 - Medical Dashboard 模板版
+V5.9.1 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
@@ -22,7 +22,7 @@ from pathlib import Path
 from html import escape as html_escape
 from playwright.sync_api import sync_playwright
 
-# V5.9.0: 使用共用工具函数
+# V5.9.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL, count_text_units
 
@@ -37,7 +37,7 @@ ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 # 成员数量（最多3人）
 MEMBER_COUNT = min(len(MEMBERS), MAX_MEMBERS)
 
-# ==================== report_metrics 配置（V5.9.0 新增）====================
+# ==================== report_metrics 配置（V5.9.1 新增）====================
 REPORT_METRICS_CFG = CONFIG.get("report_metrics", {})
 REPORT_SELECTED_METRICS = REPORT_METRICS_CFG.get("selected", [])
 REPORT_SHOW_EMPTY_CATEGORIES = bool(REPORT_METRICS_CFG.get("show_empty_categories", True))
@@ -147,7 +147,7 @@ DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 500)
 VALIDATION_MODE = CONFIG.get("validation_mode", "strict")  # 可选值: "strict", "warn"
 # =====================================================
 
-# ==================== 动态指标表配置（V5.9.0 新增）====================
+# ==================== 动态指标表配置（V5.9.1 新增）====================
 CATEGORY_ORDER = [
     "core_health", "cardio_fitness", "sleep_recovery", "activity_mobility",
     "running_advanced", "walking_gait", "stairs_strength", "environment_audio"
@@ -226,7 +226,7 @@ METRIC_DEFS = {
 }
 # =====================================================
 
-# ==================== 单位处理函数（V5.9.0 新增）====================
+# ==================== 单位处理函数（V5.9.1 新增）====================
 def _metric_unit(metrics, name: str) -> str:
     """从 metrics 中提取指定指标的单位"""
     if isinstance(metrics, dict):
@@ -362,7 +362,7 @@ def get_member_config(index: int):
 
 def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> list:
     """
-    验证AI分析长度是否符合要求（V5.9.0 支持动态指标）
+    验证AI分析长度是否符合要求（V5.9.1 支持动态指标）
     返回错误列表（为空表示验证通过）
     """
     errors = []
@@ -590,7 +590,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
     basal_vals = _values(metrics, 'basal_energy_burned', date_str)
     resp_vals = _values(metrics, 'respiratory_rate', date_str)
 
-    # V5.9.0: 新增指标读取
+    # V5.9.1: 新增指标读取
     heart_vals = _values(metrics, 'heart_rate', date_str)
     vo2_vals = _values(metrics, 'vo2_max', date_str)
     exercise_vals = _values(metrics, 'apple_exercise_time', date_str)
@@ -732,7 +732,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         end_hour=sleep_config.get('end_hour', 12)
     )
 
-    # V5.9.0: 睡眠数据精确处理（B3 修正）
+    # V5.9.1: 睡眠数据精确处理（B3 修正）
     sleep_total_raw = None
     sleep_deep_raw = None
     sleep_rem_raw = None
@@ -745,7 +745,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             sleep_deep_raw = deep_candidate if isinstance(deep_candidate, (int, float)) else None
             sleep_rem_raw = rem_candidate if isinstance(rem_candidate, (int, float)) else None
 
-    # V5.9.0: 单位转换
+    # V5.9.1: 单位转换
     walking_step_length_unit = _metric_unit(metrics, 'walking_step_length')
     walking_speed_unit = _metric_unit(metrics, 'walking_speed')
     running_speed_unit = _metric_unit(metrics, 'running_speed')
@@ -774,7 +774,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         'basal_energy_burned': int(round(basal_kcal)) if basal_kcal is not None else None,
         'respiratory_rate': round(_avg(resp_vals), 1) if resp_vals else None,
 
-        # V5.9.0: 新增指标
+        # V5.9.1: 新增指标
         'heart_rate_avg': round(_avg(heart_vals), 1) if heart_vals else None,
         'vo2_max': round(_avg(vo2_vals), 2) if vo2_vals else None,
         'apple_exercise_time': int(round(_sum(exercise_vals))) if exercise_vals else None,
@@ -799,7 +799,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         'headphone_audio_exposure': round(_avg(headphone_audio_vals), 1) if headphone_audio_vals else None,
         'environmental_audio_exposure': round(_avg(environmental_audio_vals), 1) if environmental_audio_vals else None,
 
-        # V5.9.0: 睡眠指标（从 sleep_result 填充）
+        # V5.9.1: 睡眠指标（从 sleep_result 填充）
         'sleep_total_hours': round(sleep_total_raw, 2) if sleep_total_raw is not None else None,
         'sleep_deep_hours': round(sleep_deep_raw, 2) if sleep_deep_raw is not None else None,
         'sleep_rem_hours': round(sleep_rem_raw, 2) if sleep_rem_raw is not None else None,
@@ -808,7 +808,7 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         'workouts': workouts,
         'has_workout': len(workouts) > 0,
 
-        # V5.9.0: 单位映射
+        # V5.9.1: 单位映射
         '_metric_units': {
             'running_power': _metric_unit(metrics, 'running_power') or 'W',
             'physical_effort': _metric_unit(metrics, 'physical_effort') or 'kcal/hr·kg',
@@ -939,7 +939,7 @@ def generate_hr_svg(hr_data):
 </div>'''
 
 
-# ==================== 动态指标表渲染函数（V5.9.0 新增）====================
+# ==================== 动态指标表渲染函数（V5.9.1 新增）====================
 def get_category_order():
     """获取类别顺序（支持配置覆盖）"""
     # 从 METRIC_DEFS 提取真实类别全集
@@ -1310,7 +1310,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SCORE_SLEEP}}', str(sleep_score)).replace('{{BADGE_SLEEP_CLASS}}', sc).replace('{{BADGE_SLEEP_TEXT}}', st)
     html = html.replace('{{SCORE_EXERCISE}}', str(exercise)).replace('{{BADGE_EXERCISE_CLASS}}', ec).replace('{{BADGE_EXERCISE_TEXT}}', et)
 
-    # V5.9.0: 动态指标表渲染
+    # V5.9.1: 动态指标表渲染
     selected_metric_keys = get_selected_metric_keys()
     rows_html = build_metrics_table_rows(data, ai_analysis, selected_metric_keys)
     metric_min = ANALYSIS_LIMITS.get("metric_min_words", 150)
@@ -1495,7 +1495,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{AI4_DINNER}}', safe_html_paragraph(ai_analysis.get('dinner', '')))
     html = html.replace('{{AI4_SNACK}}', safe_html_paragraph(ai_analysis.get('snack', '')))
 
-    # V5.9.0: 占位符残留保护
+    # V5.9.1: 占位符残留保护
     unresolved = re.findall(r'\{\{[^{}]+\}\}', html)
     if unresolved:
         raise ValueError(f"模板占位符未替换: {unresolved[:10]}")

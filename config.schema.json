@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Health Report Config",
-  "description": "Configuration schema for Health Report V5.9.0",
+  "description": "Configuration schema for Health Report V5.9.1",
   "type": "object",
   "required": [
     "version",
