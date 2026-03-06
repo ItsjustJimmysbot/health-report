@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install minimal dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema playwright
+
+      - name: Compile scripts
+        run: python -m py_compile scripts/*.py
+
+      - name: Validate schema with example config
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import jsonschema
+
+          root = Path('.')
+          cfg = json.loads((root / 'config.json.example').read_text(encoding='utf-8'))
+          schema = json.loads((root / 'config.schema.json').read_text(encoding='utf-8'))
+
+          validator = jsonschema.Draft7Validator(schema, format_checker=jsonschema.FormatChecker())
+          errors = list(validator.iter_errors(cfg))
+          print('schema_errors', len(errors))
+          if errors:
+              for e in errors[:20]:
+                  print(' -', e.message)
+              raise SystemExit(1)
+          PY
+
+      - name: Regression guard - workout append appears once
+        run: |
+          count=$(grep -c "workouts.append({" scripts/generate_v5_medical_dashboard.py || true)
+          echo "workouts.append count=$count"
+          test "$count" -eq 1
+
+      - name: Regression smoke - timestamp parsing and sleep units
+        run: |
+          python - <<'PY'
+          import json, tempfile, datetime, sys
+          from pathlib import Path
+
+          sys.path.insert(0, 'scripts')
+          import generate_v5_medical_dashboard as g
+          from utils import parse_sleep_data_unified
+
+          # 1) numeric timestamp metrics should not be filtered out
+          with tempfile.TemporaryDirectory() as td:
+              td = Path(td)
+              hd = td / 'h'
+              wd = td / 'w'
+              hd.mkdir(); wd.mkdir()
+              date = '2026-03-01'
+              ts = int(datetime.datetime(2026, 3, 1, 8, 0, 0).timestamp() * 1000)
+
+              health = {
+                  'data': {
+                      'metrics': [
+                          {'name': 'heart_rate_variability', 'data': [{'startDate': ts, 'qty': 55}]},
+                          {'name': 'resting_heart_rate', 'data': [{'startDate': ts, 'qty': 60}]},
+                          {'name': 'step_count', 'data': [{'startDate': ts, 'qty': 1234}]},
+                          {'name': 'active_energy', 'data': [{'startDate': ts, 'qty': 1000}]}
+                      ],
+                      'sleep_analysis': {'data': []}
+                  }
+              }
+              (hd / f'HealthAutoExport-{date}.json').write_text(json.dumps(health), encoding='utf-8')
+              d = g.load_data(date, hd, wd)
+              assert d['hrv']['value'] is not None, 'HRV should not be None for numeric timestamp'
+              assert d['steps'] is not None, 'Steps should not be None for numeric timestamp'
+
+          # 2) workout should not duplicate, and cross-day should be excluded
+          with tempfile.TemporaryDirectory() as td:
+              td = Path(td)
+              hd = td / 'health'
+              wd = td / 'workout'
+              hd.mkdir(); wd.mkdir()
+              date = '2026-03-01'
+
+              health = {
+                  'data': {
+                      'metrics': [
+                          {'name': 'heart_rate_variability', 'data': [{'startDate': '2026-03-01 08:00:00 +0800', 'qty': 50}]},
+                          {'name': 'resting_heart_rate', 'data': [{'startDate': '2026-03-01 08:00:00 +0800', 'qty': 60}]},
+                          {'name': 'step_count', 'data': [{'startDate': '2026-03-01 08:00:00 +0800', 'qty': 1000}]},
+                          {'name': 'active_energy', 'data': [{'startDate': '2026-03-01 08:00:00 +0800', 'qty': 1000}]}
+                      ],
+                      'sleep_analysis': {'data': []}
+                  }
+              }
+              (hd / f'HealthAutoExport-{date}.json').write_text(json.dumps(health), encoding='utf-8')
+
+              workouts = {
+                  'data': {
+                      'workouts': [
+                          {'name': 'RunA', 'start': '2026-03-01 10:00:00 +0800', 'end': '2026-03-01 11:00:00 +0800', 'duration': 60, 'durationUnit': 'minutes', 'energy': 500},
+                          {'name': 'RunPrev', 'start': '2026-02-28 10:00:00 +0800', 'end': '2026-02-28 11:00:00 +0800', 'duration': 60, 'durationUnit': 'minutes', 'energy': 500}
+                      ]
+                  }
+              }
+              (wd / f'HealthAutoExport-{date}.json').write_text(json.dumps(workouts), encoding='utf-8')
+
+              d = g.load_data(date, hd, wd)
+              names = [w['name'] for w in d['workouts']]
+              assert names == ['RunA'], f'Expected only RunA, got {names}'
+
+          # 3) sleep stage unit compatibility (hours vs minutes)
+          with tempfile.TemporaryDirectory() as td:
+              hd = Path(td)
+              data = {
+                  'data': {
+                      'sleep_analysis': {
+                          'data': [
+                              {'sleepStart': '2026-03-01 23:00:00', 'sleepEnd': '2026-03-02 07:00:00', 'deep': 2.0, 'core': 4.5, 'rem': 1.0, 'awake': 0.5}
+                          ]
+                      }
+                  }
+              }
+              (hd / 'HealthAutoExport-2026-03-02.json').write_text(json.dumps(data), encoding='utf-8')
+              r = parse_sleep_data_unified('2026-03-01', hd, read_mode='next_day', start_hour=20, end_hour=12)
+              assert abs(r['total_hours'] - 8.0) < 0.01
+
+          with tempfile.TemporaryDirectory() as td:
+              hd = Path(td)
+              data = {
+                  'data': {
+                      'sleep_analysis': {
+                          'data': [
+                              {'sleepStart': '2026-03-01 23:00:00', 'sleepEnd': '2026-03-02 07:00:00', 'deep': 120, 'core': 270, 'rem': 60, 'awake': 30}
+                          ]
+                      }
+                  }
+              }
+              (hd / 'HealthAutoExport-2026-03-02.json').write_text(json.dumps(data), encoding='utf-8')
+              r = parse_sleep_data_unified('2026-03-01', hd, read_mode='next_day', start_hour=20, end_hour=12)
+              assert abs(r['total_hours'] - 8.0) < 0.01
+          PY

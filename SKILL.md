@@ -7,6 +7,10 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 
 > 详细文档请看 `README.md`（安装、全量配置、故障排查都在那边）。
 
+## 0) 版本状态
+- 当前推荐运行版本：**V5.9.1**
+- `config.version` 支持 `5.8.x / 5.9.x`（示例可写 `5.9.0` 或 `5.9.1`）
+
 ## 1) 核心能力
 - 提取 Apple Health JSON 数据（支持多成员，最多 3 位）
 - 生成日报 / 周报 / 月报 PDF
@@ -17,7 +21,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 ## 2) 最小配置（config.json）
 ```json
 {
-  "version": "5.9.0",
+  "version": "5.9.1",
   "members": [
     {
       "name": "Jimmy",
@@ -73,6 +77,9 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 ## 3) 标准命令
 ### 日报
 ```bash
+# 首次使用请先准备 config.json
+cp config.json.example config.json
+
 python3 scripts/extract_data_v5.py YYYY-MM-DD [member_index|all]
 python3 scripts/generate_v5_medical_dashboard.py YYYY-MM-DD < ai_analysis.json
 python3 scripts/send_health_report_email.py YYYY-MM-DD [member_index|all]

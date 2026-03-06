@@ -1,9 +1,15 @@
-# Health Agent V5.9.0 - OpenClaw 专业健康分析 Skill
+# Health Agent V5.9.x - OpenClaw 专业健康分析 Skill
 
 > ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
 > 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。
 
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
+
+## 📌 版本状态（V5.9.1）
+
+- 当前推荐运行版本：**V5.9.1**
+- `config.json` 的 `version` 字段支持 `5.8.x / 5.9.x`（例如 `5.9.0`、`5.9.1`）
+- 文中保留的 `V5.8.1` / `V5.9.0` 标记用于说明能力首次引入版本，不代表必须锁定该小版本
 
 ---
 
@@ -488,6 +494,10 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **手动补发邮件**：`python3 scripts/send_health_report_email.py YYYY-MM-DD`（默认会按成员文件名自动匹配该日期关联的日报/周报/月报）
 *   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
 *   **配置校验**：`python3 scripts/validate_config.py`
+> 首次运行 `validate_config.py` 前，请先确保存在 `config.json`：
+> ```bash
+> cp config.json.example config.json
+> ```
 
 ### AI 输入文件自动清理（Feature）
 
