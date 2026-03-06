@@ -1537,15 +1537,15 @@ if __name__ == '__main__':
 
     date_str = sys.argv[1]
 
-    # V5.8.1: 预检查模板文件
-    from utils import validate_templates_exist
-    template_check = validate_templates_exist(TEMPLATE_DIR, LANGUAGE)
-    if template_check["errors"]:
+    # V5.9.1: 仅预检查日报模板（避免日报流程被周/月模板缺失阻塞）
+    from utils import get_template_path
+    try:
+        daily_template_probe = get_template_path("daily", LANGUAGE, TEMPLATE_DIR, version="V2")
+        print(f"{get_error_msg('template_check_pass')}: {daily_template_probe.name}")
+    except FileNotFoundError as e:
         print(get_error_msg("template_check_fail"))
-        for error in template_check["errors"]:
-            print(f"   - {error}")
+        print(f"   - {e}")
         sys.exit(1)
-    print(get_error_msg("template_check_pass"))
 
     # 限制成员数量在1-3之间（控制token消耗）
     if MEMBER_COUNT == 0:

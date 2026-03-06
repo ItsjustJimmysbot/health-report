@@ -482,8 +482,9 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 系统按以下顺序查找模板（以日报为例）：
 1. `DAILY_TEMPLATE_MEDICAL_V2_{LANG}.html`（指定语言版本）
-2. `DAILY_TEMPLATE_MEDICAL_V2.html`（默认中文V2版）
-3. `DAILY_TEMPLATE_MEDICAL.html`（旧版兜底）
+2. `DAILY_TEMPLATE_MEDICAL_{LANG}.html`（语言版，无版本号）
+3. `DAILY_TEMPLATE_MEDICAL_V2.html`（默认中文V2版）
+4. `DAILY_TEMPLATE_MEDICAL.html`（旧版兜底）
 
 周报/月报同理：`{TYPE}_TEMPLATE_MEDICAL_{LANG}.html` → `{TYPE}_TEMPLATE_MEDICAL.html`
 
@@ -690,6 +691,11 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 }
 ```
 
+**成员名文件名冲突提醒（safe_member_name）**：
+- 报告文件名会使用 `safe_member_name(name)` 作为后缀
+- 例如 `A B`、`A/B`、`A_B` 可能都转换为同一个安全名 `A_B`
+- 若不同成员转换后同名，`validate_config.py` 会报冲突，请修改成员名称避免覆盖
+
 **✅ V5.8.1+ 完整多成员支持：**
 
 > 当前实现上限：最多处理前 3 位成员（提取 / 生成 / 发送保持一致）。超过 3 位时会打印 warning 并自动截断。
@@ -851,7 +857,10 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 1. 成员名完全匹配
 2. 安全成员名匹配（safe_member_name转换后）
 3. 索引匹配（数组顺序）
-4. 兜底到第一个有效数据（非严格模式下）
+
+**当前生成入口默认严格匹配（strict=True）:**
+- 日报/周报/月报脚本都会使用严格模式
+- 找不到成员对应 AI 分析时，不会兜底复用第一份分析，而是报错或跳过该成员
 
 **推荐做法**: 使用格式2（members数组），顺序与config.json中的members顺序一致。
 

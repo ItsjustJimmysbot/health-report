@@ -567,17 +567,31 @@ def parse_sleep_data_unified(
         if not start_ts or not end_ts:
             continue
 
-        # 解析时间
+        # 解析时间（兼容秒/毫秒时间戳，以及常见字符串格式）
+        def _parse_sleep_ts(ts):
+            if isinstance(ts, (int, float)):
+                ts_num = float(ts)
+                if ts_num > 1e12:  # 毫秒
+                    ts_num /= 1000.0
+                return datetime.fromtimestamp(ts_num)
+
+            ts_text = str(ts).strip()
+            # 纯数字字符串（秒/毫秒）
+            try:
+                ts_num = float(ts_text)
+                if ts_num > 1e12:
+                    ts_num /= 1000.0
+                return datetime.fromtimestamp(ts_num)
+            except (ValueError, TypeError, OSError, OverflowError):
+                pass
+
+            # 字符串日期（保留到秒）
+            return datetime.strptime(ts_text[:19], '%Y-%m-%d %H:%M:%S')
+
         try:
-            if isinstance(start_ts, (int, float)):
-                start_dt = datetime.fromtimestamp(start_ts / 1000)
-                end_dt = datetime.fromtimestamp(end_ts / 1000)
-            else:
-                start_str = start_ts[:19]  # '2026-03-02 02:23:55'
-                end_str = end_ts[:19]
-                start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
-                end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S')
-        except (ValueError, TypeError):
+            start_dt = _parse_sleep_ts(start_ts)
+            end_dt = _parse_sleep_ts(end_ts)
+        except (ValueError, TypeError, OSError, OverflowError):
             continue
 
         # 筛选逻辑

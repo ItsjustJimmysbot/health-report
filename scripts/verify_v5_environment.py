@@ -5,6 +5,10 @@ import os
 import json
 from pathlib import Path
 
+# 复用模板解析逻辑，确保环境检查与实际渲染逻辑一致
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import get_template_path
+
 
 def load_config():
     """加载配置文件"""
@@ -70,18 +74,21 @@ def verify():
         else:
             print(f"❌ 脚本缺失: {s}")
 
-    # 2. 检查模板（根据 language 配置检查对应语言模板）
+    # 2. 检查模板（按真实回退策略校验）
     language = str(config.get('language', 'CN')).strip().upper()
-    if language == 'EN':
-        templates = ['DAILY_TEMPLATE_MEDICAL_V2_EN.html', 'WEEKLY_TEMPLATE_MEDICAL_EN.html', 'MONTHLY_TEMPLATE_MEDICAL_EN.html']
-    else:
-        templates = ['DAILY_TEMPLATE_MEDICAL_V2.html', 'WEEKLY_TEMPLATE_MEDICAL.html', 'MONTHLY_TEMPLATE_MEDICAL.html']
-    for t in templates:
-        p = workspace / 'templates' / t
-        if p.exists():
-            print(f"✅ 模板检测: {t} 存在")
-        else:
-            print(f"❌ 模板缺失: {t}")
+    template_dir = workspace / 'templates'
+
+    for report_type in ['daily', 'weekly', 'monthly']:
+        try:
+            template_path = get_template_path(
+                report_type,
+                language,
+                template_dir,
+                version='V2'
+            )
+            print(f"✅ 模板检测: {report_type} -> {template_path.name}")
+        except FileNotFoundError as e:
+            print(f"❌ 模板缺失({report_type}): {e}")
 
     # 3. 检查数据目录 (从 config.json 读取)
     if health_dir.exists():
