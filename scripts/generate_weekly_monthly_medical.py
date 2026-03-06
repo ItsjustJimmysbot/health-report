@@ -1040,8 +1040,16 @@ def main():
             print('Error: Monthly report requires year and month')
             sys.exit(1)
 
-        year = int(sys.argv[2])
-        month = int(sys.argv[3])
+        try:
+            year = int(sys.argv[2])
+            month = int(sys.argv[3])
+        except ValueError:
+            print('Error: year/month 必须是整数，例如: monthly 2026 3')
+            sys.exit(1)
+
+        if month < 1 or month > 12:
+            print(f'Error: month 超出范围: {month}（应为 1-12）')
+            sys.exit(1)
 
         # 加载模板 - V5.8.1: 使用灵活的模板选择
         from utils import get_template_path

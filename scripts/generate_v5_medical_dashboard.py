@@ -525,13 +525,24 @@ def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
 
-    # V5.9.0: 睡眠数据严格时间窗口过滤，防止次日数据污染当日指标
+    # V5.9.1: 统一兼容字符串日期与数字时间戳（秒/毫秒）
     if target_date:
         filtered_arr = []
         for x in arr:
+            if not isinstance(x, dict):
+                continue
             st = x.get('startDate') or x.get('date')
             if st is None:
                 continue
+
+            st_dt = _parse_datetime_flexible(st)
+            if st_dt is not None:
+                st_date = st_dt.strftime('%Y-%m-%d')
+                if st_date == target_date:
+                    filtered_arr.append(x)
+                continue
+
+            # 兜底：无法解析时按字符串前缀匹配
             st_str = str(st)
             if st_str.startswith(target_date):
                 filtered_arr.append(x)
@@ -635,6 +646,15 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             workout_list = []
 
         for w in workout_list:
+            # 先解析开始/结束时间并按目标日期过滤，避免跨天运动混入
+            start_raw = w.get('start') or w.get('startDate')
+            end_raw = w.get('end') or w.get('endDate')
+            start_dt = _parse_datetime_flexible(start_raw)
+            end_dt = _parse_datetime_flexible(end_raw)
+
+            if start_dt is not None and start_dt.strftime('%Y-%m-%d') != date_str:
+                continue
+
             timeline = []
             hr_source = w.get('heartRateData') or w.get('hrData') or []
             for h in hr_source:
@@ -668,13 +688,19 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             )
             energy_kcal = (float(energy_raw) / KJ_TO_KCAL) if isinstance(energy_raw, (int, float)) and energy_raw else 0
 
-            # 处理开始和结束时间（兼容 start/startDate 和 end/endDate）
-            start_raw = w.get('start') or w.get('startDate')
-            end_raw = w.get('end') or w.get('endDate')
-            start_dt = _parse_datetime_flexible(start_raw)
-            end_dt = _parse_datetime_flexible(end_raw)
             start_str = start_dt.strftime('%Y-%m-%d %H:%M') if start_dt else ''
             end_str = end_dt.strftime('%Y-%m-%d %H:%M') if end_dt else ''
+
+            workouts.append({
+                'name': w.get('workoutActivityType') or w.get('name') or '运动',
+                'start': start_str,
+                'end': end_str,
+                'duration_min': duration_min,
+                'energy_kcal': float(energy_kcal) if isinstance(energy_kcal, (int, float)) else 0,
+                'avg_hr': int(avg_hr) if avg_hr is not None else None,
+                'max_hr': int(max_hr) if max_hr is not None else None,
+                'hr_timeline': [x for x in timeline if x.get('avg') is not None or x.get('max') is not None]
+            })
 
             workouts.append({
                 'name': w.get('workoutActivityType') or w.get('name') or '运动',
