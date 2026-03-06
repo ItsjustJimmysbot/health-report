@@ -1,0 +1,121 @@
+{
+  "version": "5.9.1",
+  "members": [
+    {
+      "name": "Jimmy",
+      "age": 30,
+      "gender": "male",
+      "height_cm": 175,
+      "weight_kg": 70,
+      "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
+      "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
+      "email": "you@example.com"
+    }
+  ],
+  "analysis_limits": {
+    "metric_min_words": 150,
+    "metric_max_words": 200,
+    "action_min_words": 250,
+    "action_max_words": 300,
+    "daily_min_words": 500,
+    "weekly_min_words": 800,
+    "monthly_min_words": 1000,
+    "monthly_trend_min_words": 150,
+    "lang_en_max_chinese_ratio_strict": 0.15,
+    "lang_en_max_chinese_ratio_warn": 0.20,
+    "lang_cn_min_chinese_ratio_strict": 0.30,
+    "lang_cn_min_chinese_ratio_warn": 0.20
+  },
+  "email_config": {
+    "provider_priority": [
+      "oauth2",
+      "smtp",
+      "mail_app",
+      "local"
+    ],
+    "oauth2": {
+      "enabled": false,
+      "provider": "gmail",
+      "client_id": "your-client-id.apps.googleusercontent.com",
+      "client_secret": "your-client-secret",
+      "refresh_token": "your-refresh-token",
+      "sender_email": "your-email@gmail.com"
+    },
+    "smtp": {
+      "enabled": false,
+      "server": "smtp.gmail.com",
+      "port": 587,
+      "sender_email": "your-email@gmail.com",
+      "password": "your-app-password",
+      "use_tls": true
+    },
+    "mail_app": {
+      "enabled": true
+    },
+    "local": {
+      "enabled": true,
+      "output_dir": "~/.openclaw/workspace/shared/health-reports/upload"
+    },
+    "max_retries": 3,
+    "retry_delay": 5
+  },
+  "receiver_email": "target-email@example.com",
+  "language": "CN",
+  "validation_mode": "strict",
+  "output_dir": "~/.openclaw/workspace/shared/health-reports/upload",
+  "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache",
+  "log_dir": "~/.openclaw/workspace-health/logs",
+  "sleep_config": {
+    "read_mode": "next_day",
+    "start_hour": 20,
+    "end_hour": 12
+  },
+  "report_metrics": {
+    "selected": [
+      "hrv",
+      "resting_hr",
+      "heart_rate_avg",
+      "steps",
+      "distance",
+      "active_energy",
+      "respiratory_rate",
+      "spo2",
+      "vo2_max",
+      "physical_effort",
+      "apple_exercise_time",
+      "flights_climbed",
+      "apple_stand_time",
+      "sleep_total_hours",
+      "sleep_deep_hours",
+      "sleep_rem_hours",
+      "running_speed",
+      "running_power",
+      "running_stride_length",
+      "running_ground_contact_time",
+      "running_vertical_oscillation",
+      "walking_speed",
+      "walking_step_length",
+      "walking_heart_rate_average"
+    ],
+    "sort_by_importance": true,
+    "show_empty_categories": true,
+    "show_sleep_in_metrics_table": true,
+    "hide_no_data_metrics": true,
+    "require_ai_for_selected": false,
+    "category_order": [
+      "core_health",
+      "cardio_fitness",
+      "sleep_recovery",
+      "activity_mobility",
+      "running_advanced",
+      "walking_gait",
+      "stairs_strength",
+      "environment_audio"
+    ],
+    "importance_overrides": {
+      "vo2_max": 10,
+      "sleep_total_hours": 10,
+      "environmental_audio_exposure": 0
+    }
+  }
+}

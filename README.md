@@ -654,6 +654,29 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 - **walking_gait（5）**：`walking_speed`, `walking_step_length`, `walking_heart_rate_average`, `walking_asymmetry_percentage`, `walking_double_support_percentage`
 - **environment_audio（2）**：`headphone_audio_exposure`, `environmental_audio_exposure`
 
+### report_metrics 五套示例配置（按人群）
+
+仓库已提供 5 个可直接复制使用的配置示例（都在 `examples/config-presets/` 目录）：
+
+| 示例文件 | 指标数 | 适用人群 | 特点 |
+|---|---:|---|---|
+| `config.example.general-12.json` | 12 | 大多数日常用户 | 轻量核心看板，噪声低、可读性高 |
+| `config.example.sleep-focus-16.json` | 16 | 睡眠问题/恢复优先人群 | 强化睡眠分期、呼吸扰动与恢复指标 |
+| `config.example.weight-management-18.json` | 18 | 体重管理/代谢优化人群 | 强调活动能量、基础代谢、站立与步行机能 |
+| `config.example.runner-advanced-24.json` | 24 | 跑步训练进阶人群 | 增加跑步动力学与睡眠恢复联合观察 |
+| `config.example.full-32.json` | 32（全选） | 精细化追踪/研究用途 | 全指标开启；默认 `hide_no_data_metrics=false`，便于完整巡检 |
+
+快速使用方式（示例：切到跑步进阶版）：
+
+```bash
+cp examples/config-presets/config.example.runner-advanced-24.json config.json
+python3 scripts/validate_config.py --config ./config.json --schema ./config.schema.json
+```
+
+> 提示：
+> - 如果你不想看到空指标，请把 `hide_no_data_metrics` 设为 `true`。
+> - 如果你希望睡眠指标出现在动态指标表中，请把 `show_sleep_in_metrics_table` 设为 `true`。
+
 ### 👥 多成员配置（最多3人）
 
 支持为家庭成员分别生成健康报告。**注意：硬编码限制最多3人。**
