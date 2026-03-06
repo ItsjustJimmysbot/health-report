@@ -1664,6 +1664,16 @@ if __name__ == '__main__':
 
             # 保存缓存
             try:
+                # V5.9.1: 计算 apple_stand_hour（优先使用已有小时字段，否则从分钟换算）
+                apple_stand_min = data.get('apple_stand_time')
+                apple_stand_hour = data.get('apple_stand_hour')
+                if isinstance(apple_stand_hour, (int, float)):
+                    stand_hour_cache = float(apple_stand_hour)
+                elif isinstance(apple_stand_min, (int, float)):
+                    stand_hour_cache = float(apple_stand_min) / 60.0
+                else:
+                    stand_hour_cache = 0.0
+
                 cache_data = {
                     'date': date_str,
                     'member': member_name,
@@ -1672,6 +1682,7 @@ if __name__ == '__main__':
                     'steps': data['steps'],
                     'active_energy': data.get('active_energy') or 0,
                     'apple_stand_time': data.get('apple_stand_time') or 0,
+                    'apple_stand_hour': round(stand_hour_cache, 2),
                     'spo2': data['spo2'],
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],

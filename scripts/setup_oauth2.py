@@ -163,7 +163,7 @@ def setup_gmail_oauth2():
             try:
                 with open(p, 'r', encoding='utf-8') as f:
                     existing_config = json.load(f)
-            except:
+            except Exception:
                 pass
             break
     

@@ -805,9 +805,13 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
         if isinstance(active_energy_raw, (int, float)):
             active_energy_series.append(float(active_energy_raw))
 
-        stand_time_raw = d.get('apple_stand_time')
-        if isinstance(stand_time_raw, (int, float)):
-            stand_time_series.append(float(stand_time_raw))
+        # V5.9.1: 优先使用 apple_stand_hour（小时），回退到 apple_stand_time（分钟）换算
+        stand_hour_raw = d.get('apple_stand_hour')
+        stand_min_raw = d.get('apple_stand_time')
+        if isinstance(stand_hour_raw, (int, float)):
+            stand_time_series.append(float(stand_hour_raw))
+        elif isinstance(stand_min_raw, (int, float)):
+            stand_time_series.append(float(stand_min_raw) / 60.0)
 
     # 计算平均值时过滤 None（但保留 0）
     hrv_values = [v for v in hrv_series if isinstance(v, (int, float))]
@@ -821,7 +825,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     avg_steps = sum(steps_values) / len(steps_values) if steps_values else 0
     avg_sleep = sum(sleep_values) / len(sleep_values) if sleep_values else 0
     avg_calories = sum(active_energy_values) / len(active_energy_values) if active_energy_values else 0
-    avg_stand = sum(stand_time_values) / len(stand_time_values) / 60 if stand_time_values else 0  # 转换为小时
+    avg_stand = sum(stand_time_values) / len(stand_time_values) if stand_time_values else 0
 
     # 填充模板
     html = template
@@ -913,9 +917,13 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
             if isinstance(active_energy_raw, (int, float)):
                 prev_calories.append(float(active_energy_raw))
 
-            stand_raw = d.get('apple_stand_time')
-            if isinstance(stand_raw, (int, float)):
-                prev_stand.append(float(stand_raw))
+            # V5.9.1: 优先使用 apple_stand_hour（小时），回退到 apple_stand_time（分钟）换算
+            stand_hour_raw = d.get('apple_stand_hour')
+            stand_min_raw = d.get('apple_stand_time')
+            if isinstance(stand_hour_raw, (int, float)):
+                prev_stand.append(float(stand_hour_raw))
+            elif isinstance(stand_min_raw, (int, float)):
+                prev_stand.append(float(stand_min_raw) / 60.0)
 
         hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
         steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
