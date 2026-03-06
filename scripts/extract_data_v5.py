@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V5.9.0报告生成 - 支持多成员"""
+"""提取Apple Health数据用于V5.9.1报告生成 - 支持多成员"""
 
 import json
 import sys
@@ -30,8 +30,8 @@ def get_member_config(member_idx=0):
         print(f"⚠️ 警告: 成员数 {len(members)} 超过上限 {MAX_MEMBERS}，仅处理前 {MAX_MEMBERS} 位", file=sys.stderr)
         members = members[:MAX_MEMBERS]
     
-    # 检查索引是否越界
-    if member_idx >= len(members):
+    # 检查索引是否越界（同时防止负索引误取最后一个成员）
+    if member_idx < 0 or member_idx >= len(members):
         print(f"⚠️ 警告: 成员索引 {member_idx} 超出范围，回退到第一个成员(0)", file=sys.stderr)
         member_idx = 0
     
@@ -183,6 +183,10 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
                         start_dt = datetime.fromisoformat(iso_str)
             except (ValueError, TypeError, OSError, OverflowError) as e:
                 print(f"⚠️  时间解析失败: {start_ts} - {e}", file=sys.stderr)
+                continue
+
+            # V5.9.1: 仅保留目标日期的运动记录，避免跨天数据混入
+            if start_dt.strftime('%Y-%m-%d') != date_str:
                 continue
             
             # 计算 duration_min（使用智能单位推断）
@@ -522,7 +526,7 @@ if __name__ == '__main__':
         data = extract_daily_data(
             date_str,
             member_config['health_dir'],
-            member_config['workout_dir'], 
+            member_config['workout_dir'],
             member_config['profile'],
             sleep_config
         )

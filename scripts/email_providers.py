@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""邮件发送Provider实现 - V5.9.0"""
+"""邮件发送Provider实现 - V5.9.1"""
 
 import os
 import sys
@@ -279,7 +279,7 @@ class MailAppProvider(EmailProvider):
                 end tell
             end tell
             '''
-            
+
             # 执行AppleScript
             result = subprocess.run(
                 ['osascript', '-e', applescript],

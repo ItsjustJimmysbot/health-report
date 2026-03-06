@@ -72,9 +72,24 @@
   },
   "report_metrics": {
     "selected": [
-      "hrv","resting_hr","steps","distance","active_energy","spo2",
-      "flights_climbed","apple_stand_time","basal_energy_burned","respiratory_rate",
-      "vo2_max","apple_exercise_time"
+      "hrv",
+      "resting_hr",
+      "heart_rate_avg",
+      "steps",
+      "distance",
+      "active_energy",
+      "basal_energy_burned",
+      "apple_exercise_time",
+      "apple_stand_time",
+      "apple_stand_hour",
+      "flights_climbed",
+      "physical_effort",
+      "vo2_max",
+      "respiratory_rate",
+      "spo2",
+      "walking_speed",
+      "walking_step_length",
+      "stair_speed_up"
     ],
     "sort_by_importance": true,
     "show_empty_categories": true,
@@ -82,8 +97,14 @@
     "hide_no_data_metrics": true,
     "require_ai_for_selected": false,
     "category_order": [
-      "core_health","cardio_fitness","sleep_recovery","activity_mobility",
-      "running_advanced","walking_gait","stairs_strength","environment_audio"
+      "core_health",
+      "cardio_fitness",
+      "sleep_recovery",
+      "activity_mobility",
+      "running_advanced",
+      "walking_gait",
+      "stairs_strength",
+      "environment_audio"
     ],
     "importance_overrides": {
       "vo2_max": 10,

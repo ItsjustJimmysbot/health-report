@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V5.9.0 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V5.9.1 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < ai_analysis.json
@@ -14,7 +14,7 @@ from pathlib import Path
 from html import escape as html_escape
 from playwright.sync_api import sync_playwright
 
-# V5.9.0: 使用共用工具函数
+# V5.9.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS, count_text_units
 
@@ -42,23 +42,100 @@ CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cac
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# ==================== 验证函数 ====================
+# ==================== 多语言错误文本 ====================
+ERROR_TEXTS = {
+    "CN": {
+        "weekly_label": "周报",
+        "monthly_label": "月报",
+        "weekly_monthly_label": "周/月报",
+        "recommendations_must_list": "❌ {context} recommendations 必须是数组(list)，当前类型: {type_name}",
+        "recommendations_item_must_dict": "❌ {context} recommendations[{idx}] 必须是对象(dict)，当前类型: {type_name}",
+        "recommendations_missing_title": "❌ {context} recommendations[{idx}] 缺少 title",
+        "recommendations_missing_content": "❌ {context} recommendations[{idx}] 缺少 content",
+        "weekly_total_short": "❌ 周报总长度不足: {current}{unit} (要求≥{minimum}{unit})",
+        "monthly_total_short": "❌ 月报总长度不足: {current}{unit} (要求≥{minimum}{unit})",
+        "monthly_trend_short": "❌ 月报趋势评估长度不足: {current}{unit} (要求≥{minimum}{unit})",
+        "validation_found": "⚠️  发现 {count} 处校验问题:",
+        "strict_stop": "❌ 严格模式: 校验失败，停止生成",
+        "warn_continue": "⚠️ 警告模式: 继续生成，但请注意内容可能不够详细",
+        "missing_weekly_trend": "❌ 错误: 缺少周报AI趋势分析 - 必须在当前AI对话中生成",
+        "invalid_weekly_recommendations": "❌ 错误: 周报 recommendations 结构无效: {details}",
+        "missing_monthly_hrv": "❌ 错误: 缺少月报HRV分析 - 必须在当前AI对话中生成",
+        "missing_monthly_sleep": "❌ 错误: 缺少月报睡眠质量分析 - 必须在当前AI对话中生成",
+        "missing_monthly_activity": "❌ 错误: 缺少月报活动量分析 - 必须在当前AI对话中生成",
+        "missing_monthly_trend": "❌ 错误: 缺少月报整体趋势评估 - 必须在当前AI对话中生成",
+        "monthly_trend_short_msg": "月报趋势评估长度不足（当前{current}{unit}，要求≥{minimum}{unit}）",
+        "monthly_trend_short_strict": "❌ 错误: {msg} - 请在当前AI对话中重新生成完整分析，必须包含具体数据点引用和指标间关联分析",
+        "monthly_trend_short_warn": "⚠️ 警告模式: {msg}，继续生成",
+        "invalid_monthly_recommendations": "❌ 错误: 月报 recommendations 结构无效: {details}",
+        "json_parse_error": "❌ 错误: {error}",
+        "no_members": "❌ 错误: config.json 未配置 members，无法生成周报/月报",
+        "weekly_args_error": "错误: 周报模式需要 start_date 和 end_date",
+        "monthly_args_error": "错误: 月报模式需要 year 和 month",
+        "year_month_parse_error": "错误: year/month 必须是整数，例如: monthly 2026 3",
+        "month_range_error": "错误: month 超出范围: {month}（应为 1-12）",
+        "unknown_report_type": "错误: 未知报告类型 {report_type}",
+    },
+    "EN": {
+        "weekly_label": "weekly report",
+        "monthly_label": "monthly report",
+        "weekly_monthly_label": "weekly/monthly report",
+        "recommendations_must_list": "❌ {context} recommendations must be a list, got: {type_name}",
+        "recommendations_item_must_dict": "❌ {context} recommendations[{idx}] must be an object(dict), got: {type_name}",
+        "recommendations_missing_title": "❌ {context} recommendations[{idx}] missing title",
+        "recommendations_missing_content": "❌ {context} recommendations[{idx}] missing content",
+        "weekly_total_short": "❌ Weekly total length too short: {current}{unit} (required ≥{minimum}{unit})",
+        "monthly_total_short": "❌ Monthly total length too short: {current}{unit} (required ≥{minimum}{unit})",
+        "monthly_trend_short": "❌ Monthly trend assessment too short: {current}{unit} (required ≥{minimum}{unit})",
+        "validation_found": "⚠️  Found {count} validation issue(s):",
+        "strict_stop": "❌ Strict mode: validation failed, stop generating",
+        "warn_continue": "⚠️ Warn mode: continue generating, but content may be insufficient",
+        "missing_weekly_trend": "❌ Error: missing weekly trend analysis - must be generated in current AI session",
+        "invalid_weekly_recommendations": "❌ Error: invalid weekly recommendations structure: {details}",
+        "missing_monthly_hrv": "❌ Error: missing monthly HRV analysis - must be generated in current AI session",
+        "missing_monthly_sleep": "❌ Error: missing monthly sleep analysis - must be generated in current AI session",
+        "missing_monthly_activity": "❌ Error: missing monthly activity analysis - must be generated in current AI session",
+        "missing_monthly_trend": "❌ Error: missing monthly trend assessment - must be generated in current AI session",
+        "monthly_trend_short_msg": "Monthly trend assessment too short (current {current}{unit}, required ≥{minimum}{unit})",
+        "monthly_trend_short_strict": "❌ Error: {msg} - regenerate in current AI session with concrete metric references and cross-metric analysis",
+        "monthly_trend_short_warn": "⚠️ Warn mode: {msg}, continue generating",
+        "invalid_monthly_recommendations": "❌ Error: invalid monthly recommendations structure: {details}",
+        "json_parse_error": "❌ Error: {error}",
+        "no_members": "❌ Error: config.json has no members; cannot generate weekly/monthly report",
+        "weekly_args_error": "Error: Weekly report requires start and end dates",
+        "monthly_args_error": "Error: Monthly report requires year and month",
+        "year_month_parse_error": "Error: year/month must be integers, e.g. monthly 2026 3",
+        "month_range_error": "Error: month out of range: {month} (expected 1-12)",
+        "unknown_report_type": "Error: unknown report type {report_type}",
+    }
+}
 
-def _validate_recommendations(recommendations, context='周/月报'):
+
+def _err(key: str, **kwargs) -> str:
+    template = ERROR_TEXTS.get(LANGUAGE, ERROR_TEXTS["CN"]).get(key, key)
+    try:
+        return template.format(**kwargs)
+    except Exception:
+        return template
+
+
+# ==================== 验证函数 ====================
+def _validate_recommendations(recommendations, context=None):
     """验证 recommendations 结构，避免输入异常导致 AttributeError。"""
     errors = []
+    context = context or _err('weekly_monthly_label')
 
     if not isinstance(recommendations, list):
-        return [f"❌ {context} recommendations 必须是数组(list)，当前类型: {type(recommendations).__name__}"]
+        return [_err('recommendations_must_list', context=context, type_name=type(recommendations).__name__)]
 
     for idx, rec in enumerate(recommendations):
         if not isinstance(rec, dict):
-            errors.append(f"❌ {context} recommendations[{idx}] 必须是对象(dict)，当前类型: {type(rec).__name__}")
+            errors.append(_err('recommendations_item_must_dict', context=context, idx=idx, type_name=type(rec).__name__))
             continue
         if not rec.get('title'):
-            errors.append(f"❌ {context} recommendations[{idx}] 缺少 title")
+            errors.append(_err('recommendations_missing_title', context=context, idx=idx))
         if not rec.get('content'):
-            errors.append(f"❌ {context} recommendations[{idx}] 缺少 content")
+            errors.append(_err('recommendations_missing_content', context=context, idx=idx))
 
     return errors
 
@@ -74,7 +151,7 @@ def verify_ai_analysis_weekly(ai_analysis):
     total_units += count_text_units(trend_analysis, LANGUAGE)
 
     recommendations = ai_analysis.get('recommendations', [])
-    rec_errors = _validate_recommendations(recommendations, context='周报')
+    rec_errors = _validate_recommendations(recommendations, context=_err('weekly_label'))
     errors.extend(rec_errors)
 
     if not rec_errors:
@@ -84,7 +161,7 @@ def verify_ai_analysis_weekly(ai_analysis):
 
     # 检查周报总长度（要求≥WEEKLY_MIN_WORDS）
     if total_units < WEEKLY_MIN_WORDS:
-        errors.append(f"❌ 周报总长度不足: {total_units}{unit_label} (要求≥{WEEKLY_MIN_WORDS}{unit_label})")
+        errors.append(_err('weekly_total_short', current=total_units, unit=unit_label, minimum=WEEKLY_MIN_WORDS))
 
     # 语言一致性校验
     lang_errors = detect_language_mismatch(
@@ -116,7 +193,7 @@ def verify_ai_analysis_monthly(ai_analysis):
     total_units += count_text_units(trend_assessment, LANGUAGE)
 
     recommendations = ai_analysis.get('recommendations', [])
-    rec_errors = _validate_recommendations(recommendations, context='月报')
+    rec_errors = _validate_recommendations(recommendations, context=_err('monthly_label'))
     errors.extend(rec_errors)
 
     if not rec_errors:
@@ -126,13 +203,13 @@ def verify_ai_analysis_monthly(ai_analysis):
 
     # 检查月报总长度（要求≥MONTHLY_MIN_WORDS）
     if total_units < MONTHLY_MIN_WORDS:
-        errors.append(f"❌ 月报总长度不足: {total_units}{unit_label} (要求≥{MONTHLY_MIN_WORDS}{unit_label})")
+        errors.append(_err('monthly_total_short', current=total_units, unit=unit_label, minimum=MONTHLY_MIN_WORDS))
 
     # 同时检查 trend_assessment 单独长度（默认150，可由 analysis_limits.monthly_trend_min_words 覆盖）
     trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
     trend_units = count_text_units(trend_text_clean, LANGUAGE)
     if trend_units < MONTHLY_TREND_MIN_WORDS:
-        errors.append(f"❌ 月报趋势评估长度不足: {trend_units}{unit_label} (要求≥{MONTHLY_TREND_MIN_WORDS}{unit_label})")
+        errors.append(_err('monthly_trend_short', current=trend_units, unit=unit_label, minimum=MONTHLY_TREND_MIN_WORDS))
 
     # 语言一致性校验
     lang_errors = detect_language_mismatch(
@@ -293,6 +370,40 @@ def _sleep_total(sleep_obj: dict) -> float:
         return 0.0
     return float(sleep_obj.get('total_hours', sleep_obj.get('total', 0)) or 0)
 
+
+def _active_energy_kcal(day_obj: dict):
+    """兼容活动能量字段：active_energy（新）/ active_energy_kcal（旧）"""
+    if not isinstance(day_obj, dict):
+        return None
+    v = day_obj.get('active_energy')
+    if isinstance(v, (int, float)):
+        return float(v)
+    v = day_obj.get('active_energy_kcal')
+    if isinstance(v, (int, float)):
+        return float(v)
+    return None
+
+
+def _stand_hours(day_obj: dict):
+    """兼容站立时长字段：apple_stand_hour（小时）/ apple_stand_time（分钟）/ stand_time_min（分钟）"""
+    if not isinstance(day_obj, dict):
+        return None
+
+    stand_hour_raw = day_obj.get('apple_stand_hour')
+    if isinstance(stand_hour_raw, (int, float)):
+        return float(stand_hour_raw)
+
+    stand_min_raw = day_obj.get('apple_stand_time')
+    if isinstance(stand_min_raw, (int, float)):
+        return float(stand_min_raw) / 60.0
+
+    stand_min_legacy = day_obj.get('stand_time_min')
+    if isinstance(stand_min_legacy, (int, float)):
+        return float(stand_min_legacy) / 60.0
+
+    return None
+
+
 def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px):
     # 动态计算 Y 轴范围（忽略 None）
     def calc_range(values, min_default, max_default, padding=0.1):
@@ -444,7 +555,8 @@ def generate_trend_chart(dates, hrv_values, steps_values, sleep_values, chart_ty
 
 def generate_monthly_chart(dates, hrv_values, steps_values, sleep_values):
     """生成月度Chart.js趋势图表"""
-    if not dates or not hrv_values:
+    valid_hrv = [v for v in hrv_values if isinstance(v, (int, float))]
+    if not dates or not valid_hrv:
         return f'<div style="text-align:center;color:#999;padding:40px;">{get_text("no_monthly_data")}</div>'
 
     # 格式化日期显示 (只显示日)
@@ -529,7 +641,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
             sleep_val = _sleep_total(data.get('sleep'))
             sleep_text = f"{sleep_val:.1f}h" if sleep_val > 0 else '--'
 
-            active_energy_val = data.get('active_energy')
+            active_energy_val = _active_energy_kcal(data)
             active_energy_text = f"{int(active_energy_val)}kcal" if isinstance(active_energy_val, (int, float)) else '--'
 
             row = f"""<tr>
@@ -566,14 +678,14 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     print(f"📏 验证AI分析长度...")
     validation_errors = verify_ai_analysis_weekly(ai_analysis)
     if validation_errors:
-        print(f"⚠️  发现 {len(validation_errors)} 处长度不足:")
+        print(_err('validation_found', count=len(validation_errors)))
         for error in validation_errors:
             print(f"   {error}")
         if VALIDATION_MODE == "strict":
-            print(f"❌ 严格模式: 长度验证失败，停止生成")
+            print(_err('strict_stop'))
             return None
         else:
-            print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
+            print(_err('warn_continue'))
     else:
         print(f"   ✅ 长度验证通过")
 
@@ -620,14 +732,14 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     # AI趋势分析 - 严格检查，必须在当前session生成
     trend_analysis = ai_analysis.get('trend_analysis') or ai_analysis.get('weekly_analysis')
     if not trend_analysis:
-        raise ValueError("❌ 错误: 缺少周报AI趋势分析 - 必须在当前AI对话中生成")
+        raise ValueError(_err('missing_weekly_trend'))
     html = html.replace('{{TREND_ANALYSIS}}', safe_html_paragraph(trend_analysis))
 
     # 下周建议 - 严格检查，必须在当前session生成
     recommendations = ai_analysis.get('recommendations', [])
-    rec_errors = _validate_recommendations(recommendations, context='周报')
+    rec_errors = _validate_recommendations(recommendations, context=_err('weekly_label'))
     if rec_errors:
-        raise ValueError("❌ 错误: 周报 recommendations 结构无效: " + '; '.join(rec_errors))
+        raise ValueError(_err('invalid_weekly_recommendations', details='; '.join(rec_errors)))
 
     html = html.replace('{{RECOMMENDATIONS}}', generate_recommendations_html(recommendations))
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
@@ -672,9 +784,23 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     # 计算每周统计
     weekly_rows = []
     for week_num, week_data in sorted(weeks.items()):
-        hrv_values = [d['hrv']['value'] for d in week_data if d.get('hrv', {}).get('value')]
-        steps_values = [d['steps'] for d in week_data if d.get('steps')]
-        sleep_values = [_sleep_total(d.get('sleep')) for d in week_data if _sleep_total(d.get('sleep')) > 0]
+        hrv_values = []
+        steps_values = []
+        sleep_values = []
+
+        for d in week_data:
+            hrv_raw = d.get('hrv', {}).get('value') if isinstance(d.get('hrv'), dict) else None
+            if isinstance(hrv_raw, (int, float)):
+                hrv_values.append(float(hrv_raw))
+
+            steps_raw = d.get('steps')
+            if isinstance(steps_raw, (int, float)):
+                steps_values.append(float(steps_raw))
+
+            sleep_raw = _sleep_total(d.get('sleep'))
+            if sleep_raw > 0:
+                sleep_values.append(float(sleep_raw))
+
         workout_days = sum(1 for d in week_data if d.get('has_workout'))
 
         avg_hrv = sum(hrv_values) / len(hrv_values) if hrv_values else 0
@@ -691,22 +817,45 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
         </tr>"""
         weekly_rows.append(row)
 
-    # 计算全月统计
-    hrv_values = [d['hrv']['value'] for d in monthly_data if d.get('hrv', {}).get('value')]
-    steps_values = [d['steps'] for d in monthly_data if d.get('steps')]
-    sleep_values = [_sleep_total(d.get('sleep')) for d in monthly_data if _sleep_total(d.get('sleep')) > 0]
-    active_energy_values = [d.get('active_energy', 0) for d in monthly_data if d.get('active_energy')]
-    stand_time_values = [d.get('apple_stand_time', 0) for d in monthly_data if d.get('apple_stand_time')]
-    workout_days = sum(1 for d in monthly_data if d.get('has_workout'))
-
-    # 提取实际有数据的日期（用于图表X轴）
+    # 计算全月统计（图表序列按日期一一对齐）
     actual_dates = [d['date'] for d in monthly_data]
+    hrv_series = []
+    steps_series = []
+    sleep_series = []
+    active_energy_series = []
+    stand_time_series = []
+
+    for d in monthly_data:
+        hrv_raw = d.get('hrv', {}).get('value') if isinstance(d.get('hrv'), dict) else None
+        hrv_series.append(float(hrv_raw) if isinstance(hrv_raw, (int, float)) else None)
+
+        steps_raw = d.get('steps')
+        steps_series.append(float(steps_raw) if isinstance(steps_raw, (int, float)) else None)
+
+        sleep_raw = _sleep_total(d.get('sleep'))
+        sleep_series.append(float(sleep_raw) if sleep_raw > 0 else None)
+
+        active_energy_raw = _active_energy_kcal(d)
+        if isinstance(active_energy_raw, (int, float)):
+            active_energy_series.append(float(active_energy_raw))
+
+        stand_hours = _stand_hours(d)
+        if isinstance(stand_hours, (int, float)):
+            stand_time_series.append(float(stand_hours))
+
+    # 计算平均值时过滤 None（但保留 0）
+    hrv_values = [v for v in hrv_series if isinstance(v, (int, float))]
+    steps_values = [v for v in steps_series if isinstance(v, (int, float))]
+    sleep_values = [v for v in sleep_series if isinstance(v, (int, float))]
+    active_energy_values = active_energy_series
+    stand_time_values = stand_time_series
+    workout_days = sum(1 for d in monthly_data if d.get('has_workout'))
 
     avg_hrv = sum(hrv_values) / len(hrv_values) if hrv_values else 0
     avg_steps = sum(steps_values) / len(steps_values) if steps_values else 0
     avg_sleep = sum(sleep_values) / len(sleep_values) if sleep_values else 0
     avg_calories = sum(active_energy_values) / len(active_energy_values) if active_energy_values else 0
-    avg_stand = sum(stand_time_values) / len(stand_time_values) / 60 if stand_time_values else 0  # 转换为小时
+    avg_stand = sum(stand_time_values) / len(stand_time_values) if stand_time_values else 0
 
     # 填充模板
     html = template
@@ -728,14 +877,14 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     print(f"📏 验证AI分析长度...")
     validation_errors = verify_ai_analysis_monthly(ai_analysis)
     if validation_errors:
-        print(f"⚠️  发现 {len(validation_errors)} 处长度不足:")
+        print(_err('validation_found', count=len(validation_errors)))
         for error in validation_errors:
             print(f"   {error}")
         if VALIDATION_MODE == "strict":
-            print(f"❌ 严格模式: 长度验证失败，停止生成")
+            print(_err('strict_stop'))
             return None
         else:
-            print(f"⚠️ 警告模式: 继续生成，但请注意内容可能不够详细")
+            print(_err('warn_continue'))
     else:
         print(f"   ✅ 长度验证通过")
 
@@ -775,11 +924,32 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
 
     # 计算趋势变化（使用整月平均值，至少15天数据才计算趋势）
     if previous_data and len(previous_data) >= 15:
-        prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
-        prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
-        prev_sleep = [_sleep_total(d.get('sleep')) for d in previous_data if _sleep_total(d.get('sleep')) > 0]
-        prev_calories = [d.get('active_energy', 0) for d in previous_data if d.get('active_energy')]
-        prev_stand = [d.get('apple_stand_time', 0) for d in previous_data if d.get('apple_stand_time')]
+        prev_hrv = []
+        prev_steps = []
+        prev_sleep = []
+        prev_calories = []
+        prev_stand = []
+
+        for d in previous_data:
+            hrv_raw = d.get('hrv', {}).get('value') if isinstance(d.get('hrv'), dict) else None
+            if isinstance(hrv_raw, (int, float)):
+                prev_hrv.append(float(hrv_raw))
+
+            steps_raw = d.get('steps')
+            if isinstance(steps_raw, (int, float)):
+                prev_steps.append(float(steps_raw))
+
+            sleep_raw = _sleep_total(d.get('sleep'))
+            if sleep_raw > 0:
+                prev_sleep.append(float(sleep_raw))
+
+            active_energy_raw = _active_energy_kcal(d)
+            if isinstance(active_energy_raw, (int, float)):
+                prev_calories.append(float(active_energy_raw))
+
+            stand_hours = _stand_hours(d)
+            if isinstance(stand_hours, (int, float)):
+                prev_stand.append(float(stand_hours))
 
         hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
         steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
@@ -822,36 +992,27 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{WEEKLY_ROWS}}', '\n'.join(weekly_rows))
 
     # 生成真实月度趋势图表 - 使用实际有数据的日期
-    monthly_chart = generate_monthly_chart(actual_dates, hrv_values, steps_values, sleep_values)
+    monthly_chart = generate_monthly_chart(actual_dates, hrv_series, steps_series, sleep_series)
     html = html.replace('{{MONTHLY_CHART}}', monthly_chart)
 
     # AI深度分析 - 严格检查，必须在当前session生成
     hrv_analysis = ai_analysis.get('hrv_analysis') or ai_analysis.get('monthly_analysis')
     if not hrv_analysis:
-        raise ValueError("❌ 错误: 缺少月报HRV分析 - 必须在当前AI对话中生成")
+        raise ValueError(_err('missing_monthly_hrv'))
 
     sleep_analysis = ai_analysis.get('sleep_analysis')
     if not sleep_analysis:
-        raise ValueError("❌ 错误: 缺少月报睡眠质量分析 - 必须在当前AI对话中生成")
+        raise ValueError(_err('missing_monthly_sleep'))
 
     activity_analysis = ai_analysis.get('activity_analysis') or ai_analysis.get('key_findings')
     if not activity_analysis:
-        raise ValueError("❌ 错误: 缺少月报活动量分析 - 必须在当前AI对话中生成")
+        raise ValueError(_err('missing_monthly_activity'))
 
     trend_assessment = ai_analysis.get('trend_assessment') or ai_analysis.get('trend_forecast')
     if not trend_assessment:
-        raise ValueError("❌ 错误: 缺少月报整体趋势评估 - 必须在当前AI对话中生成")
+        raise ValueError(_err('missing_monthly_trend'))
 
-    # 检查趋势评估长度（strict 报错，warn 仅警告）
-    trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
-    trend_units = count_text_units(trend_text_clean, LANGUAGE)
-    unit_label = 'words' if LANGUAGE == 'EN' else '字'
-    if trend_units < MONTHLY_TREND_MIN_WORDS:
-        msg = f"月报趋势评估长度不足（当前{trend_units}{unit_label}，要求≥{MONTHLY_TREND_MIN_WORDS}{unit_label}）"
-        if VALIDATION_MODE == "strict":
-            raise ValueError(f"❌ 错误: {msg} - 请在当前AI对话中重新生成完整分析，必须包含具体数据点引用和指标间关联分析")
-        else:
-            print(f"⚠️ 警告模式: {msg}，继续生成")
+    # trend_assessment 长度在 verify_ai_analysis_monthly() 中已统一校验，避免重复提示
 
     html = html.replace('{{HRV_ANALYSIS}}', safe_html_paragraph(hrv_analysis))
     html = html.replace('{{SLEEP_ANALYSIS}}', safe_html_paragraph(sleep_analysis))
@@ -860,9 +1021,9 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
 
     # 下月建议 - 严格检查，必须在当前session生成，直接使用recommendations数组
     recommendations = ai_analysis.get('recommendations', [])
-    rec_errors = _validate_recommendations(recommendations, context='月报')
+    rec_errors = _validate_recommendations(recommendations, context=_err('monthly_label'))
     if rec_errors:
-        raise ValueError("❌ 错误: 月报 recommendations 结构无效: " + '; '.join(rec_errors))
+        raise ValueError(_err('invalid_monthly_recommendations', details='; '.join(rec_errors)))
 
     html = html.replace('{{RECOMMENDATIONS}}', generate_recommendations_html(recommendations))
     html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
@@ -947,11 +1108,11 @@ def main():
     try:
         raw_ai_analyses = safe_json_loads(input_text, context="周报/月报AI分析JSON")
     except json.JSONDecodeError as e:
-        print(f"❌ 错误: {e}")
+        print(_err('json_parse_error', error=e))
         sys.exit(1)
 
     if MEMBER_COUNT == 0:
-        print("❌ 错误: config.json 未配置 members，无法生成周报/月报")
+        print(_err('no_members'))
         sys.exit(1)
 
     member_count = min(MEMBER_COUNT, MAX_MEMBERS)
@@ -961,7 +1122,7 @@ def main():
 
     if report_type == 'weekly':
         if len(sys.argv) < 4:
-            print('Error: Weekly report requires start and end dates')
+            print(_err('weekly_args_error'))
             sys.exit(1)
 
         start_date = sys.argv[2]
@@ -1037,18 +1198,18 @@ def main():
 
     elif report_type == 'monthly':
         if len(sys.argv) < 4:
-            print('Error: Monthly report requires year and month')
+            print(_err('monthly_args_error'))
             sys.exit(1)
 
         try:
             year = int(sys.argv[2])
             month = int(sys.argv[3])
         except ValueError:
-            print('Error: year/month 必须是整数，例如: monthly 2026 3')
+            print(_err('year_month_parse_error'))
             sys.exit(1)
 
         if month < 1 or month > 12:
-            print(f'Error: month 超出范围: {month}（应为 1-12）')
+            print(_err('month_range_error', month=month))
             sys.exit(1)
 
         # 加载模板 - V5.8.1: 使用灵活的模板选择
@@ -1121,7 +1282,7 @@ def main():
         print(f"\n📊 月报生成摘要: 成功 {success_count}, 失败 {fail_count}, 跳过 {skip_count}")
 
     else:
-        print(f'错误: 未知报告类型 {report_type}')
+        print(_err('unknown_report_type', report_type=report_type))
         sys.exit(1)
 
     # 打印摘要并确定退出码

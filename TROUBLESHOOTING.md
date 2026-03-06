@@ -26,6 +26,8 @@
 **解决：**
 ```bash
 python3 scripts/validate_config.py
+# 或显式指定文件
+python3 scripts/validate_config.py --config ./config.json --schema ./config.schema.json
 ```
 根据提示修复配置问题。常见错误：
 - `version` 字段格式不正确（应为 `5.8.x` 或 `5.9.x`）
@@ -160,10 +162,10 @@ V5.8.0 及更早版本使用 `active_energy_burned` 字段名，新版 Health Au
 PDF 生成了，但 AI 分析内容很少或没有。
 
 **原因：**
-AI 分析长度未达到 `analysis_limits` 要求，且 `validation_mode` 为 `strict`。
+AI 分析长度未达到 `analysis_limits` 要求（CN按字数，EN按单词数），且 `validation_mode` 为 `strict`。
 
 **解决：**
-1. 临时改为 `warn` 模式（跳过长度检查）：
+1. 临时改为 `warn` 模式（跳过字数检查）：
    ```json
    "validation_mode": "warn"
    ```
@@ -188,6 +190,7 @@ AI 分析内容的语言与 `config.json` 中的 `language` 设置不一致。
 1. 如果 `language` 为 `CN`，AI 应以中文为主（允许少量英文术语）
 2. 如果 `language` 为 `EN`，AI 应以英文为主（允许少量指标术语）
 3. 临时改为 `warn` 模式跳过检测（不推荐长期使用）
+4. 可通过 `analysis_limits` 的四个 `lang_*` 阈值字段调参（如 `lang_en_max_chinese_ratio_strict`、`lang_cn_min_chinese_ratio_strict` 等）
 
 ---
 
@@ -225,6 +228,21 @@ FileNotFoundError: 找不到模板文件。尝试了以下路径...
    - 月报中文：`MONTHLY_TEMPLATE_MEDICAL.html`
    - 月报英文：`MONTHLY_TEMPLATE_MEDICAL_EN.html`
 2. 如果缺少模板，系统会回退到默认模板并显示警告
+
+---
+
+### 问题："月报趋势始终显示持平"
+
+**症状：**
+上月明明有部分数据，但月报趋势都显示"持平/Stable"。
+
+**原因：**
+月报趋势对比要求"上月可用缓存数据 >= 15 天"。不足 15 天时会降级为持平，避免误判。
+
+**解决：**
+1. 先补齐上月 daily cache（建议至少 15 天）
+2. 再重新生成月报
+3. 检查 `cache_dir` 是否配置正确，且文件名与成员 `safe_member_name` 一致
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Health Report 共用工具函数 - V5.9.0"""
+"""Health Report 共用工具函数 - V5.9.1"""
 
 import json
 import re
@@ -33,12 +33,12 @@ def _setup_file_handler():
     global _file_handler_initialized
     if _file_handler_initialized:
         return
-    
+
     config = load_config()
     log_dir = get_log_dir(config)
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / 'health_report.log'
-    
+
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(
@@ -166,7 +166,7 @@ def get_log_dir(config=None):
 
 def safe_member_name(name: str) -> str:
     """将成员名称转换为安全的文件名格式
-    
+
     替换规则：
     - 空格、/、\、:、*、?、"、<、>、| 替换为下划线
     - 连续多个下划线合并为一个
@@ -175,28 +175,28 @@ def safe_member_name(name: str) -> str:
     """
     if not name:
         return "member"
-    
+
     import re
-    
+
     # 替换不安全字符为下划线
     safe = (name or "member").strip()
     unsafe_chars = r'[\s/\\:*?"<>|]+'
     safe = re.sub(unsafe_chars, '_', safe)
-    
+
     # 合并连续下划线
     safe = re.sub(r'_+', '_', safe)
-    
+
     # 移除首尾下划线
     safe = safe.strip('_')
-    
+
     # 限制长度
     if len(safe) > 50:
         safe = safe[:50]
-    
+
     # 如果结果为空，使用默认值
     if not safe:
         safe = "member"
-    
+
     return safe
 
 
@@ -312,7 +312,7 @@ def get_template_path(
     template_type: str, language: str, template_dir: Path, version: str = "V2"
 ) -> Path:
     """获取模板文件路径 - 支持多语言 - V5.8.1
-    
+
     查找顺序（按优先级）：
     1. 完整版：{TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html (日报)
        或 {TYPE}_TEMPLATE_MEDICAL_{LANG}.html (周报/月报)
@@ -323,47 +323,47 @@ def get_template_path(
     template_dir = Path(template_dir)
     type_upper = template_type.upper()
     lang_upper = language.upper()
-    
+
     # 构建候选列表
     candidates = []
-    
+
     # 区分日报和周月报的模板命名规则
     is_weekly_monthly = template_type.lower() in ['weekly', 'monthly']
-    
+
     if is_weekly_monthly:
         # 周报/月报: 没有版本号，格式为 WEEKLY_TEMPLATE_MEDICAL[_EN].html
         base_name = f"{type_upper}_TEMPLATE_MEDICAL"
-        
+
         # 1. 语言版（非中文）
         if lang_upper != "CN":
             candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
-        
+
         # 2. 默认（中文或无语言后缀）
         candidates.append(template_dir / f"{base_name}.html")
     else:
         # 日报: 有版本号，格式为 DAILY_TEMPLATE_MEDICAL_V2[_EN].html
         base_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}"
-        
+
         # 1. 完整版（版本+语言）
         if lang_upper != "CN":
             candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
-        
+
         # 2. 语言版（无版本，日报回退）
         if lang_upper != "CN":
             candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{lang_upper}.html")
-        
+
         # 3. 版本默认（中文）
         candidates.append(template_dir / f"{base_name}.html")
-        
+
         # 4. 默认（中文回退）
         candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL.html")
-    
+
     for i, p in enumerate(candidates, 1):
         if p.exists():
             if i > 1:
                 print(f"⚠️ 警告: 模板回退到 {p.name}")
             return p
-    
+
     raise FileNotFoundError(
         "找不到模板文件。尝试了以下路径:\n" + "\n".join([f" - {c}" for c in candidates])
     )
@@ -411,7 +411,7 @@ def list_available_templates(template_dir: Path) -> dict:
 
 def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     """验证必需的模板文件是否存在
-    
+
     返回:
         {
             "daily": bool,
@@ -422,11 +422,11 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     """
     result = {"daily": False, "weekly": False, "monthly": False, "errors": []}
     template_dir = Path(template_dir)
-    
+
     if not template_dir.exists():
         result["errors"].append(f"模板目录不存在: {template_dir}")
         return result
-    
+
     # 检查日报模板
     daily_candidates = [
         template_dir / f"DAILY_TEMPLATE_MEDICAL_V2_{language.upper()}.html",
@@ -435,7 +435,7 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     result["daily"] = any(p.exists() for p in daily_candidates)
     if not result["daily"]:
         result["errors"].append(f"缺少日报模板，尝试了: {[p.name for p in daily_candidates]}")
-    
+
     # 检查周报模板
     weekly_candidates = [
         template_dir / f"WEEKLY_TEMPLATE_MEDICAL_{language.upper()}.html",
@@ -444,7 +444,7 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     result["weekly"] = any(p.exists() for p in weekly_candidates)
     if not result["weekly"]:
         result["errors"].append(f"缺少周报模板，尝试了: {[p.name for p in weekly_candidates]}")
-    
+
     # 检查月报模板
     monthly_candidates = [
         template_dir / f"MONTHLY_TEMPLATE_MEDICAL_{language.upper()}.html",
@@ -453,7 +453,7 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     result["monthly"] = any(p.exists() for p in monthly_candidates)
     if not result["monthly"]:
         result["errors"].append(f"缺少月报模板，尝试了: {[p.name for p in monthly_candidates]}")
-    
+
     return result
 
 
@@ -567,17 +567,31 @@ def parse_sleep_data_unified(
         if not start_ts or not end_ts:
             continue
 
-        # 解析时间
+        # 解析时间（兼容秒/毫秒时间戳，以及常见字符串格式）
+        def _parse_sleep_ts(ts):
+            if isinstance(ts, (int, float)):
+                ts_num = float(ts)
+                if ts_num > 1e12:  # 毫秒
+                    ts_num /= 1000.0
+                return datetime.fromtimestamp(ts_num)
+
+            ts_text = str(ts).strip()
+            # 纯数字字符串（秒/毫秒）
+            try:
+                ts_num = float(ts_text)
+                if ts_num > 1e12:
+                    ts_num /= 1000.0
+                return datetime.fromtimestamp(ts_num)
+            except (ValueError, TypeError, OSError, OverflowError):
+                pass
+
+            # 字符串日期（保留到秒）
+            return datetime.strptime(ts_text[:19], '%Y-%m-%d %H:%M:%S')
+
         try:
-            if isinstance(start_ts, (int, float)):
-                start_dt = datetime.fromtimestamp(start_ts / 1000)
-                end_dt = datetime.fromtimestamp(end_ts / 1000)
-            else:
-                start_str = start_ts[:19]  # '2026-03-02 02:23:55'
-                end_str = end_ts[:19]
-                start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
-                end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S')
-        except (ValueError, TypeError):
+            start_dt = _parse_sleep_ts(start_ts)
+            end_dt = _parse_sleep_ts(end_ts)
+        except (ValueError, TypeError, OSError, OverflowError):
             continue
 
         # 筛选逻辑
@@ -604,43 +618,35 @@ def parse_sleep_data_unified(
             rem_raw = record.get('rem', 0) or 0
             awake_raw = record.get('awake', 0) or 0
 
-            # 统一转换为小时（兼容原始值可能是小时或分钟）
-            raw_stage_map = {
-                'deep': deep_raw,
-                'core': core_raw,
-                'rem': rem_raw,
-                'awake': awake_raw,
-            }
-
-            positive_raw = []
-            for v in raw_stage_map.values():
-                if isinstance(v, (int, float)) and v > 0:
-                    positive_raw.append(float(v))
-
-            # 根据与 start/end 推导时长的接近程度，自动判断阶段数据单位
-            inferred_stage_unit = 'hours'
-            if positive_raw:
-                raw_sum = sum(positive_raw)
-                if duration_hours > 0:
-                    diff_hours = abs(raw_sum - duration_hours)
-                    diff_minutes = abs((raw_sum / 60.0) - duration_hours)
-                    # 增加一个小容差，避免浮点噪声导致抖动
-                    inferred_stage_unit = 'minutes' if (diff_minutes + 0.05) < diff_hours else 'hours'
-                else:
-                    inferred_stage_unit = 'minutes' if raw_sum > 24 else 'hours'
-
-            def to_hours(value):
-                if not isinstance(value, (int, float)) or value <= 0:
+            # 统一转换为小时（假设原始值可能是分钟或小时）
+            def normalize_hours(value, field_name=""):
+                if not value or value <= 0:
                     return 0.0
-                if inferred_stage_unit == 'minutes':
-                    return round(float(value) / 60.0, 2)
+
+                # 判断是否为睡眠阶段字段
+                is_stage = any(x in field_name.lower() for x in ['deep', 'core', 'rem', 'awake'])
+
+                # 更智能的单位判断逻辑
+                if is_stage:
+                    # 睡眠阶段正常范围：0.5-5 小时（30-300 分钟）
+                    # 值 > 30 几乎肯定是分钟
+                    if value > 30:
+                        return round(value / 60.0, 2)
+                    # 值在 10-30 之间：如果是整数可能是分钟，如果是小数可能是小时
+                    elif value > 10 and float(value) == int(value):
+                        return round(value / 60.0, 2)
+                else:
+                    # 总睡眠正常范围：3-12 小时（180-720 分钟）
+                    # 值 > 100 肯定是分钟
+                    if value > 100:
+                        return round(value / 60.0, 2)
+
                 return round(float(value), 2)
 
-            deep_h = to_hours(deep_raw)
-            core_h = to_hours(core_raw)
-            rem_h = to_hours(rem_raw)
-            awake_h = to_hours(awake_raw)
-            stage_total = deep_h + core_h + rem_h + awake_h
+            deep_h = normalize_hours(deep_raw, 'deep')
+            core_h = normalize_hours(core_raw, 'core')
+            rem_h = normalize_hours(rem_raw, 'rem')
+            awake_h = normalize_hours(awake_raw, 'awake')
             stage_total = deep_h + core_h + rem_h + awake_h
 
             # 若分期字段缺失，则回退到 start/end 计算出的时长，避免 total_hours 被错误算成 0
@@ -941,15 +947,6 @@ def validate_config_schema(config: dict) -> list:
     """验证配置是否符合基础约束（不依赖外部 jsonschema 库）"""
     errors = []
 
-    def _is_valid_email(email: str) -> bool:
-        if not isinstance(email, str):
-            return False
-        email = email.strip()
-        if not email:
-            return False
-        # 轻量邮箱格式校验（与 schema format=email 目标一致）
-        return re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email) is not None
-
     # 基础类型
     if not isinstance(config, dict):
         errors.append("配置必须是 JSON 对象")
@@ -990,7 +987,7 @@ def validate_config_schema(config: dict) -> list:
 
         # 可选 email 格式校验
         email = member.get('email', '')
-        if email and not _is_valid_email(str(email)):
+        if email and '@' not in str(email):
             errors.append(f"members[{i}].email 格式无效: {email}")
 
         # 放宽的数值范围验证（仅警告极端值，不排除边界情况）
@@ -1000,14 +997,14 @@ def validate_config_schema(config: dict) -> list:
                 errors.append(f"members[{i}].age 必须是数字")
             elif age < 1 or age > 130:
                 errors.append(f"members[{i}].age 值 {age} 超出正常范围 (1-130)")
-        
+
         height_cm = member.get('height_cm')
         if height_cm is not None:
             if not isinstance(height_cm, (int, float)):
                 errors.append(f"members[{i}].height_cm 必须是数字")
             elif height_cm < 50 or height_cm > 250:
                 errors.append(f"members[{i}].height_cm 值 {height_cm} 超出正常范围 (50-250 cm)")
-        
+
         weight_kg = member.get('weight_kg')
         if weight_kg is not None:
             if not isinstance(weight_kg, (int, float)):
@@ -1017,6 +1014,7 @@ def validate_config_schema(config: dict) -> list:
 
     # 检查成员名唯一性
     member_names = []
+    safe_names = []
     for i, member in enumerate(members[:3]):
         if isinstance(member, dict):
             name = member.get('name', '')
@@ -1025,10 +1023,13 @@ def validate_config_schema(config: dict) -> list:
                     errors.append(f"members[{i}].name '{name}' 与其他成员重复")
                 member_names.append(name)
 
-    # receiver_email（可选）
-    receiver_email = config.get('receiver_email', '')
-    if receiver_email and not _is_valid_email(str(receiver_email)):
-        errors.append(f"receiver_email 格式无效: {receiver_email}")
+                # 检查 safe_member_name 冲突，避免输出文件名互相覆盖
+                safe_name = safe_member_name(name)
+                if safe_name in safe_names:
+                    errors.append(
+                        f"members[{i}].name '{name}' 转换后的安全名 '{safe_name}' 与其他成员冲突，请修改成员名称"
+                    )
+                safe_names.append(safe_name)
 
     # language
     language = config.get('language', 'CN')
@@ -1078,6 +1079,20 @@ def validate_config_schema(config: dict) -> list:
         if action_min > daily_min:
             errors.append("analysis_limits.action_min_words 应小于等于 daily_min_words")
 
+        ratio_keys = [
+            'lang_en_max_chinese_ratio_strict',
+            'lang_en_max_chinese_ratio_warn',
+            'lang_cn_min_chinese_ratio_strict',
+            'lang_cn_min_chinese_ratio_warn',
+        ]
+        for k in ratio_keys:
+            if k in limits:
+                v = limits.get(k)
+                if not isinstance(v, (int, float)):
+                    errors.append(f"analysis_limits.{k} 必须是数字")
+                elif v < 0 or v > 1:
+                    errors.append(f"analysis_limits.{k} 必须在 0 到 1 之间")
+
     # sleep_config
     sleep_config = config.get('sleep_config', {})
     if sleep_config and not isinstance(sleep_config, dict):
@@ -1093,11 +1108,6 @@ def validate_config_schema(config: dict) -> list:
             errors.append("sleep_config.start_hour 必须是 0-23 的整数")
         if not isinstance(end_hour, int) or end_hour < 0 or end_hour > 23:
             errors.append("sleep_config.end_hour 必须是 0-23 的整数")
-
-    # receiver_email（可选）
-    receiver_email = config.get('receiver_email', '')
-    if receiver_email and not _is_valid_email(str(receiver_email)):
-        errors.append(f"receiver_email 格式无效: {receiver_email}")
 
     # email_config
     email_config = config.get('email_config', {})
@@ -1122,18 +1132,12 @@ def validate_config_schema(config: dict) -> list:
             for k in ['client_id', 'client_secret', 'refresh_token', 'sender_email']:
                 if not oauth2.get(k):
                     errors.append(f"email_config.oauth2 启用时缺少字段: {k}")
-            oauth2_sender = oauth2.get('sender_email', '')
-            if oauth2_sender and not _is_valid_email(str(oauth2_sender)):
-                errors.append(f"email_config.oauth2.sender_email 格式无效: {oauth2_sender}")
 
         smtp = email_config.get('smtp', {})
         if isinstance(smtp, dict) and smtp.get('enabled'):
             for k in ['sender_email', 'password']:
                 if not smtp.get(k):
                     errors.append(f"email_config.smtp 启用时缺少字段: {k}")
-            smtp_sender = smtp.get('sender_email', '')
-            if smtp_sender and not _is_valid_email(str(smtp_sender)):
-                errors.append(f"email_config.smtp.sender_email 格式无效: {smtp_sender}")
 
         local_cfg = email_config.get('local', {})
         if isinstance(local_cfg, dict) and local_cfg.get('enabled'):
@@ -1249,18 +1253,43 @@ def count_text_units(text: Any, language: str = "CN") -> int:
     return len(re.sub(r"\s+", "", text))
 
 
+def _get_language_ratio_thresholds() -> dict:
+    """读取语言检测阈值（支持 analysis_limits 覆盖）。"""
+    defaults = {
+        'lang_en_max_chinese_ratio_strict': 0.15,
+        'lang_en_max_chinese_ratio_warn': 0.20,
+        'lang_cn_min_chinese_ratio_strict': 0.30,
+        'lang_cn_min_chinese_ratio_warn': 0.20,
+    }
+
+    try:
+        cfg = load_config()
+        limits = cfg.get('analysis_limits', {}) if isinstance(cfg, dict) else {}
+        if not isinstance(limits, dict):
+            return defaults
+
+        result = defaults.copy()
+        for k in defaults:
+            v = limits.get(k)
+            if isinstance(v, (int, float)) and 0 <= float(v) <= 1:
+                result[k] = float(v)
+        return result
+    except Exception:
+        return defaults
+
+
 def detect_language_mismatch_v3(
     ai_analysis: dict,
     expected_language: str,
     strict_mode: bool = False
 ) -> list:
     """改进的语言检测 V3 - 基于字符统计和langdetect
-    
+
     参数:
         ai_analysis: AI分析结果字典
         expected_language: 期望语言 ("CN" 或 "EN")
         strict_mode: 严格模式（False时允许少量其他语言字符）
-    
+
     返回:
         错误列表，为空表示检测通过
     """
@@ -1274,7 +1303,7 @@ def detect_language_mismatch_v3(
 
     # 默认指标名白名单（这些词不计入语言统计）
     default_cn_metrics = [
-        "心率", "HRV", "静息心率", "步数", "距离", "活动能量", 
+        "心率", "HRV", "静息心率", "步数", "距离", "活动能量",
         "血氧", "爬楼", "站立", "基础代谢", "呼吸率", "睡眠", "运动",
         "千卡", "公里", "小时", "分钟", "次", "层", "步", "毫秒",
         "bpm", "ms", "深睡", "核心睡眠", "REM", "清醒"
@@ -1285,39 +1314,42 @@ def detect_language_mismatch_v3(
         "kcal", "km", "hours", "minutes", "bpm", "ms", "floors",
         "Deep", "Core", "REM", "Awake"
     ]
-    
+
     # 移除指标名
     text_for_check = full_text
     for metric in default_cn_metrics + default_en_metrics:
         text_for_check = text_for_check.replace(metric, "")
-    
+
     # 统计中文字符
     chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
     total_chars = len(text_for_check.strip())
-    
+
     if total_chars == 0:
         return errors
-    
+
     # 计算中文比例
     chinese_ratio = chinese_chars / total_chars
-    
+
+    # 读取可配置阈值
+    thresholds = _get_language_ratio_thresholds()
+
     if expected_language == "EN":
-        # EN模式：中文比例应低于阈值（放宽到15%/20%以容纳中文术语）
-        threshold = 0.15 if strict_mode else 0.20  # 15%或20%
+        # EN模式：中文比例应低于阈值
+        threshold = thresholds['lang_en_max_chinese_ratio_strict'] if strict_mode else thresholds['lang_en_max_chinese_ratio_warn']
         if chinese_ratio > threshold:
             errors.append(
                 f"语言配置不匹配: 设置为 EN(英文), "
-                f"但检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%})"
+                f"但检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%}, 阈值 {threshold:.0%})"
             )
     elif expected_language == "CN":
         # CN模式：中文比例应高于阈值
-        threshold = 0.30 if strict_mode else 0.20  # 30%或20%
+        threshold = thresholds['lang_cn_min_chinese_ratio_strict'] if strict_mode else thresholds['lang_cn_min_chinese_ratio_warn']
         if chinese_ratio < threshold:
             errors.append(
                 f"语言配置不匹配: 设置为 CN(中文), "
-                f"但只检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%})"
+                f"但只检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%}, 阈值 {threshold:.0%})"
             )
-    
+
     return errors
 
 # 保留旧函数名兼容
@@ -1376,28 +1408,28 @@ def fix_json_quotes(json_text: str) -> str:
 def safe_json_loads(json_text: str, context: str = "") -> dict:
     """
     安全地解析 JSON，自动修复常见问题
-    
+
     Args:
         json_text: JSON 字符串
         context: 上下文描述（用于错误报告）
-    
+
     Returns:
         解析后的字典
-    
+
     Raises:
         json.JSONDecodeError: 如果修复后仍无法解析
     """
     import json
-    
+
     # 首先尝试直接解析
     try:
         return json.loads(json_text)
     except json.JSONDecodeError:
         pass
-    
+
     # 尝试修复中文引号
     fixed_text = fix_json_quotes(json_text)
-    
+
     try:
         result = json.loads(fixed_text)
         print(f"⚠️  {context}: JSON 已自动修复中文引号")

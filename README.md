@@ -1,15 +1,9 @@
-# Health Agent V5.9.x - OpenClaw 专业健康分析 Skill
+# Health Agent V5.9.1 - OpenClaw 专业健康分析 Skill
 
 > ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
 > 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。
 
 这是一个正式封装的 **OpenClaw Skill**，旨在将 Apple Health 原始数据转化为深度、医疗感的个人健康分析报告。
-
-## 📌 版本状态（V5.9.1）
-
-- 当前推荐运行版本：**V5.9.1**
-- `config.json` 的 `version` 字段支持 `5.8.x / 5.9.x`（例如 `5.9.0`、`5.9.1`）
-- 文中保留的 `V5.8.1` / `V5.9.0` 标记用于说明能力首次引入版本，不代表必须锁定该小版本
 
 ---
 
@@ -52,11 +46,11 @@ python3 -m playwright install chromium
 安装完成后，OpenClaw 会自动通过 `SKILL.md` 发现并启用此 Skill。
 
 ### 3. 配置文件 (config.json)
-首次使用前，请编辑 `config.json` 配置你的数据路径（V5.9.0 配置结构）：
+首次使用前，请编辑 `config.json` 配置你的数据路径（V5.9.1 配置结构）：
 
 ```json
 {
-  "version": "5.9.0",
+  "version": "5.9.1",
   "members": [
     {
       "name": "Jimmy",
@@ -77,7 +71,11 @@ python3 -m playwright install chromium
     "daily_min_words": 500,
     "weekly_min_words": 800,
     "monthly_min_words": 1000,
-    "monthly_trend_min_words": 150
+    "monthly_trend_min_words": 150,
+    "lang_en_max_chinese_ratio_strict": 0.15,
+    "lang_en_max_chinese_ratio_warn": 0.20,
+    "lang_cn_min_chinese_ratio_strict": 0.30,
+    "lang_cn_min_chinese_ratio_warn": 0.20
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -285,7 +283,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每日健康日报 - V5.9.0 标准化流程】
+【每日健康日报 - V5.9.1 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
 2. 提取数据：为所有成员提取当日数据
    # macOS:
@@ -340,7 +338,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每周健康周报 - V5.9.0 标准化流程】
+【每周健康周报 - V5.9.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算日期：获取上周一至上周日日期
    # macOS:
@@ -349,7 +347,7 @@ python3 scripts/setup_oauth2.py
    # Linux:
    START_DATE=$(date -d '7 days ago' +%Y-%m-%d)
    END_DATE=$(date -d 'yesterday' +%Y-%m-%d)
-3. AI 分析：基于整周数据趋势生成周报分析（总长度≥800（CN按字数，EN按单词数））。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
+3. AI 分析：基于整周数据趋势生成周报分析（总长度≥800；CN按字数，EN按单词数）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 weekly_analysis.json
 5. 渲染生成（从仓库根目录执行）：
    cd ~/.openclaw/skills/health-report && \
@@ -366,7 +364,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每月健康月报 - V5.9.0 标准化流程】
+【每月健康月报 - V5.9.1 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算月份：获取上月年份和月份
    # macOS:
@@ -377,7 +375,7 @@ python3 scripts/setup_oauth2.py
    YEAR=$(date -d '1 month ago' +%Y)
    MONTH=$(date -d '1 month ago' +%m)
    LAST_DAY=$(date -d 'yesterday' +%Y-%m-%d)  # 上月最后一天
-3. AI 分析：基于整月数据趋势生成月报深度分析（总长度≥1000（CN按字数，EN按单词数））。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
+3. AI 分析：基于整月数据趋势生成月报深度分析（总长度≥1000；CN按字数，EN按单词数）。**language=EN 时建议全篇英文；系统会按中文占比阈值做语言校验（默认容许少量术语）。language=CN 时应以中文为主。**
 4. 关键写入：使用 write 工具将 JSON 写入 monthly_analysis.json
 5. 渲染生成（从仓库根目录执行）：
    cd ~/.openclaw/skills/health-report && \
@@ -386,10 +384,12 @@ python3 scripts/setup_oauth2.py
    python3 scripts/send_health_report_email.py $LAST_DAY all
 ```
 
+> 月报趋势环比说明：代码会用"上月平均值"做对比，且要求上月可用缓存数据 **至少 15 天** 才计算环比；不足时趋势默认显示持平。
+
 **注意：** 周报与月报的 AI 分析字段要求不同，请分别提供：
 
 **周报（weekly）最小要求：**
-- `trend_analysis` 或 `weekly_analysis`（主体分析，建议总长度≥800（CN按字数，EN按单词数））
+- `trend_analysis` 或 `weekly_analysis`（主体分析，建议总字数≥800字）
 - `recommendations` 数组（每项需包含 `priority` / `title` / `content`）
 
 周报示例：
@@ -425,14 +425,22 @@ python3 scripts/setup_oauth2.py
 ```
 
 **字数验证说明：**
-- `validation_mode` **仅影响**字数/语言阈值类校验（metric_min/max_words、action_min/max_words、daily/weekly/monthly_min_words、monthly_trend_min_words）。
-- `validation_mode: strict` 时，字数不足/超限会报错退出。
-- `validation_mode: warn` 时，字数不足/超限仅警告，继续生成。
-- **注意**：缺少必填 AI 字段（如日报的 priority、饮食字段）是硬错误，不受 warn 模式影响，仍会失败。
+- `validation_mode` **仅影响**长度/语言阈值类校验（metric_min/max_words、action_min/max_words、daily/weekly/monthly_min_words、monthly_trend_min_words）。
+- 计数规则：`language=CN` 按“非空白字符数”（近似字数）统计；`language=EN` 按“英文单词数”统计。
+- `validation_mode: strict` 时，长度不足/超限会报错退出。
+- `validation_mode: warn` 时，长度不足/超限仅警告，继续生成。
+- **注意**：缺少硬性必填 AI 字段（如日报的 priority、饮食字段）是硬错误，不受 warn 模式影响，仍会失败。
+- `report_metrics.require_ai_for_selected=true` 触发的"已选指标缺少 AI 段落"目前走同一校验通道：strict 报错，warn 警告后继续。
 - 日报会校验 `analysis_limits.metric_min_words` 与 `metric_max_words`，并校验 `daily_min_words`。
 - 周报/月报总字数下限分别读取 `analysis_limits.weekly_min_words` 与 `analysis_limits.monthly_min_words`。
 - 月报中 `trend_assessment` 的最小字数默认 150，可用 `analysis_limits.monthly_trend_min_words` 覆盖。
 - 月报 `trend_assessment/trend_forecast` 建议≥150字：`strict` 模式报错，`warn` 模式仅警告并继续生成。
+- **语言比例阈值**（可配置）：
+  - `lang_en_max_chinese_ratio_strict`: EN严格模式允许的最大中文占比（默认0.15）
+  - `lang_en_max_chinese_ratio_warn`: EN警告模式允许的最大中文占比（默认0.20）
+  - `lang_cn_min_chinese_ratio_strict`: CN严格模式要求的最小中文占比（默认0.30）
+  - `lang_cn_min_chinese_ratio_warn`: CN警告模式要求的最小中文占比（默认0.20）
+- 月报趋势长度在 `verify_ai_analysis_monthly()` 中统一校验，避免重复提示。
 
 **邮件发送参数：**
 
@@ -452,9 +460,9 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-## ✨ V5.9.0 核心特性（含 5.8.x 兼容修复）
+## ✨ V5.9.1 核心特性（含 5.8.x 兼容修复）
 
-> 版本说明：当前发布主版本为 **V5.9.0**。文中保留的 "V5.8.1" 标识表示该能力在 5.8.1 首次引入并在 5.9.x 继续兼容。
+> 版本说明：当前发布主版本为 **V5.9.1**。文中保留的 "V5.8.1" 标识表示该能力在 5.8.1 首次引入并在 5.9.x 继续兼容。
 
 *   **版本号支持**: config.json 支持 5.8.x 和 5.9.x 版本号(为未来兼容预留)
 *   **数据字段修复 (V5.8.1)**：修复了 `active_energy` 字段名（原 `active_energy_burned`），确保活动能量数据正确提取
@@ -472,17 +480,13 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ### 模板回退策略
 
-系统按以下顺序查找模板（与 `utils.get_template_path()` 行为一致）：
-
-**日报**
-1. `DAILY_TEMPLATE_MEDICAL_V2_{LANG}.html`（指定语言版本，非中文时）
-2. `DAILY_TEMPLATE_MEDICAL_{LANG}.html`（语言通用版）
-3. `DAILY_TEMPLATE_MEDICAL_V2.html`（V2默认版）
+系统按以下顺序查找模板（以日报为例）：
+1. `DAILY_TEMPLATE_MEDICAL_V2_{LANG}.html`（指定语言版本）
+2. `DAILY_TEMPLATE_MEDICAL_{LANG}.html`（语言版，无版本号）
+3. `DAILY_TEMPLATE_MEDICAL_V2.html`（默认中文V2版）
 4. `DAILY_TEMPLATE_MEDICAL.html`（旧版兜底）
 
-**周报/月报**
-1. `{TYPE}_TEMPLATE_MEDICAL_{LANG}.html`（指定语言版本）
-2. `{TYPE}_TEMPLATE_MEDICAL.html`（默认版）
+周报/月报同理：`{TYPE}_TEMPLATE_MEDICAL_{LANG}.html` → `{TYPE}_TEMPLATE_MEDICAL.html`
 
 ---
 
@@ -494,10 +498,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 *   **手动补发邮件**：`python3 scripts/send_health_report_email.py YYYY-MM-DD`（默认会按成员文件名自动匹配该日期关联的日报/周报/月报）
 *   **验证渲染环境**：`python3 scripts/verify_v5_environment.py`
 *   **配置校验**：`python3 scripts/validate_config.py`
-> 首次运行 `validate_config.py` 前，请先确保存在 `config.json`：
-> ```bash
-> cp config.json.example config.json
-> ```
+*   **指定文件校验**：`python3 scripts/validate_config.py --config ./config.json --schema ./config.schema.json`
 
 ### AI 输入文件自动清理（Feature）
 
@@ -510,40 +511,12 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-### ✅ 回归验证（建议每次改动后执行）
-
-```bash
-# 1) 语法检查
-python3 -m py_compile scripts/*.py
-
-# 2) 配置校验（以 example 为基准）
-python3 - <<'PY'
-import json,sys
-from pathlib import Path
-sys.path.insert(0,'scripts')
-import utils
-import jsonschema
-root=Path('.')
-cfg=json.loads((root/'config.json.example').read_text())
-schema=json.loads((root/'config.schema.json').read_text())
-errs=list(jsonschema.Draft7Validator(schema, format_checker=jsonschema.FormatChecker()).iter_errors(cfg))
-print('schema_errors',len(errs))
-berr=utils.validate_config_schema(cfg)
-print('business_errors',len(berr))
-PY
-
-# 3) 关键回归：workout 不应重复 append
-grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
-# 预期：只出现 1 行
-```
-
----
-
 ## 📝 开发者规范 (V5.8.1)
 *   **配置优先**：所有路径必须从 `config.json` 读取，禁止硬编码
 *   **禁止编造**：数据缺失时必须显示 `--`，严禁 AI 估算比例
-*   **字数校验**：默认按 `analysis_limits` 校验（CN按字数、EN按单词数）；当前实现仅对“已提供的字段”做长度检查，建议指标段落 150-200、核心行动建议 250-300。
+*   **长度红线**：AI 指标分析段落必须在 150-200（CN按字数，EN按单词数），核心行动建议 250-300（CN按字数，EN按单词数）
 *   **数据来源**：日报主要从 Apple Health 当日源文件读取并在生成后写缓存；周/月报从 daily cache 聚合。
+*   **模板完整性**：渲染后若仍存在 `{{PLACEHOLDER}}`，脚本会直接报错退出（防止空字段混入正式报告）。
 
 ---
 
@@ -562,7 +535,7 @@ grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
 ## config.json 结构
 ```json
 {
-  "version": "5.9.0",
+  "version": "5.9.1",
   "members": [
     {
       "name": "Jimmy",
@@ -583,7 +556,11 @@ grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
     "daily_min_words": 500,
     "weekly_min_words": 800,
     "monthly_min_words": 1000,
-    "monthly_trend_min_words": 150
+    "monthly_trend_min_words": 150,
+    "lang_en_max_chinese_ratio_strict": 0.15,
+    "lang_en_max_chinese_ratio_warn": 0.20,
+    "lang_cn_min_chinese_ratio_strict": 0.30,
+    "lang_cn_min_chinese_ratio_warn": 0.20
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -614,6 +591,23 @@ grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
   "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
 }
 ```
+
+### analysis_limits 默认值（完整）
+
+| 字段 | 默认值 | 说明 |
+|------|--------|------|
+| `metric_min_words` | 150 | 单个指标分析最小字数 |
+| `metric_max_words` | 200 | 单个指标分析最大字数 |
+| `action_min_words` | 250 | 行动建议最小字数 |
+| `action_max_words` | 300 | 行动建议最大字数 |
+| `daily_min_words` | 500 | 日报总字数下限 |
+| `weekly_min_words` | 800 | 周报总字数下限 |
+| `monthly_min_words` | 1000 | 月报总字数下限 |
+| `monthly_trend_min_words` | 150 | 月报趋势评估最小字数 |
+| `lang_en_max_chinese_ratio_strict` | 0.15 | EN严格模式最大中文占比 |
+| `lang_en_max_chinese_ratio_warn` | 0.20 | EN警告模式最大中文占比 |
+| `lang_cn_min_chinese_ratio_strict` | 0.30 | CN严格模式最小中文占比 |
+| `lang_cn_min_chinese_ratio_warn` | 0.20 | CN警告模式最小中文占比 |
 
 ### 📊 report_metrics（日报动态指标表）
 
@@ -660,6 +654,29 @@ grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
 - **walking_gait（5）**：`walking_speed`, `walking_step_length`, `walking_heart_rate_average`, `walking_asymmetry_percentage`, `walking_double_support_percentage`
 - **environment_audio（2）**：`headphone_audio_exposure`, `environmental_audio_exposure`
 
+### report_metrics 五套示例配置（按人群）
+
+仓库已提供 5 个可直接复制使用的配置示例（都在 `examples/config-presets/` 目录）：
+
+| 示例文件 | 指标数 | 适用人群 | 特点 |
+|---|---:|---|---|
+| `config.example.general-12.json` | 12 | 大多数日常用户 | 轻量核心看板，噪声低、可读性高 |
+| `config.example.sleep-focus-16.json` | 16 | 睡眠问题/恢复优先人群 | 强化睡眠分期、呼吸扰动与恢复指标 |
+| `config.example.weight-management-18.json` | 18 | 体重管理/代谢优化人群 | 强调活动能量、基础代谢、站立与步行机能 |
+| `config.example.runner-advanced-24.json` | 24 | 跑步训练进阶人群 | 增加跑步动力学与睡眠恢复联合观察 |
+| `config.example.full-32.json` | 32（全选） | 精细化追踪/研究用途 | 全指标开启；默认 `hide_no_data_metrics=false`，便于完整巡检 |
+
+快速使用方式（示例：切到跑步进阶版）：
+
+```bash
+cp examples/config-presets/config.example.runner-advanced-24.json config.json
+python3 scripts/validate_config.py --config ./config.json --schema ./config.schema.json
+```
+
+> 提示：
+> - 如果你不想看到空指标，请把 `hide_no_data_metrics` 设为 `true`。
+> - 如果你希望睡眠指标出现在动态指标表中，请把 `show_sleep_in_metrics_table` 设为 `true`。
+
 ### 👥 多成员配置（最多3人）
 
 支持为家庭成员分别生成健康报告。**注意：硬编码限制最多3人。**
@@ -668,7 +685,7 @@ grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
 
 ```json
 {
-  "version": "5.9.0",
+  "version": "5.9.1",
   "members": [
     {
       "name": "爸爸",
@@ -696,6 +713,11 @@ grep -n "workouts.append({" scripts/generate_v5_medical_dashboard.py
   "language": "CN"
 }
 ```
+
+**成员名文件名冲突提醒（safe_member_name）**：
+- 报告文件名会使用 `safe_member_name(name)` 作为后缀
+- 例如 `A B`、`A/B`、`A_B` 可能都转换为同一个安全名 `A_B`
+- 若不同成员转换后同名，`validate_config.py` 会报冲突，请修改成员名称避免覆盖
 
 **✅ V5.8.1+ 完整多成员支持：**
 
@@ -750,7 +772,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 **在定时任务中使用（推荐）：**
 在 OpenClaw 定时任务指令中使用 `all` 参数，一次生成所有成员的报告：
 ```text
-【每日健康日报 - V5.9.0 全成员流程】
+【每日健康日报 - V5.9.1 全成员流程】
 1. 读取 config.json：获取所有成员配置
 2. 提取数据：为每个成员分别提取数据
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all
@@ -858,7 +880,10 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 1. 成员名完全匹配
 2. 安全成员名匹配（safe_member_name转换后）
 3. 索引匹配（数组顺序）
-4. 兜底到第一个有效数据（非严格模式下）
+
+**当前生成入口默认严格匹配（strict=True）:**
+- 日报/周报/月报脚本都会使用严格模式
+- 找不到成员对应 AI 分析时，不会兜底复用第一份分析，而是报错或跳过该成员
 
 **推荐做法**: 使用格式2（members数组），顺序与config.json中的members顺序一致。
 
@@ -923,8 +948,8 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 
 | 字段名 | 长度要求（默认） | 说明 |
 |--------|------------------|------|
-| `hrv` ~ `workout`（12项指标段落） | 150-200 字/段 | 建议完整提供；`sleep` / `workout` 同时属于硬性必填 |
-| `priority.action` | 250-300 字 | 硬性必填 |
+| `hrv` ~ `workout`（12项指标段落） | 150-200（CN按字数/EN按单词数）/段 | 建议完整提供；`sleep` / `workout` 同时属于硬性必填 |
+| `priority.action` | 250-300（CN按字数/EN按单词数） | 硬性必填 |
 | `priority.title` `priority.problem` `priority.expectation` | ≥1 字 | 硬性必填 |
 | `ai2_*` / `ai3_*` | ≥1 字 | 硬性必填 |
 | `breakfast` `lunch` `dinner` `snack` | ≥1 字 | 硬性必填 |
