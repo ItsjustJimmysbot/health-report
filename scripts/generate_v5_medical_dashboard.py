@@ -140,6 +140,12 @@ MIN_LENGTH_LUNCH = 1          # 午餐最低字数
 MIN_LENGTH_DINNER = 1         # 晚餐最低字数
 MIN_LENGTH_SNACK = 1          # 加餐最低字数
 
+# V5.9.1: 通用指标分析字数限制（用于强制AI分析校验）
+MIN_LENGTH_METRIC = ANALYSIS_LIMITS.get("metric_min_words", 150)
+MAX_LENGTH_METRIC = ANALYSIS_LIMITS.get("metric_max_words", 200)
+MIN_LENGTH_ACTION = ANALYSIS_LIMITS.get("action_min_words", 250)
+MIN_LENGTH_DAILY = ANALYSIS_LIMITS.get("daily_min_words", 500)
+
 # 每日分析总字数下限
 DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 500)
 
@@ -176,12 +182,12 @@ CATEGORY_LABELS = {
     }
 }
 
-# 32项指标定义
+# 32项指标定义 - V5.9.1: 全部配置ai_key，强制AI分析
 METRIC_DEFS = {
     # 核心健康（10）
     "hrv": {"category": "core_health", "importance": 10, "ai_key": "hrv", "label_cn": "HRV", "label_en": "HRV"},
     "resting_hr": {"category": "core_health", "importance": 10, "ai_key": "resting_hr", "label_cn": "静息心率", "label_en": "Resting HR"},
-    "heart_rate_avg": {"category": "core_health", "importance": 8, "ai_key": None, "label_cn": "平均心率", "label_en": "Avg Heart Rate"},
+    "heart_rate_avg": {"category": "core_health", "importance": 8, "ai_key": "heart_rate_avg", "label_cn": "平均心率", "label_en": "Avg Heart Rate"},
     "steps": {"category": "core_health", "importance": 9, "ai_key": "steps", "label_cn": "步数", "label_en": "Steps"},
     "distance": {"category": "core_health", "importance": 8, "ai_key": "distance", "label_cn": "行走距离", "label_en": "Walking Distance"},
     "active_energy": {"category": "core_health", "importance": 9, "ai_key": "active_energy", "label_cn": "活动能量", "label_en": "Active Energy"},
@@ -191,38 +197,38 @@ METRIC_DEFS = {
     "basal_energy_burned": {"category": "core_health", "importance": 5, "ai_key": "basal", "label_cn": "基础代谢", "label_en": "Basal Energy"},
 
     # 心肺能力（2）
-    "vo2_max": {"category": "cardio_fitness", "importance": 9, "ai_key": None, "label_cn": "VO₂ Max", "label_en": "VO2 Max"},
-    "physical_effort": {"category": "cardio_fitness", "importance": 7, "ai_key": None, "label_cn": "体力消耗率", "label_en": "Physical Effort"},
+    "vo2_max": {"category": "cardio_fitness", "importance": 9, "ai_key": "vo2_max", "label_cn": "VO₂ Max", "label_en": "VO2 Max"},
+    "physical_effort": {"category": "cardio_fitness", "importance": 7, "ai_key": "physical_effort", "label_cn": "体力消耗率", "label_en": "Physical Effort"},
 
     # 睡眠恢复（4）
     "sleep_total_hours": {"category": "sleep_recovery", "importance": 10, "ai_key": "sleep", "label_cn": "总睡眠时长", "label_en": "Total Sleep"},
-    "sleep_deep_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": None, "label_cn": "深睡时长", "label_en": "Deep Sleep"},
-    "sleep_rem_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": None, "label_cn": "REM时长", "label_en": "REM Sleep"},
-    "breathing_disturbances": {"category": "sleep_recovery", "importance": 7, "ai_key": None, "label_cn": "呼吸紊乱", "label_en": "Breathing Disturbances"},
+    "sleep_deep_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": "sleep_deep_hours", "label_cn": "深睡时长", "label_en": "Deep Sleep"},
+    "sleep_rem_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": "sleep_rem_hours", "label_cn": "REM时长", "label_en": "REM Sleep"},
+    "breathing_disturbances": {"category": "sleep_recovery", "importance": 7, "ai_key": "breathing_disturbances", "label_cn": "呼吸紊乱", "label_en": "Breathing Disturbances"},
 
     # 活动与机能（4）
-    "apple_exercise_time": {"category": "activity_mobility", "importance": 8, "ai_key": None, "label_cn": "锻炼时间", "label_en": "Exercise Time"},
+    "apple_exercise_time": {"category": "activity_mobility", "importance": 8, "ai_key": "apple_exercise_time", "label_cn": "锻炼时间", "label_en": "Exercise Time"},
     "flights_climbed": {"category": "stairs_strength", "importance": 6, "ai_key": "flights", "label_cn": "爬楼层数", "label_en": "Flights Climbed"},
-    "apple_stand_hour": {"category": "activity_mobility", "importance": 5, "ai_key": None, "label_cn": "站立小时数", "label_en": "Stand Hours"},
-    "stair_speed_up": {"category": "stairs_strength", "importance": 5, "ai_key": None, "label_cn": "上楼速度", "label_en": "Stair Speed Up"},
+    "apple_stand_hour": {"category": "activity_mobility", "importance": 5, "ai_key": "apple_stand_hour", "label_cn": "站立小时数", "label_en": "Stand Hours"},
+    "stair_speed_up": {"category": "stairs_strength", "importance": 5, "ai_key": "stair_speed_up", "label_cn": "上楼速度", "label_en": "Stair Speed Up"},
 
     # 高级跑步（5）
-    "running_speed": {"category": "running_advanced", "importance": 8, "ai_key": None, "label_cn": "跑步速度", "label_en": "Running Speed"},
-    "running_power": {"category": "running_advanced", "importance": 8, "ai_key": None, "label_cn": "跑步功率", "label_en": "Running Power"},
-    "running_stride_length": {"category": "running_advanced", "importance": 7, "ai_key": None, "label_cn": "跑步步幅", "label_en": "Running Stride Length"},
-    "running_ground_contact_time": {"category": "running_advanced", "importance": 7, "ai_key": None, "label_cn": "触地时间", "label_en": "Ground Contact Time"},
-    "running_vertical_oscillation": {"category": "running_advanced", "importance": 6, "ai_key": None, "label_cn": "垂直振幅", "label_en": "Vertical Oscillation"},
+    "running_speed": {"category": "running_advanced", "importance": 8, "ai_key": "running_speed", "label_cn": "跑步速度", "label_en": "Running Speed"},
+    "running_power": {"category": "running_advanced", "importance": 8, "ai_key": "running_power", "label_cn": "跑步功率", "label_en": "Running Power"},
+    "running_stride_length": {"category": "running_advanced", "importance": 7, "ai_key": "running_stride_length", "label_cn": "跑步步幅", "label_en": "Running Stride Length"},
+    "running_ground_contact_time": {"category": "running_advanced", "importance": 7, "ai_key": "running_ground_contact_time", "label_cn": "触地时间", "label_en": "Ground Contact Time"},
+    "running_vertical_oscillation": {"category": "running_advanced", "importance": 6, "ai_key": "running_vertical_oscillation", "label_cn": "垂直振幅", "label_en": "Vertical Oscillation"},
 
     # 步行步态（5）
-    "walking_speed": {"category": "walking_gait", "importance": 6, "ai_key": None, "label_cn": "步行速度", "label_en": "Walking Speed"},
-    "walking_step_length": {"category": "walking_gait", "importance": 6, "ai_key": None, "label_cn": "步行步长", "label_en": "Walking Step Length"},
-    "walking_heart_rate_average": {"category": "walking_gait", "importance": 5, "ai_key": None, "label_cn": "步行心率", "label_en": "Walking HR Avg"},
-    "walking_asymmetry_percentage": {"category": "walking_gait", "importance": 5, "ai_key": None, "label_cn": "步行不对称性", "label_en": "Walking Asymmetry"},
-    "walking_double_support_percentage": {"category": "walking_gait", "importance": 4, "ai_key": None, "label_cn": "双支撑时间占比", "label_en": "Double Support %"},
+    "walking_speed": {"category": "walking_gait", "importance": 6, "ai_key": "walking_speed", "label_cn": "步行速度", "label_en": "Walking Speed"},
+    "walking_step_length": {"category": "walking_gait", "importance": 6, "ai_key": "walking_step_length", "label_cn": "步行步长", "label_en": "Walking Step Length"},
+    "walking_heart_rate_average": {"category": "walking_gait", "importance": 5, "ai_key": "walking_heart_rate_average", "label_cn": "步行心率", "label_en": "Walking HR Avg"},
+    "walking_asymmetry_percentage": {"category": "walking_gait", "importance": 5, "ai_key": "walking_asymmetry_percentage", "label_cn": "步行不对称性", "label_en": "Walking Asymmetry"},
+    "walking_double_support_percentage": {"category": "walking_gait", "importance": 4, "ai_key": "walking_double_support_percentage", "label_cn": "双支撑时间占比", "label_en": "Double Support %"},
 
     # 环境暴露（2）
-    "headphone_audio_exposure": {"category": "environment_audio", "importance": 5, "ai_key": None, "label_cn": "耳机音频暴露", "label_en": "Headphone Exposure"},
-    "environmental_audio_exposure": {"category": "environment_audio", "importance": 3, "ai_key": None, "label_cn": "环境音频暴露", "label_en": "Environmental Exposure"},
+    "headphone_audio_exposure": {"category": "environment_audio", "importance": 5, "ai_key": "headphone_audio_exposure", "label_cn": "耳机音频暴露", "label_en": "Headphone Exposure"},
+    "environmental_audio_exposure": {"category": "environment_audio", "importance": 3, "ai_key": "environmental_audio_exposure", "label_cn": "环境音频暴露", "label_en": "Environmental Exposure"},
 }
 # =====================================================
 
@@ -362,152 +368,93 @@ def get_member_config(index: int):
 
 def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> list:
     """
-    验证AI分析长度是否符合要求（V5.9.1 支持动态指标）
+    严格校验：所有选中指标必须有AI分析，字数必须达标
     返回错误列表（为空表示验证通过）
     """
     errors = []
     seen = set()
-
     unit_label = 'words' if LANGUAGE == 'EN' else '字'
-
+    
     def add_err(msg: str):
         if msg not in seen:
             seen.add(msg)
             errors.append(msg)
-
+    
     def count_units(text: str) -> int:
         return count_text_units(text, LANGUAGE)
-
-    total_units = 0
-
-    # 1) 核心字段长度校验（完整保留）
-    validations = [
-        ('hrv', MIN_LENGTH_HRV, MAX_LENGTH_METRIC, 'HRV分析'),
-        ('resting_hr', MIN_LENGTH_RESTING_HR, MAX_LENGTH_METRIC, '静息心率分析'),
-        ('steps', MIN_LENGTH_STEPS, MAX_LENGTH_METRIC, '步数分析'),
-        ('distance', MIN_LENGTH_DISTANCE, MAX_LENGTH_METRIC, '距离分析'),
-        ('active_energy', MIN_LENGTH_ACTIVE_ENERGY, MAX_LENGTH_METRIC, '活动能量分析'),
-        ('spo2', MIN_LENGTH_SPO2, MAX_LENGTH_METRIC, '血氧分析'),
-        ('flights', MIN_LENGTH_FLIGHTS, MAX_LENGTH_METRIC, '爬楼分析'),
-        ('stand', MIN_LENGTH_STAND, MAX_LENGTH_METRIC, '站立分析'),
-        ('basal', MIN_LENGTH_BASAL, MAX_LENGTH_METRIC, '基础代谢分析'),
-        ('respiratory', MIN_LENGTH_RESPIRATORY, MAX_LENGTH_METRIC, '呼吸率分析'),
-        ('sleep', MIN_LENGTH_SLEEP, MAX_LENGTH_METRIC, '睡眠分析'),
-        ('workout', MIN_LENGTH_WORKOUT, MAX_LENGTH_METRIC, '运动分析'),
+    
+    # 1. 检查所有选中指标必须有AI分析且字数达标
+    for metric_key in (selected_metric_keys or []):
+        metric_def = METRIC_DEFS.get(metric_key, {})
+        ai_key = metric_def.get('ai_key')
+        if not ai_key:
+            continue
+        
+        text = ai_analysis.get(ai_key, '')
+        if not text:
+            add_err(f"❌ 缺少指标分析: {metric_label(metric_key)} (字段: {ai_key})")
+            continue
+        
+        # 检查字数
+        units = count_units(text)
+        if units < MIN_LENGTH_METRIC:
+            add_err(f"❌ {metric_label(metric_key)}分析长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_METRIC}{unit_label})")
+        if units > MAX_LENGTH_METRIC:
+            add_err(f"❌ {metric_label(metric_key)}分析长度超限: {units}{unit_label} (要求最多{MAX_LENGTH_METRIC}{unit_label})")
+    
+    # 2. 检查核心字段
+    core_checks = [
+        ('sleep', MIN_LENGTH_SLEEP, '睡眠分析'),
+        ('workout', MIN_LENGTH_WORKOUT, '运动分析'),
     ]
-
-    for key, min_len, max_len, name in validations:
-        text = ai_analysis.get(key, '')
-        if text:
-            units = count_units(text)
-            total_units += units
-            if units < min_len:
-                add_err(f"❌ {name}长度不足: {units}{unit_label} (要求至少{min_len}{unit_label})")
-            if units > max_len:
-                add_err(f"❌ {name}长度超限: {units}{unit_label} (要求最多{max_len}{unit_label})")
-
-    # 最高优先级建议
-    priority = ai_analysis.get('priority', {})
-    title = priority.get('title', '')
-    problem = priority.get('problem', '')
-    action = priority.get('action', '')
-    expectation = priority.get('expectation', '')
-
-    if title:
-        units = count_units(title)
-        total_units += units
-        if units < MIN_LENGTH_PRIORITY_TITLE:
-            add_err(f"❌ 最高优先级标题长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_TITLE}{unit_label})")
-
-    if problem:
-        units = count_units(problem)
-        total_units += units
-        if units < MIN_LENGTH_PRIORITY_PROBLEM:
-            add_err(f"❌ 问题识别长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}{unit_label})")
-
-    if action:
-        units = count_units(action)
-        total_units += units
-        if units < MIN_LENGTH_PRIORITY_ACTION:
-            add_err(f"❌ 行动计划长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_ACTION}{unit_label})")
-        if units > MAX_LENGTH_PRIORITY_ACTION:
-            add_err(f"❌ 行动计划长度超限: {units}{unit_label} (要求最多{MAX_LENGTH_PRIORITY_ACTION}{unit_label})")
-
-    if expectation:
-        units = count_units(expectation)
-        total_units += units
-        if units < MIN_LENGTH_PRIORITY_EXPECTATION:
-            add_err(f"❌ 预期效果长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}{unit_label})")
-
-    # 验证次级建议
-    for prefix, label in [('ai2', '第二优先级'), ('ai3', '第三优先级')]:
-        title = ai_analysis.get(f'{prefix}_title', '')
-        problem = ai_analysis.get(f'{prefix}_problem', '')
-        action = ai_analysis.get(f'{prefix}_action', '')
-        expectation = ai_analysis.get(f'{prefix}_expectation', '')
-
-        if title:
-            units = count_units(title)
-            total_units += units
-            if units < MIN_LENGTH_AI2_TITLE:
-                add_err(f"❌ {label}标题长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_TITLE}{unit_label})")
-        if problem:
-            units = count_units(problem)
-            total_units += units
-            if units < MIN_LENGTH_AI2_PROBLEM:
-                add_err(f"❌ {label}问题长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_PROBLEM}{unit_label})")
-        if action:
-            units = count_units(action)
-            total_units += units
-            if units < MIN_LENGTH_AI2_ACTION:
-                add_err(f"❌ {label}行动长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_ACTION}{unit_label})")
-        if expectation:
-            units = count_units(expectation)
-            total_units += units
-            if units < MIN_LENGTH_AI2_EXPECTATION:
-                add_err(f"❌ {label}效果长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_EXPECTATION}{unit_label})")
-
-    # 饮食方案（必填字段）
-    diet_checks = [
-        ('breakfast', MIN_LENGTH_BREAKFAST, '早餐'),
-        ('lunch', MIN_LENGTH_LUNCH, '午餐'),
-        ('dinner', MIN_LENGTH_DINNER, '晚餐'),
-        ('snack', MIN_LENGTH_SNACK, '加餐'),
-    ]
-    for key, min_len, name in diet_checks:
+    
+    for key, min_len, name in core_checks:
         text = ai_analysis.get(key, '')
         if not text:
-            add_err(f"❌ {name} 缺失: 必须提供{name}内容")
+            add_err(f"❌ 缺少必填字段: {name} (字段: {key})")
         else:
             units = count_units(text)
-            total_units += units
             if units < min_len:
                 add_err(f"❌ {name}长度不足: {units}{unit_label} (要求至少{min_len}{unit_label})")
-
-    # 每日总长度下限（来自 analysis_limits.daily_min_words）
-    if total_units < DAILY_MIN_WORDS:
-        add_err(f"❌ 日报AI总长度不足: {total_units}{unit_label} (要求至少{DAILY_MIN_WORDS}{unit_label})")
-
-    # 语言一致性
-    from utils import detect_language_mismatch
-    lang_errors = detect_language_mismatch(
-        ai_analysis,
-        LANGUAGE,
-        strict_mode=(VALIDATION_MODE == "strict")
-    )
-    for error in lang_errors:
-        add_err(f"❌ {error}")
-
-    # 3) selected 指标 AI 必填（可选严格模式）
-    if selected_metric_keys is None:
-        selected_metric_keys = get_selected_metric_keys()
-
-    if REPORT_REQUIRE_AI_FOR_SELECTED:
-        for mk in selected_metric_keys:
-            ai_key = METRIC_DEFS.get(mk, {}).get('ai_key')
-            if ai_key and not ai_analysis.get(ai_key):
-                add_err(f"❌ 已选指标缺少AI分析: {mk} -> {ai_key}")
-
+    
+    # 3. priority 完整性检查
+    priority = ai_analysis.get('priority', {})
+    for field in ['title', 'problem', 'action', 'expectation']:
+        if not priority.get(field):
+            add_err(f"❌ priority.{field} 不能为空")
+    
+    if priority.get('action'):
+        units = count_units(priority['action'])
+        if units < MIN_LENGTH_ACTION:
+            add_err(f"❌ priority.action 长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_ACTION}{unit_label})")
+    
+    # 4. 其他必填字段检查
+    required_fields = [
+        ('ai2_title', 'AI建议2标题'), ('ai2_problem', 'AI建议2问题'),
+        ('ai2_action', 'AI建议2行动'), ('ai2_expectation', 'AI建议2预期'),
+        ('ai3_title', 'AI建议3标题'), ('ai3_problem', 'AI建议3问题'),
+        ('ai3_action', 'AI建议3行动'), ('ai3_expectation', 'AI建议3预期'),
+        ('breakfast', '早餐'), ('lunch', '午餐'), ('dinner', '晚餐'), ('snack', '加餐'),
+    ]
+    
+    for field, name in required_fields:
+        if not ai_analysis.get(field):
+            add_err(f"❌ 缺少必填字段: {name} (字段: {field})")
+    
+    # 5. 总字数检查
+    total_units = 0
+    for key in ai_analysis:
+        val = ai_analysis[key]
+        if isinstance(val, str):
+            total_units += count_units(val)
+        elif isinstance(val, dict):
+            for v in val.values():
+                if isinstance(v, str):
+                    total_units += count_units(v)
+    
+    if total_units < MIN_LENGTH_DAILY:
+        add_err(f"❌ 日报总长度不足: {total_units}{unit_label} (要求至少{MIN_LENGTH_DAILY}{unit_label})")
+    
     return errors
 
 
@@ -1107,23 +1054,22 @@ def metric_rating(metric_key: str, data: dict):
 
 
 def metric_analysis_text(metric_key: str, ai_analysis: dict, data: dict):
-    """获取指标AI分析文本"""
-    ai_key = METRIC_DEFS[metric_key].get('ai_key')
-    if ai_key and ai_analysis.get(ai_key):
-        return ai_analysis.get(ai_key)
-
-    # 无AI文本时的自动兜底
-    value_text = metric_value_text(metric_key, data)
-    label = metric_label(metric_key)
-    if LANGUAGE == 'EN':
-        return f"{label}: current value is {value_text}. No dedicated AI paragraph was provided for this metric."
-    return f"{label}：当前值为 {value_text}。该指标未提供独立AI长文分析，建议结合趋势继续观察。"
+    """获取指标AI分析文本，无分析时返回None（上层会报错）"""
+    ai_key = METRIC_DEFS.get(metric_key, {}).get('ai_key')
+    if ai_key:
+        text = ai_analysis.get(ai_key)
+        if text:
+            return text
+    return None
 
 
 def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list):
     """构建指标表格HTML行"""
     rows = []
     sleep_keys = {'sleep_total_hours', 'sleep_deep_hours', 'sleep_rem_hours'}
+    
+    # 收集缺失的指标
+    missing_metrics = []
 
     for cat in get_category_order():
         cat_label = CATEGORY_LABELS[LANGUAGE].get(cat, cat)
@@ -1157,6 +1103,12 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
             value_text = metric_value_text(k, data)
             rating_class, rating_text = metric_rating(k, data)
             analysis_text = metric_analysis_text(k, ai_analysis, data)
+            
+            # 检查是否有AI分析
+            if analysis_text is None:
+                missing_metrics.append(metric_label(k))
+                continue
+            
             imp = metric_importance(k)
 
             rows.append(
@@ -1167,6 +1119,10 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
 <td><div class="metric-analysis">{safe_html_paragraph(analysis_text)}</div></td>
 </tr>'''
             )
+    
+    # 如果有缺失指标，报错
+    if missing_metrics:
+        raise ValueError(f"❌ 以下指标缺少AI分析: {', '.join(missing_metrics)}")
 
     return '\n'.join(rows)
 # =====================================================
@@ -1330,28 +1286,15 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{METRIC_ANALYSIS_COL_HEADER}}', col_header)
     html = html.replace('{{METRICS_TABLE_ROWS}}', rows_html)
 
-    # 睡眠 - 优先使用AI分析，如果没有则自动生成数据概况
+    # 睡眠 - 必须有AI分析
     sleep_analysis = ai_analysis.get('sleep')
     if not sleep_analysis:
-        # 自动生成睡眠数据概况作为兜底
-        s = data.get('sleep', {})
-        s_total = s.get('total_hours', s.get('total', 0)) or 0
-        s_deep = s.get('deep_hours', s.get('deep', 0)) or 0
-        s_rem = s.get('rem_hours', s.get('rem', 0)) or 0
-        s_core = s.get('core_hours', s.get('core', 0)) or 0
-        
-        if LANGUAGE == 'EN':
-            sleep_analysis = (
-                f"Sleep data overview: Total {s_total:.1f}h, "
-                f"Deep {s_deep:.1f}h, REM {s_rem:.1f}h, Core {s_core:.1f}h. "
-                f"(AI detailed analysis not provided)"
-            )
-        else:
-            sleep_analysis = (
-                f"睡眠数据概览：总时长{s_total:.1f}小时，"
-                f"深睡{s_deep:.1f}小时，REM{s_rem:.1f}小时，核心睡眠{s_core:.1f}小时。"
-                f"（AI详细分析未提供）"
-            )
+        raise ValueError("❌ 缺少睡眠分析字段 'sleep'，AI必须提供睡眠分析")
+
+    # 运动 - 必须有AI分析
+    workout_analysis = ai_analysis.get('workout')
+    if not workout_analysis:
+        raise ValueError("❌ 缺少运动分析字段 'workout'，AI必须提供运动分析")
 
     # 获取睡眠总时长
     sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0

@@ -101,40 +101,51 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 - 这是有意设计，用于避免复用旧分析结果。
 - 请始终用标准输入传入当次分析文件（`< ai_analysis.json` / `< weekly_analysis.json` / `< monthly_analysis.json`）。
 
-### 字段命名对照表
+### 字段命名对照表（32项完整版）
 
-| 数据提取字段 | AI JSON 字段 | 说明 |
-|-------------|-------------|------|
-| `active_energy_kcal` | `active_energy` | 活动能量（千卡）|
-| `resting_hr` | `resting_hr` | 静息心率（bpm）|
-| `hrv` | `hrv` | 心率变异性（ms）|
-| `steps` | `steps` | 步数 |
-| `distance_km` | `distance` | 步行/跑步距离（公里）|
-| `spo2` | `spo2` | 血氧饱和度（%）|
-| `basal_energy_kcal` | `basal` | 基础代谢能量（千卡）|
-| `respiratory_rate` | `respiratory` | 呼吸率（次/分钟）|
-| `flights_climbed` | `flights` | 爬楼层数 |
-| `stand_time_min` | `stand` | 站立时间（分钟）|
-| `sleep.total_hours` | `sleep` | 睡眠时长（小时）|
-| `workouts` | `workout` | 运动记录 |
-| `workout` | `workout` | 运动分析文本（必填） |
+| 数据提取字段 | AI JSON 字段 | 说明 | 字数要求 |
+|-------------|-------------|------|---------|
+| `hrv` | `hrv` | 心率变异性（ms） | 150-200字 |
+| `resting_hr` | `resting_hr` | 静息心率（bpm） | 150-200字 |
+| `heart_rate_avg` | `heart_rate_avg` | 平均心率（bpm） | 150-200字 |
+| `steps` | `steps` | 步数 | 150-200字 |
+| `distance` | `distance` | 行走距离（km） | 150-200字 |
+| `active_energy` | `active_energy` | 活动能量（kcal） | 150-200字 |
+| `spo2` | `spo2` | 血氧饱和度（%） | 150-200字 |
+| `respiratory_rate` | `respiratory` | 呼吸率（次/分） | 150-200字 |
+| `apple_stand_time` | `stand` | 站立时间（分钟） | 150-200字 |
+| `basal_energy_burned` | `basal` | 基础代谢（kcal） | 150-200字 |
+| `vo2_max` | `vo2_max` | 最大摄氧量 | 150-200字 |
+| `physical_effort` | `physical_effort` | 体力消耗率 | 150-200字 |
+| `sleep_total_hours` | `sleep` | 睡眠总时长（小时） | 250-300字 |
+| `sleep_deep_hours` | `sleep_deep_hours` | 深睡时长（小时） | 150-200字 |
+| `sleep_rem_hours` | `sleep_rem_hours` | REM时长（小时） | 150-200字 |
+| `breathing_disturbances` | `breathing_disturbances` | 呼吸紊乱指数 | 150-200字 |
+| `apple_exercise_time` | `apple_exercise_time` | 锻炼时间（分钟） | 150-200字 |
+| `flights_climbed` | `flights` | 爬楼层数 | 150-200字 |
+| `apple_stand_hour` | `apple_stand_hour` | 站立小时数 | 150-200字 |
+| `stair_speed_up` | `stair_speed_up` | 上楼速度（m/s） | 150-200字 |
+| `running_speed` | `running_speed` | 跑步速度（km/h） | 150-200字 |
+| `running_power` | `running_power` | 跑步功率（W） | 150-200字 |
+| `running_stride_length` | `running_stride_length` | 跑步步幅（cm） | 150-200字 |
+| `running_ground_contact_time` | `running_ground_contact_time` | 触地时间（ms） | 150-200字 |
+| `running_vertical_oscillation` | `running_vertical_oscillation` | 垂直振幅（cm） | 150-200字 |
+| `walking_speed` | `walking_speed` | 步行速度（km/h） | 150-200字 |
+| `walking_step_length` | `walking_step_length` | 步行步长（cm） | 150-200字 |
+| `walking_heart_rate_average` | `walking_heart_rate_average` | 步行平均心率（bpm） | 150-200字 |
+| `walking_asymmetry_percentage` | `walking_asymmetry_percentage` | 步行不对称性（%） | 150-200字 |
+| `walking_double_support_percentage` | `walking_double_support_percentage` | 双支撑时间占比（%） | 150-200字 |
+| `headphone_audio_exposure` | `headphone_audio_exposure` | 耳机音频暴露（dB） | 150-200字 |
+| `environmental_audio_exposure` | `environmental_audio_exposure` | 环境音频暴露（dB） | 150-200字 |
 
-注意：AI 分析 JSON 中使用简写形式，如 `active_energy` 而非 `active_energy_kcal`。
+### 必填字段（无则报错）
+- `sleep`, `workout`
+- `priority.title`, `priority.problem`, `priority.action`, `priority.expectation`
+- `ai2_title`, `ai2_problem`, `ai2_action`, `ai2_expectation`
+- `ai3_title`, `ai3_problem`, `ai3_action`, `ai3_expectation`
+- `breakfast`, `lunch`, `dinner`, `snack`
 
-## 4) AI 分析字段要求（日报）
-
-### 硬性必填（缺少会报错）
-- `sleep`
-- `workout`（即使当天无运动也要有文本）
-- `priority.title` `priority.problem` `priority.action` `priority.expectation`
-- `ai2_title` `ai2_problem` `ai2_action` `ai2_expectation`
-- `ai3_title` `ai3_problem` `ai3_action` `ai3_expectation`
-- `breakfast` `lunch` `dinner` `snack`
-
-### 指标分析字段（建议完整提供）
-`hrv` `resting_hr` `steps` `distance` `active_energy` `spo2` `flights` `stand` `basal` `respiratory` `sleep` `workout`
-
-> 当 `report_metrics.require_ai_for_selected=true` 时，已选指标若映射到 `ai_key` 且缺失，会触发校验错误。
+> **强制AI分析版（V5.9.1）**：所有 `report_metrics.selected` 中的指标必须有对应的 AI 分析字段，字数必须达标（150-200字），否则报错。
 
 ## 5) 必须遵守
 - `language` 与 AI 输出语言需一致（CN/EN）。
