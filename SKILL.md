@@ -46,7 +46,12 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
     "action_max_words": 300,
     "daily_min_words": 500,
     "weekly_min_words": 800,
-    "monthly_min_words": 1000
+    "monthly_min_words": 1000,
+    "monthly_trend_min_words": 150,
+    "lang_en_max_chinese_ratio_strict": 0.15,
+    "lang_en_max_chinese_ratio_warn": 0.20,
+    "lang_cn_min_chinese_ratio_strict": 0.30,
+    "lang_cn_min_chinese_ratio_warn": 0.20
   },
   "report_metrics": {
     "selected": [

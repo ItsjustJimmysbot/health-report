@@ -71,7 +71,11 @@ python3 -m playwright install chromium
     "daily_min_words": 500,
     "weekly_min_words": 800,
     "monthly_min_words": 1000,
-    "monthly_trend_min_words": 150
+    "monthly_trend_min_words": 150,
+    "lang_en_max_chinese_ratio_strict": 0.15,
+    "lang_en_max_chinese_ratio_warn": 0.20,
+    "lang_cn_min_chinese_ratio_strict": 0.30,
+    "lang_cn_min_chinese_ratio_warn": 0.20
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -431,6 +435,12 @@ python3 scripts/setup_oauth2.py
 - 周报/月报总字数下限分别读取 `analysis_limits.weekly_min_words` 与 `analysis_limits.monthly_min_words`。
 - 月报中 `trend_assessment` 的最小字数默认 150，可用 `analysis_limits.monthly_trend_min_words` 覆盖。
 - 月报 `trend_assessment/trend_forecast` 建议≥150字：`strict` 模式报错，`warn` 模式仅警告并继续生成。
+- **语言比例阈值**（可配置）：
+  - `lang_en_max_chinese_ratio_strict`: EN严格模式允许的最大中文占比（默认0.15）
+  - `lang_en_max_chinese_ratio_warn`: EN警告模式允许的最大中文占比（默认0.20）
+  - `lang_cn_min_chinese_ratio_strict`: CN严格模式要求的最小中文占比（默认0.30）
+  - `lang_cn_min_chinese_ratio_warn`: CN警告模式要求的最小中文占比（默认0.20）
+- 月报趋势长度在 `verify_ai_analysis_monthly()` 中统一校验，避免重复提示。
 
 **邮件发送参数：**
 
@@ -545,7 +555,11 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
     "daily_min_words": 500,
     "weekly_min_words": 800,
     "monthly_min_words": 1000,
-    "monthly_trend_min_words": 150
+    "monthly_trend_min_words": 150,
+    "lang_en_max_chinese_ratio_strict": 0.15,
+    "lang_en_max_chinese_ratio_warn": 0.20,
+    "lang_cn_min_chinese_ratio_strict": 0.30,
+    "lang_cn_min_chinese_ratio_warn": 0.20
   },
   "email_config": {
     "provider_priority": ["oauth2", "smtp", "mail_app", "local"],
@@ -576,6 +590,23 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
   "cache_dir": "~/.openclaw/workspace/shared/health-reports/cache"
 }
 ```
+
+### analysis_limits 默认值（完整）
+
+| 字段 | 默认值 | 说明 |
+|------|--------|------|
+| `metric_min_words` | 150 | 单个指标分析最小字数 |
+| `metric_max_words` | 200 | 单个指标分析最大字数 |
+| `action_min_words` | 250 | 行动建议最小字数 |
+| `action_max_words` | 300 | 行动建议最大字数 |
+| `daily_min_words` | 500 | 日报总字数下限 |
+| `weekly_min_words` | 800 | 周报总字数下限 |
+| `monthly_min_words` | 1000 | 月报总字数下限 |
+| `monthly_trend_min_words` | 150 | 月报趋势评估最小字数 |
+| `lang_en_max_chinese_ratio_strict` | 0.15 | EN严格模式最大中文占比 |
+| `lang_en_max_chinese_ratio_warn` | 0.20 | EN警告模式最大中文占比 |
+| `lang_cn_min_chinese_ratio_strict` | 0.30 | CN严格模式最小中文占比 |
+| `lang_cn_min_chinese_ratio_warn` | 0.20 | CN警告模式最小中文占比 |
 
 ### 📊 report_metrics（日报动态指标表）
 

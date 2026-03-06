@@ -1,0 +1,112 @@
+Health Report V5.9.0 热修复说明（给 health agent / Kimi2.5）
+生成时间: 2026-03-05 23:55 +0800
+
+目标:
+- 修复 V5.9.0 回归: scripts/utils.py 缺失 infer_duration_unit，导致 workout 场景运行时可能崩溃。
+- 保留 ai_analysis.json 自动删除逻辑（不要改动）。
+
+====================
+一、必须修改的文件
+====================
+仅修改 1 个文件:
+- scripts/utils.py
+
+====================
+二、修改内容（精确 patch）
+====================
+在 scripts/utils.py 中，位于 `safe_json_loads(...)` 之后、`get_workout_field(...)` 之前，新增以下函数。
+
+可直接应用下面 unified diff：
+
+diff --git a/scripts/utils.py b/scripts/utils.py
+index 2567096..1304460 100644
+--- a/scripts/utils.py
++++ b/scripts/utils.py
+@@ -1312,6 +1312,46 @@ def safe_json_loads(json_text: str, context: str = "") -> dict:
+         )
+ 
+ 
++def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
++    """Infer duration unit (seconds or minutes).
++    Returns: (duration_minutes, unit_inferred)
++    """
++    unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
++    if unit in ('s', 'sec', 'second', 'seconds'):
++        return duration_raw / 60.0, 'seconds'
++    if unit in ('m', 'min', 'minute', 'minutes'):
++        return float(duration_raw), 'minutes'
++
++    if duration_raw > 1440:
++        return duration_raw / 60.0, 'seconds'
++
++    energy_raw = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0) or workout.get('totalEnergyBurned', 0)
++    if isinstance(energy_raw, dict):
++        energy = energy_raw.get('qty', 0)
++    else:
++        energy = energy_raw
++    if energy > 0 and duration_raw > 0:
++        kcal = energy / 4.184
++        kcal_per_min_if_minutes = kcal / duration_raw
++        if kcal_per_min_if_minutes < 1.0:
++            return duration_raw / 60.0, 'seconds'
++        if kcal_per_min_if_minutes > 30.0:
++            return duration_raw / 60.0, 'seconds'
++
++    hr_data = workout.get('heartRateData', []) or workout.get('hrData', [])
++    if len(hr_data) > 0:
++        expected_mins_from_hr = len(hr_data)
++        diff_if_minutes = abs(expected_mins_from_hr - duration_raw)
++        diff_if_seconds = abs(expected_mins_from_hr - (duration_raw / 60.0))
++        if diff_if_seconds < diff_if_minutes:
++            return duration_raw / 60.0, 'seconds'
++        return float(duration_raw), 'minutes'
++
++    if duration_raw > 300:
++        return duration_raw / 60.0, 'seconds'
++    return float(duration_raw), 'minutes'
++
++
+ def get_workout_field(workout: dict, field_names: list, default=None):
+     """
+     兼容多种字段名获取workout数据
+
+====================
+三、为什么必须改
+====================
+当前 V5.9.0 代码中：
+- scripts/extract_data_v5.py 会调用 infer_duration_unit
+- scripts/generate_v5_medical_dashboard.py 也会调用 infer_duration_unit
+但 scripts/utils.py 缺少该函数，workout 场景会出现运行时 ImportError。
+
+====================
+四、验证步骤（必须全部通过）
+====================
+在仓库根目录执行：
+
+1) 编译检查
+python3 -m py_compile scripts/*.py
+
+2) 确认函数存在
+python3 - <<'PY'
+import sys
+sys.path.insert(0,'scripts')
+import utils
+print('infer_duration_unit exists:', hasattr(utils, 'infer_duration_unit'))
+PY
+
+预期输出：
+infer_duration_unit exists: True
+
+3) 功能冒烟（任选一个有数据日期）
+python3 scripts/extract_data_v5.py 2026-03-01 0 > /tmp/health_extract_smoke.log
+
+4) Feature 守护检查（必须保持）
+grep -n "ai_analysis_file" scripts/generate_v5_medical_dashboard.py scripts/generate_weekly_monthly_medical.py
+
+预期：两个脚本都能 grep 到 ai_analysis_file 相关删除逻辑。
+
+====================
+五、提交建议
+====================
+commit message:
+fix(v5.9.0): restore infer_duration_unit in utils to prevent workout runtime import errors

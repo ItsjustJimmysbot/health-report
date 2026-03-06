@@ -190,6 +190,7 @@ AI 分析内容的语言与 `config.json` 中的 `language` 设置不一致。
 1. 如果 `language` 为 `CN`，AI 应以中文为主（允许少量英文术语）
 2. 如果 `language` 为 `EN`，AI 应以英文为主（允许少量指标术语）
 3. 临时改为 `warn` 模式跳过检测（不推荐长期使用）
+4. 可通过 `analysis_limits` 的四个 `lang_*` 阈值字段调参（如 `lang_en_max_chinese_ratio_strict`、`lang_cn_min_chinese_ratio_strict` 等）
 
 ---
 

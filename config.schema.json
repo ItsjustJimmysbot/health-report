@@ -105,6 +105,30 @@
           "type": "integer",
           "minimum": 1,
           "description": "月报 trend_assessment 最低字数，默认 150"
+        },
+        "lang_en_max_chinese_ratio_strict": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "EN 严格模式允许的最大中文占比，默认 0.15"
+        },
+        "lang_en_max_chinese_ratio_warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "EN 警告模式允许的最大中文占比，默认 0.20"
+        },
+        "lang_cn_min_chinese_ratio_strict": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "CN 严格模式要求的最小中文占比，默认 0.30"
+        },
+        "lang_cn_min_chinese_ratio_warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "CN 警告模式要求的最小中文占比，默认 0.20"
         }
       },
       "additionalProperties": true

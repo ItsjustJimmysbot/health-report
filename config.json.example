@@ -20,7 +20,11 @@
     "daily_min_words": 500,
     "weekly_min_words": 800,
     "monthly_min_words": 1000,
-    "monthly_trend_min_words": 150
+    "monthly_trend_min_words": 150,
+    "lang_en_max_chinese_ratio_strict": 0.15,
+    "lang_en_max_chinese_ratio_warn": 0.20,
+    "lang_cn_min_chinese_ratio_strict": 0.30,
+    "lang_cn_min_chinese_ratio_warn": 0.20
   },
   "email_config": {
     "provider_priority": [

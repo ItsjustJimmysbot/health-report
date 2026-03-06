@@ -1,0 +1,59 @@
+【仅修 2 个尾巴，禁止改其他内容】
+
+只允许修改 2 个文件：
+1) README.md
+2) scripts/utils.py
+
+────────────────
+A. README.md 去重
+────────────────
+在“常用命令”里，删除重复的这一行之一：
+*   **配置校验**：`python3 scripts/validate_config.py`
+要求：最终 README 中该命令只出现 1 次。
+
+────────────────
+B. utils.py 恢复 v3 阈值
+────────────────
+文件：scripts/utils.py
+函数：detect_language_mismatch_v3()
+
+定位 EN 分支里 unknown 检测处，把：
+if chinese_chars > 20:
+改回：
+if chinese_chars > 100:
+
+注意：
+- 只改 v3
+- 不要改 v2
+- 不要改任何其他逻辑/文案
+
+────────────────
+C. 强制自检
+────────────────
+1) 语法检查
+python3 -m py_compile scripts/*.py scripts/email_providers/*.py
+
+2) 检查 README 去重
+grep -n "配置校验" README.md
+
+3) 检查 v3 阈值恢复
+grep -n "detect_language_mismatch_v3" scripts/utils.py
+grep -n "if chinese_chars > 100" scripts/utils.py
+
+4) 确认仅改 2 文件
+git diff --name-only
+
+若出现除 README.md、scripts/utils.py 之外的文件，撤销并重做。
+
+────────────────
+D. 回复格式（必须）
+────────────────
+[完成文件]
+- README.md
+- scripts/utils.py
+
+[自检结果]
+- py_compile: PASS/FAIL
+- README 去重: PASS/FAIL（附 grep 输出）
+- v3 阈值恢复: PASS/FAIL（附 grep 输出）
+- 仅两文件变更: PASS/FAIL（附 git diff --name-only）

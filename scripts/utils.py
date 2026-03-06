@@ -33,12 +33,12 @@ def _setup_file_handler():
     global _file_handler_initialized
     if _file_handler_initialized:
         return
-    
+
     config = load_config()
     log_dir = get_log_dir(config)
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / 'health_report.log'
-    
+
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(
@@ -166,7 +166,7 @@ def get_log_dir(config=None):
 
 def safe_member_name(name: str) -> str:
     """将成员名称转换为安全的文件名格式
-    
+
     替换规则：
     - 空格、/、\、:、*、?、"、<、>、| 替换为下划线
     - 连续多个下划线合并为一个
@@ -175,28 +175,28 @@ def safe_member_name(name: str) -> str:
     """
     if not name:
         return "member"
-    
+
     import re
-    
+
     # 替换不安全字符为下划线
     safe = (name or "member").strip()
     unsafe_chars = r'[\s/\\:*?"<>|]+'
     safe = re.sub(unsafe_chars, '_', safe)
-    
+
     # 合并连续下划线
     safe = re.sub(r'_+', '_', safe)
-    
+
     # 移除首尾下划线
     safe = safe.strip('_')
-    
+
     # 限制长度
     if len(safe) > 50:
         safe = safe[:50]
-    
+
     # 如果结果为空，使用默认值
     if not safe:
         safe = "member"
-    
+
     return safe
 
 
@@ -312,7 +312,7 @@ def get_template_path(
     template_type: str, language: str, template_dir: Path, version: str = "V2"
 ) -> Path:
     """获取模板文件路径 - 支持多语言 - V5.8.1
-    
+
     查找顺序（按优先级）：
     1. 完整版：{TYPE}_TEMPLATE_MEDICAL_{VERSION}_{LANG}.html (日报)
        或 {TYPE}_TEMPLATE_MEDICAL_{LANG}.html (周报/月报)
@@ -323,47 +323,47 @@ def get_template_path(
     template_dir = Path(template_dir)
     type_upper = template_type.upper()
     lang_upper = language.upper()
-    
+
     # 构建候选列表
     candidates = []
-    
+
     # 区分日报和周月报的模板命名规则
     is_weekly_monthly = template_type.lower() in ['weekly', 'monthly']
-    
+
     if is_weekly_monthly:
         # 周报/月报: 没有版本号，格式为 WEEKLY_TEMPLATE_MEDICAL[_EN].html
         base_name = f"{type_upper}_TEMPLATE_MEDICAL"
-        
+
         # 1. 语言版（非中文）
         if lang_upper != "CN":
             candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
-        
+
         # 2. 默认（中文或无语言后缀）
         candidates.append(template_dir / f"{base_name}.html")
     else:
         # 日报: 有版本号，格式为 DAILY_TEMPLATE_MEDICAL_V2[_EN].html
         base_name = f"{type_upper}_TEMPLATE_MEDICAL_{version}"
-        
+
         # 1. 完整版（版本+语言）
         if lang_upper != "CN":
             candidates.append(template_dir / f"{base_name}_{lang_upper}.html")
-        
+
         # 2. 语言版（无版本，日报回退）
         if lang_upper != "CN":
             candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL_{lang_upper}.html")
-        
+
         # 3. 版本默认（中文）
         candidates.append(template_dir / f"{base_name}.html")
-        
+
         # 4. 默认（中文回退）
         candidates.append(template_dir / f"{type_upper}_TEMPLATE_MEDICAL.html")
-    
+
     for i, p in enumerate(candidates, 1):
         if p.exists():
             if i > 1:
                 print(f"⚠️ 警告: 模板回退到 {p.name}")
             return p
-    
+
     raise FileNotFoundError(
         "找不到模板文件。尝试了以下路径:\n" + "\n".join([f" - {c}" for c in candidates])
     )
@@ -411,7 +411,7 @@ def list_available_templates(template_dir: Path) -> dict:
 
 def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     """验证必需的模板文件是否存在
-    
+
     返回:
         {
             "daily": bool,
@@ -422,11 +422,11 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     """
     result = {"daily": False, "weekly": False, "monthly": False, "errors": []}
     template_dir = Path(template_dir)
-    
+
     if not template_dir.exists():
         result["errors"].append(f"模板目录不存在: {template_dir}")
         return result
-    
+
     # 检查日报模板
     daily_candidates = [
         template_dir / f"DAILY_TEMPLATE_MEDICAL_V2_{language.upper()}.html",
@@ -435,7 +435,7 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     result["daily"] = any(p.exists() for p in daily_candidates)
     if not result["daily"]:
         result["errors"].append(f"缺少日报模板，尝试了: {[p.name for p in daily_candidates]}")
-    
+
     # 检查周报模板
     weekly_candidates = [
         template_dir / f"WEEKLY_TEMPLATE_MEDICAL_{language.upper()}.html",
@@ -444,7 +444,7 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     result["weekly"] = any(p.exists() for p in weekly_candidates)
     if not result["weekly"]:
         result["errors"].append(f"缺少周报模板，尝试了: {[p.name for p in weekly_candidates]}")
-    
+
     # 检查月报模板
     monthly_candidates = [
         template_dir / f"MONTHLY_TEMPLATE_MEDICAL_{language.upper()}.html",
@@ -453,7 +453,7 @@ def validate_templates_exist(template_dir: Path, language: str = "CN") -> dict:
     result["monthly"] = any(p.exists() for p in monthly_candidates)
     if not result["monthly"]:
         result["errors"].append(f"缺少月报模板，尝试了: {[p.name for p in monthly_candidates]}")
-    
+
     return result
 
 
@@ -626,7 +626,7 @@ def parse_sleep_data_unified(
                     # 值 > 100 肯定是分钟
                     if value > 100:
                         return round(value / 60.0, 2)
-                
+
                 return round(float(value), 2)
 
             deep_h = normalize_hours(deep_raw, 'deep')
@@ -983,14 +983,14 @@ def validate_config_schema(config: dict) -> list:
                 errors.append(f"members[{i}].age 必须是数字")
             elif age < 1 or age > 130:
                 errors.append(f"members[{i}].age 值 {age} 超出正常范围 (1-130)")
-        
+
         height_cm = member.get('height_cm')
         if height_cm is not None:
             if not isinstance(height_cm, (int, float)):
                 errors.append(f"members[{i}].height_cm 必须是数字")
             elif height_cm < 50 or height_cm > 250:
                 errors.append(f"members[{i}].height_cm 值 {height_cm} 超出正常范围 (50-250 cm)")
-        
+
         weight_kg = member.get('weight_kg')
         if weight_kg is not None:
             if not isinstance(weight_kg, (int, float)):
@@ -1064,6 +1064,20 @@ def validate_config_schema(config: dict) -> list:
             errors.append("analysis_limits.metric_min_words 应小于等于 daily_min_words")
         if action_min > daily_min:
             errors.append("analysis_limits.action_min_words 应小于等于 daily_min_words")
+
+        ratio_keys = [
+            'lang_en_max_chinese_ratio_strict',
+            'lang_en_max_chinese_ratio_warn',
+            'lang_cn_min_chinese_ratio_strict',
+            'lang_cn_min_chinese_ratio_warn',
+        ]
+        for k in ratio_keys:
+            if k in limits:
+                v = limits.get(k)
+                if not isinstance(v, (int, float)):
+                    errors.append(f"analysis_limits.{k} 必须是数字")
+                elif v < 0 or v > 1:
+                    errors.append(f"analysis_limits.{k} 必须在 0 到 1 之间")
 
     # sleep_config
     sleep_config = config.get('sleep_config', {})
@@ -1205,7 +1219,7 @@ def count_text_units(text: Any, language: str = "CN") -> int:
     """统计文本长度单位。
 
     - EN: 按英文单词数统计
-    - CN/其他: 按非空白字符数统计（近似“字数”）
+    - CN/其他: 按非空白字符数统计（近似"字数"）
     """
     if not isinstance(text, str):
         return 0
@@ -1221,8 +1235,33 @@ def count_text_units(text: Any, language: str = "CN") -> int:
         words = re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?|\d+(?:\.\d+)?", text)
         return len(words)
 
-    # CN/其他语言：统计非空白字符（更符合“字数”语义，且兼容中英混排）
+    # CN/其他语言：统计非空白字符（更符合"字数"语义，且兼容中英混排）
     return len(re.sub(r"\s+", "", text))
+
+
+def _get_language_ratio_thresholds() -> dict:
+    """读取语言检测阈值（支持 analysis_limits 覆盖）。"""
+    defaults = {
+        'lang_en_max_chinese_ratio_strict': 0.15,
+        'lang_en_max_chinese_ratio_warn': 0.20,
+        'lang_cn_min_chinese_ratio_strict': 0.30,
+        'lang_cn_min_chinese_ratio_warn': 0.20,
+    }
+
+    try:
+        cfg = load_config()
+        limits = cfg.get('analysis_limits', {}) if isinstance(cfg, dict) else {}
+        if not isinstance(limits, dict):
+            return defaults
+
+        result = defaults.copy()
+        for k in defaults:
+            v = limits.get(k)
+            if isinstance(v, (int, float)) and 0 <= float(v) <= 1:
+                result[k] = float(v)
+        return result
+    except Exception:
+        return defaults
 
 
 def detect_language_mismatch_v3(
@@ -1231,12 +1270,12 @@ def detect_language_mismatch_v3(
     strict_mode: bool = False
 ) -> list:
     """改进的语言检测 V3 - 基于字符统计和langdetect
-    
+
     参数:
         ai_analysis: AI分析结果字典
         expected_language: 期望语言 ("CN" 或 "EN")
         strict_mode: 严格模式（False时允许少量其他语言字符）
-    
+
     返回:
         错误列表，为空表示检测通过
     """
@@ -1250,7 +1289,7 @@ def detect_language_mismatch_v3(
 
     # 默认指标名白名单（这些词不计入语言统计）
     default_cn_metrics = [
-        "心率", "HRV", "静息心率", "步数", "距离", "活动能量", 
+        "心率", "HRV", "静息心率", "步数", "距离", "活动能量",
         "血氧", "爬楼", "站立", "基础代谢", "呼吸率", "睡眠", "运动",
         "千卡", "公里", "小时", "分钟", "次", "层", "步", "毫秒",
         "bpm", "ms", "深睡", "核心睡眠", "REM", "清醒"
@@ -1261,39 +1300,42 @@ def detect_language_mismatch_v3(
         "kcal", "km", "hours", "minutes", "bpm", "ms", "floors",
         "Deep", "Core", "REM", "Awake"
     ]
-    
+
     # 移除指标名
     text_for_check = full_text
     for metric in default_cn_metrics + default_en_metrics:
         text_for_check = text_for_check.replace(metric, "")
-    
+
     # 统计中文字符
     chinese_chars = len(re.findall(r'[\u4e00-\u9fa5]', text_for_check))
     total_chars = len(text_for_check.strip())
-    
+
     if total_chars == 0:
         return errors
-    
+
     # 计算中文比例
     chinese_ratio = chinese_chars / total_chars
-    
+
+    # 读取可配置阈值
+    thresholds = _get_language_ratio_thresholds()
+
     if expected_language == "EN":
-        # EN模式：中文比例应低于阈值（放宽到15%/20%以容纳中文术语）
-        threshold = 0.15 if strict_mode else 0.20  # 15%或20%
+        # EN模式：中文比例应低于阈值
+        threshold = thresholds['lang_en_max_chinese_ratio_strict'] if strict_mode else thresholds['lang_en_max_chinese_ratio_warn']
         if chinese_ratio > threshold:
             errors.append(
                 f"语言配置不匹配: 设置为 EN(英文), "
-                f"但检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%})"
+                f"但检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%}, 阈值 {threshold:.0%})"
             )
     elif expected_language == "CN":
         # CN模式：中文比例应高于阈值
-        threshold = 0.30 if strict_mode else 0.20  # 30%或20%
+        threshold = thresholds['lang_cn_min_chinese_ratio_strict'] if strict_mode else thresholds['lang_cn_min_chinese_ratio_warn']
         if chinese_ratio < threshold:
             errors.append(
                 f"语言配置不匹配: 设置为 CN(中文), "
-                f"但只检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%})"
+                f"但只检测到 {chinese_chars} 个中文汉字 (占比 {chinese_ratio:.1%}, 阈值 {threshold:.0%})"
             )
-    
+
     return errors
 
 # 保留旧函数名兼容
@@ -1352,28 +1394,28 @@ def fix_json_quotes(json_text: str) -> str:
 def safe_json_loads(json_text: str, context: str = "") -> dict:
     """
     安全地解析 JSON，自动修复常见问题
-    
+
     Args:
         json_text: JSON 字符串
         context: 上下文描述（用于错误报告）
-    
+
     Returns:
         解析后的字典
-    
+
     Raises:
         json.JSONDecodeError: 如果修复后仍无法解析
     """
     import json
-    
+
     # 首先尝试直接解析
     try:
         return json.loads(json_text)
     except json.JSONDecodeError:
         pass
-    
+
     # 尝试修复中文引号
     fixed_text = fix_json_quotes(json_text)
-    
+
     try:
         result = json.loads(fixed_text)
         print(f"⚠️  {context}: JSON 已自动修复中文引号")

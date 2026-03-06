@@ -370,6 +370,40 @@ def _sleep_total(sleep_obj: dict) -> float:
         return 0.0
     return float(sleep_obj.get('total_hours', sleep_obj.get('total', 0)) or 0)
 
+
+def _active_energy_kcal(day_obj: dict):
+    """兼容活动能量字段：active_energy（新）/ active_energy_kcal（旧）"""
+    if not isinstance(day_obj, dict):
+        return None
+    v = day_obj.get('active_energy')
+    if isinstance(v, (int, float)):
+        return float(v)
+    v = day_obj.get('active_energy_kcal')
+    if isinstance(v, (int, float)):
+        return float(v)
+    return None
+
+
+def _stand_hours(day_obj: dict):
+    """兼容站立时长字段：apple_stand_hour（小时）/ apple_stand_time（分钟）/ stand_time_min（分钟）"""
+    if not isinstance(day_obj, dict):
+        return None
+
+    stand_hour_raw = day_obj.get('apple_stand_hour')
+    if isinstance(stand_hour_raw, (int, float)):
+        return float(stand_hour_raw)
+
+    stand_min_raw = day_obj.get('apple_stand_time')
+    if isinstance(stand_min_raw, (int, float)):
+        return float(stand_min_raw) / 60.0
+
+    stand_min_legacy = day_obj.get('stand_time_min')
+    if isinstance(stand_min_legacy, (int, float)):
+        return float(stand_min_legacy) / 60.0
+
+    return None
+
+
 def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px):
     # 动态计算 Y 轴范围（忽略 None）
     def calc_range(values, min_default, max_default, padding=0.1):
@@ -607,7 +641,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
             sleep_val = _sleep_total(data.get('sleep'))
             sleep_text = f"{sleep_val:.1f}h" if sleep_val > 0 else '--'
 
-            active_energy_val = data.get('active_energy')
+            active_energy_val = _active_energy_kcal(data)
             active_energy_text = f"{int(active_energy_val)}kcal" if isinstance(active_energy_val, (int, float)) else '--'
 
             row = f"""<tr>
@@ -801,17 +835,13 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
         sleep_raw = _sleep_total(d.get('sleep'))
         sleep_series.append(float(sleep_raw) if sleep_raw > 0 else None)
 
-        active_energy_raw = d.get('active_energy')
+        active_energy_raw = _active_energy_kcal(d)
         if isinstance(active_energy_raw, (int, float)):
             active_energy_series.append(float(active_energy_raw))
 
-        # V5.9.1: 优先使用 apple_stand_hour（小时），回退到 apple_stand_time（分钟）换算
-        stand_hour_raw = d.get('apple_stand_hour')
-        stand_min_raw = d.get('apple_stand_time')
-        if isinstance(stand_hour_raw, (int, float)):
-            stand_time_series.append(float(stand_hour_raw))
-        elif isinstance(stand_min_raw, (int, float)):
-            stand_time_series.append(float(stand_min_raw) / 60.0)
+        stand_hours = _stand_hours(d)
+        if isinstance(stand_hours, (int, float)):
+            stand_time_series.append(float(stand_hours))
 
     # 计算平均值时过滤 None（但保留 0）
     hrv_values = [v for v in hrv_series if isinstance(v, (int, float))]
@@ -913,17 +943,13 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
             if sleep_raw > 0:
                 prev_sleep.append(float(sleep_raw))
 
-            active_energy_raw = d.get('active_energy')
+            active_energy_raw = _active_energy_kcal(d)
             if isinstance(active_energy_raw, (int, float)):
                 prev_calories.append(float(active_energy_raw))
 
-            # V5.9.1: 优先使用 apple_stand_hour（小时），回退到 apple_stand_time（分钟）换算
-            stand_hour_raw = d.get('apple_stand_hour')
-            stand_min_raw = d.get('apple_stand_time')
-            if isinstance(stand_hour_raw, (int, float)):
-                prev_stand.append(float(stand_hour_raw))
-            elif isinstance(stand_min_raw, (int, float)):
-                prev_stand.append(float(stand_min_raw) / 60.0)
+            stand_hours = _stand_hours(d)
+            if isinstance(stand_hours, (int, float)):
+                prev_stand.append(float(stand_hours))
 
         hrv_change_pct, hrv_trend = calculate_trend(hrv_values, prev_hrv)
         steps_change_pct, steps_trend = calculate_trend(steps_values, prev_steps)
@@ -986,16 +1012,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     if not trend_assessment:
         raise ValueError(_err('missing_monthly_trend'))
 
-    # 检查趋势评估长度（strict 报错，warn 仅警告）
-    trend_text_clean = trend_assessment.replace('<strong>', '').replace('</strong>', '').replace('<br>', '').replace('\n', '')
-    trend_units = count_text_units(trend_text_clean, LANGUAGE)
-    unit_label = 'words' if LANGUAGE == 'EN' else '字'
-    if trend_units < MONTHLY_TREND_MIN_WORDS:
-        msg = _err('monthly_trend_short_msg', current=trend_units, unit=unit_label, minimum=MONTHLY_TREND_MIN_WORDS)
-        if VALIDATION_MODE == "strict":
-            raise ValueError(_err('monthly_trend_short_strict', msg=msg))
-        else:
-            print(_err('monthly_trend_short_warn', msg=msg))
+    # trend_assessment 长度在 verify_ai_analysis_monthly() 中已统一校验，避免重复提示
 
     html = html.replace('{{HRV_ANALYSIS}}', safe_html_paragraph(hrv_analysis))
     html = html.replace('{{SLEEP_ANALYSIS}}', safe_html_paragraph(sleep_analysis))
