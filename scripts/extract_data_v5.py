@@ -319,6 +319,54 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
     
+    # ===== 高级指标提取（V5.9.1 新增）=====
+    # 心肺能力
+    vo2_max, _ = extract_metric_avg(metrics, 'vo2_max')
+    physical_effort, _ = extract_metric_avg(metrics, 'physical_effort')
+    
+    # 步行步态
+    walking_speed, _ = extract_metric_avg(metrics, 'walking_speed')
+    walking_step_length, _ = extract_metric_avg(metrics, 'walking_step_length')
+    walking_heart_rate_average, _ = extract_metric_avg(metrics, 'walking_heart_rate_average')
+    walking_asymmetry_percentage, _ = extract_metric_avg(metrics, 'walking_asymmetry_percentage')
+    walking_double_support_percentage, _ = extract_metric_avg(metrics, 'walking_double_support_percentage')
+    
+    # 高级跑步
+    running_speed, _ = extract_metric_avg(metrics, 'running_speed')
+    running_power, _ = extract_metric_avg(metrics, 'running_power')
+    running_stride_length, _ = extract_metric_avg(metrics, 'running_stride_length')
+    running_ground_contact_time, _ = extract_metric_avg(metrics, 'running_ground_contact_time')
+    running_vertical_oscillation, _ = extract_metric_avg(metrics, 'running_vertical_oscillation')
+    
+    # 活动与机能
+    apple_exercise_time = extract_metric_sum(metrics, 'apple_exercise_time')
+    apple_stand_hour = extract_metric_sum(metrics, 'apple_stand_hour')
+    stair_speed_up, _ = extract_metric_avg(metrics, 'stair_speed_up')
+    
+    # 睡眠相关
+    breathing_disturbances, _ = extract_metric_avg(metrics, 'breathing_disturbances')
+    
+    # 环境暴露
+    headphone_audio_exposure, _ = extract_metric_avg(metrics, 'headphone_audio_exposure')
+    environmental_audio_exposure, _ = extract_metric_avg(metrics, 'environmental_audio_exposure')
+    
+    # 平均心率
+    heart_rate_avg, _ = extract_metric_avg(metrics, 'heart_rate')
+    running_vert_osc, _ = extract_metric_avg(metrics, 'running_vertical_oscillation')
+    
+    # 新增：步行相关指标
+    walking_speed_val, _ = extract_metric_avg(metrics, 'walking_speed')
+    walking_step_len, _ = extract_metric_avg(metrics, 'walking_step_length')
+    walking_asymmetry, _ = extract_metric_avg(metrics, 'walking_asymmetry_percentage')
+    walking_double_support, _ = extract_metric_avg(metrics, 'walking_double_support_percentage')
+    
+    # 新增：爬楼梯速度
+    stair_speed_up_val, _ = extract_metric_avg(metrics, 'stair_speed_up')
+    
+    # 新增：音频暴露指标
+    headphone_exposure, _ = extract_metric_avg(metrics, 'headphone_audio_exposure')
+    environmental_exposure, _ = extract_metric_avg(metrics, 'environmental_audio_exposure')
+    
     # V5.8.1: 睡眠数据使用统一解析函数
     from utils import parse_sleep_data_unified
     sleep_result = parse_sleep_data_unified(
@@ -365,6 +413,26 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         'spo2': round(spo2, 1) if spo2 else None,
         'basal_energy_kcal': round(basal_energy / KJ_TO_KCAL, 1) if basal_energy else 0,
         'respiratory_rate': round(respiratory, 1) if respiratory else None,
+        # 高级指标（V5.9.1 新增）
+        'heart_rate_avg': round(heart_rate_avg, 1) if heart_rate_avg else None,
+        'vo2_max': round(vo2_max, 1) if vo2_max else None,
+        'physical_effort': round(physical_effort, 2) if physical_effort else None,
+        'breathing_disturbances': round(breathing_disturbances, 1) if breathing_disturbances else None,
+        'apple_exercise_time': int(apple_exercise_time) if apple_exercise_time else 0,
+        'apple_stand_hour': int(apple_stand_hour) if apple_stand_hour else 0,
+        'stair_speed_up': round(stair_speed_up, 2) if stair_speed_up else None,
+        'running_speed': round(running_speed, 2) if running_speed else None,
+        'running_power': round(running_power, 1) if running_power else None,
+        'running_stride_length': round(running_stride_length, 1) if running_stride_length else None,
+        'running_ground_contact_time': round(running_ground_contact_time, 1) if running_ground_contact_time else None,
+        'running_vertical_oscillation': round(running_vertical_oscillation, 1) if running_vertical_oscillation else None,
+        'walking_speed': round(walking_speed, 2) if walking_speed else None,
+        'walking_step_length': round(walking_step_length, 1) if walking_step_length else None,
+        'walking_heart_rate_average': round(walking_heart_rate_average, 1) if walking_heart_rate_average else None,
+        'walking_asymmetry_percentage': round(walking_asymmetry_percentage, 2) if walking_asymmetry_percentage else None,
+        'walking_double_support_percentage': round(walking_double_support_percentage, 2) if walking_double_support_percentage else None,
+        'headphone_audio_exposure': round(headphone_audio_exposure, 1) if headphone_audio_exposure else None,
+        'environmental_audio_exposure': round(environmental_audio_exposure, 1) if environmental_audio_exposure else None,
         'sleep': {
             'total_hours': round(sleep_total, 2),
             'deep_hours': round(sleep_deep, 2) if sleep_deep else 0,
