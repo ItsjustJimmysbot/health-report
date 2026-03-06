@@ -1330,10 +1330,28 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{METRIC_ANALYSIS_COL_HEADER}}', col_header)
     html = html.replace('{{METRICS_TABLE_ROWS}}', rows_html)
 
-    # 睡眠 - 必须有真实AI内容
+    # 睡眠 - 优先使用AI分析，如果没有则自动生成数据概况
     sleep_analysis = ai_analysis.get('sleep')
     if not sleep_analysis:
-        raise ValueError(get_error_msg("missing_sleep"))
+        # 自动生成睡眠数据概况作为兜底
+        s = data.get('sleep', {})
+        s_total = s.get('total_hours', s.get('total', 0)) or 0
+        s_deep = s.get('deep_hours', s.get('deep', 0)) or 0
+        s_rem = s.get('rem_hours', s.get('rem', 0)) or 0
+        s_core = s.get('core_hours', s.get('core', 0)) or 0
+        
+        if LANGUAGE == 'EN':
+            sleep_analysis = (
+                f"Sleep data overview: Total {s_total:.1f}h, "
+                f"Deep {s_deep:.1f}h, REM {s_rem:.1f}h, Core {s_core:.1f}h. "
+                f"(AI detailed analysis not provided)"
+            )
+        else:
+            sleep_analysis = (
+                f"睡眠数据概览：总时长{s_total:.1f}小时，"
+                f"深睡{s_deep:.1f}小时，REM{s_rem:.1f}小时，核心睡眠{s_core:.1f}小时。"
+                f"（AI详细分析未提供）"
+            )
 
     # 获取睡眠总时长
     sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
