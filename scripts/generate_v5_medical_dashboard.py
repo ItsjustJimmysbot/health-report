@@ -367,6 +367,7 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
     """
     errors = []
     seen = set()
+
     unit_label = 'words' if LANGUAGE == 'EN' else '字'
 
     def add_err(msg: str):
@@ -413,26 +414,30 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
     expectation = priority.get('expectation', '')
 
     if title:
-        total_units += count_units(title)
-        if count_units(title) < MIN_LENGTH_PRIORITY_TITLE:
-            add_err(f"❌ 最高优先级标题长度不足: {count_units(title)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_TITLE}{unit_label})")
+        units = count_units(title)
+        total_units += units
+        if units < MIN_LENGTH_PRIORITY_TITLE:
+            add_err(f"❌ 最高优先级标题长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_TITLE}{unit_label})")
 
     if problem:
-        total_units += count_units(problem)
-        if count_units(problem) < MIN_LENGTH_PRIORITY_PROBLEM:
-            add_err(f"❌ 问题识别长度不足: {count_units(problem)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}{unit_label})")
+        units = count_units(problem)
+        total_units += units
+        if units < MIN_LENGTH_PRIORITY_PROBLEM:
+            add_err(f"❌ 问题识别长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_PROBLEM}{unit_label})")
 
     if action:
-        total_units += count_units(action)
-        if count_units(action) < MIN_LENGTH_PRIORITY_ACTION:
-            add_err(f"❌ 行动计划长度不足: {count_units(action)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_ACTION}{unit_label})")
-        if count_units(action) > MAX_LENGTH_PRIORITY_ACTION:
-            add_err(f"❌ 行动计划长度超限: {count_units(action)}{unit_label} (要求最多{MAX_LENGTH_PRIORITY_ACTION}{unit_label})")
+        units = count_units(action)
+        total_units += units
+        if units < MIN_LENGTH_PRIORITY_ACTION:
+            add_err(f"❌ 行动计划长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_ACTION}{unit_label})")
+        if units > MAX_LENGTH_PRIORITY_ACTION:
+            add_err(f"❌ 行动计划长度超限: {units}{unit_label} (要求最多{MAX_LENGTH_PRIORITY_ACTION}{unit_label})")
 
     if expectation:
-        total_units += count_units(expectation)
-        if count_units(expectation) < MIN_LENGTH_PRIORITY_EXPECTATION:
-            add_err(f"❌ 预期效果长度不足: {count_units(expectation)}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}{unit_label})")
+        units = count_units(expectation)
+        total_units += units
+        if units < MIN_LENGTH_PRIORITY_EXPECTATION:
+            add_err(f"❌ 预期效果长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_PRIORITY_EXPECTATION}{unit_label})")
 
     # 验证次级建议
     for prefix, label in [('ai2', '第二优先级'), ('ai3', '第三优先级')]:
@@ -442,21 +447,25 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
         expectation = ai_analysis.get(f'{prefix}_expectation', '')
 
         if title:
-            total_units += count_units(title)
-            if count_units(title) < MIN_LENGTH_AI2_TITLE:
-                add_err(f"❌ {label}标题长度不足: {count_units(title)}{unit_label} (要求至少{MIN_LENGTH_AI2_TITLE}{unit_label})")
+            units = count_units(title)
+            total_units += units
+            if units < MIN_LENGTH_AI2_TITLE:
+                add_err(f"❌ {label}标题长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_TITLE}{unit_label})")
         if problem:
-            total_units += count_units(problem)
-            if count_units(problem) < MIN_LENGTH_AI2_PROBLEM:
-                add_err(f"❌ {label}问题长度不足: {count_units(problem)}{unit_label} (要求至少{MIN_LENGTH_AI2_PROBLEM}{unit_label})")
+            units = count_units(problem)
+            total_units += units
+            if units < MIN_LENGTH_AI2_PROBLEM:
+                add_err(f"❌ {label}问题长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_PROBLEM}{unit_label})")
         if action:
-            total_units += count_units(action)
-            if count_units(action) < MIN_LENGTH_AI2_ACTION:
-                add_err(f"❌ {label}行动长度不足: {count_units(action)}{unit_label} (要求至少{MIN_LENGTH_AI2_ACTION}{unit_label})")
+            units = count_units(action)
+            total_units += units
+            if units < MIN_LENGTH_AI2_ACTION:
+                add_err(f"❌ {label}行动长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_ACTION}{unit_label})")
         if expectation:
-            total_units += count_units(expectation)
-            if count_units(expectation) < MIN_LENGTH_AI2_EXPECTATION:
-                add_err(f"❌ {label}效果长度不足: {count_units(expectation)}{unit_label} (要求至少{MIN_LENGTH_AI2_EXPECTATION}{unit_label})")
+            units = count_units(expectation)
+            total_units += units
+            if units < MIN_LENGTH_AI2_EXPECTATION:
+                add_err(f"❌ {label}效果长度不足: {units}{unit_label} (要求至少{MIN_LENGTH_AI2_EXPECTATION}{unit_label})")
 
     # 饮食方案（必填字段）
     diet_checks = [
@@ -470,9 +479,10 @@ def verify_ai_analysis(ai_analysis: dict, selected_metric_keys: list = None) -> 
         if not text:
             add_err(f"❌ {name} 缺失: 必须提供{name}内容")
         else:
-            total_units += count_units(text)
-            if count_units(text) < min_len:
-                add_err(f"❌ {name}长度不足: {count_units(text)}{unit_label} (要求至少{min_len}{unit_label})")
+            units = count_units(text)
+            total_units += units
+            if units < min_len:
+                add_err(f"❌ {name}长度不足: {units}{unit_label} (要求至少{min_len}{unit_label})")
 
     # 每日总长度下限（来自 analysis_limits.daily_min_words）
     if total_units < DAILY_MIN_WORDS:
@@ -525,24 +535,13 @@ def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
 
-    # V5.9.1: 统一兼容字符串日期与数字时间戳（秒/毫秒）
+    # V5.9.0: 睡眠数据严格时间窗口过滤，防止次日数据污染当日指标
     if target_date:
         filtered_arr = []
         for x in arr:
-            if not isinstance(x, dict):
-                continue
             st = x.get('startDate') or x.get('date')
             if st is None:
                 continue
-
-            st_dt = _parse_datetime_flexible(st)
-            if st_dt is not None:
-                st_date = st_dt.strftime('%Y-%m-%d')
-                if st_date == target_date:
-                    filtered_arr.append(x)
-                continue
-
-            # 兜底：无法解析时按字符串前缀匹配
             st_str = str(st)
             if st_str.startswith(target_date):
                 filtered_arr.append(x)
@@ -646,15 +645,6 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             workout_list = []
 
         for w in workout_list:
-            # 先解析开始/结束时间并按目标日期过滤，避免跨天运动混入
-            start_raw = w.get('start') or w.get('startDate')
-            end_raw = w.get('end') or w.get('endDate')
-            start_dt = _parse_datetime_flexible(start_raw)
-            end_dt = _parse_datetime_flexible(end_raw)
-
-            if start_dt is not None and start_dt.strftime('%Y-%m-%d') != date_str:
-                continue
-
             timeline = []
             hr_source = w.get('heartRateData') or w.get('hrData') or []
             for h in hr_source:
@@ -688,6 +678,11 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
             )
             energy_kcal = (float(energy_raw) / KJ_TO_KCAL) if isinstance(energy_raw, (int, float)) and energy_raw else 0
 
+            # 处理开始和结束时间（兼容 start/startDate 和 end/endDate）
+            start_raw = w.get('start') or w.get('startDate')
+            end_raw = w.get('end') or w.get('endDate')
+            start_dt = _parse_datetime_flexible(start_raw)
+            end_dt = _parse_datetime_flexible(end_raw)
             start_str = start_dt.strftime('%Y-%m-%d %H:%M') if start_dt else ''
             end_str = end_dt.strftime('%Y-%m-%d %H:%M') if end_dt else ''
 

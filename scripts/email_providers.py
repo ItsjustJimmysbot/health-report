@@ -279,7 +279,7 @@ class MailAppProvider(EmailProvider):
                 end tell
             end tell
             '''
-            
+
             # 执行AppleScript
             result = subprocess.run(
                 ['osascript', '-e', applescript],

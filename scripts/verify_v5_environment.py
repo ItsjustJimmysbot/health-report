@@ -71,7 +71,7 @@ def verify():
             print(f"❌ 脚本缺失: {s}")
 
     # 2. 检查模板（根据 language 配置检查对应语言模板）
-    language = config.get('language', 'CN')
+    language = str(config.get('language', 'CN')).strip().upper()
     if language == 'EN':
         templates = ['DAILY_TEMPLATE_MEDICAL_V2_EN.html', 'WEEKLY_TEMPLATE_MEDICAL_EN.html', 'MONTHLY_TEMPLATE_MEDICAL_EN.html']
     else:
