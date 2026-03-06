@@ -604,43 +604,35 @@ def parse_sleep_data_unified(
             rem_raw = record.get('rem', 0) or 0
             awake_raw = record.get('awake', 0) or 0
 
-            # 统一转换为小时（兼容原始值可能是小时或分钟）
-            raw_stage_map = {
-                'deep': deep_raw,
-                'core': core_raw,
-                'rem': rem_raw,
-                'awake': awake_raw,
-            }
-
-            positive_raw = []
-            for v in raw_stage_map.values():
-                if isinstance(v, (int, float)) and v > 0:
-                    positive_raw.append(float(v))
-
-            # 根据与 start/end 推导时长的接近程度，自动判断阶段数据单位
-            inferred_stage_unit = 'hours'
-            if positive_raw:
-                raw_sum = sum(positive_raw)
-                if duration_hours > 0:
-                    diff_hours = abs(raw_sum - duration_hours)
-                    diff_minutes = abs((raw_sum / 60.0) - duration_hours)
-                    # 增加一个小容差，避免浮点噪声导致抖动
-                    inferred_stage_unit = 'minutes' if (diff_minutes + 0.05) < diff_hours else 'hours'
-                else:
-                    inferred_stage_unit = 'minutes' if raw_sum > 24 else 'hours'
-
-            def to_hours(value):
-                if not isinstance(value, (int, float)) or value <= 0:
+            # 统一转换为小时（假设原始值可能是分钟或小时）
+            def normalize_hours(value, field_name=""):
+                if not value or value <= 0:
                     return 0.0
-                if inferred_stage_unit == 'minutes':
-                    return round(float(value) / 60.0, 2)
+
+                # 判断是否为睡眠阶段字段
+                is_stage = any(x in field_name.lower() for x in ['deep', 'core', 'rem', 'awake'])
+
+                # 更智能的单位判断逻辑
+                if is_stage:
+                    # 睡眠阶段正常范围：0.5-5 小时（30-300 分钟）
+                    # 值 > 30 几乎肯定是分钟
+                    if value > 30:
+                        return round(value / 60.0, 2)
+                    # 值在 10-30 之间：如果是整数可能是分钟，如果是小数可能是小时
+                    elif value > 10 and float(value) == int(value):
+                        return round(value / 60.0, 2)
+                else:
+                    # 总睡眠正常范围：3-12 小时（180-720 分钟）
+                    # 值 > 100 肯定是分钟
+                    if value > 100:
+                        return round(value / 60.0, 2)
+                
                 return round(float(value), 2)
 
-            deep_h = to_hours(deep_raw)
-            core_h = to_hours(core_raw)
-            rem_h = to_hours(rem_raw)
-            awake_h = to_hours(awake_raw)
-            stage_total = deep_h + core_h + rem_h + awake_h
+            deep_h = normalize_hours(deep_raw, 'deep')
+            core_h = normalize_hours(core_raw, 'core')
+            rem_h = normalize_hours(rem_raw, 'rem')
+            awake_h = normalize_hours(awake_raw, 'awake')
             stage_total = deep_h + core_h + rem_h + awake_h
 
             # 若分期字段缺失，则回退到 start/end 计算出的时长，避免 total_hours 被错误算成 0
@@ -941,15 +933,6 @@ def validate_config_schema(config: dict) -> list:
     """验证配置是否符合基础约束（不依赖外部 jsonschema 库）"""
     errors = []
 
-    def _is_valid_email(email: str) -> bool:
-        if not isinstance(email, str):
-            return False
-        email = email.strip()
-        if not email:
-            return False
-        # 轻量邮箱格式校验（与 schema format=email 目标一致）
-        return re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email) is not None
-
     # 基础类型
     if not isinstance(config, dict):
         errors.append("配置必须是 JSON 对象")
@@ -990,7 +973,7 @@ def validate_config_schema(config: dict) -> list:
 
         # 可选 email 格式校验
         email = member.get('email', '')
-        if email and not _is_valid_email(str(email)):
+        if email and '@' not in str(email):
             errors.append(f"members[{i}].email 格式无效: {email}")
 
         # 放宽的数值范围验证（仅警告极端值，不排除边界情况）
@@ -1017,6 +1000,7 @@ def validate_config_schema(config: dict) -> list:
 
     # 检查成员名唯一性
     member_names = []
+    safe_names = []
     for i, member in enumerate(members[:3]):
         if isinstance(member, dict):
             name = member.get('name', '')
@@ -1025,10 +1009,13 @@ def validate_config_schema(config: dict) -> list:
                     errors.append(f"members[{i}].name '{name}' 与其他成员重复")
                 member_names.append(name)
 
-    # receiver_email（可选）
-    receiver_email = config.get('receiver_email', '')
-    if receiver_email and not _is_valid_email(str(receiver_email)):
-        errors.append(f"receiver_email 格式无效: {receiver_email}")
+                # 检查 safe_member_name 冲突，避免输出文件名互相覆盖
+                safe_name = safe_member_name(name)
+                if safe_name in safe_names:
+                    errors.append(
+                        f"members[{i}].name '{name}' 转换后的安全名 '{safe_name}' 与其他成员冲突，请修改成员名称"
+                    )
+                safe_names.append(safe_name)
 
     # language
     language = config.get('language', 'CN')
@@ -1094,11 +1081,6 @@ def validate_config_schema(config: dict) -> list:
         if not isinstance(end_hour, int) or end_hour < 0 or end_hour > 23:
             errors.append("sleep_config.end_hour 必须是 0-23 的整数")
 
-    # receiver_email（可选）
-    receiver_email = config.get('receiver_email', '')
-    if receiver_email and not _is_valid_email(str(receiver_email)):
-        errors.append(f"receiver_email 格式无效: {receiver_email}")
-
     # email_config
     email_config = config.get('email_config', {})
     if email_config and not isinstance(email_config, dict):
@@ -1122,18 +1104,12 @@ def validate_config_schema(config: dict) -> list:
             for k in ['client_id', 'client_secret', 'refresh_token', 'sender_email']:
                 if not oauth2.get(k):
                     errors.append(f"email_config.oauth2 启用时缺少字段: {k}")
-            oauth2_sender = oauth2.get('sender_email', '')
-            if oauth2_sender and not _is_valid_email(str(oauth2_sender)):
-                errors.append(f"email_config.oauth2.sender_email 格式无效: {oauth2_sender}")
 
         smtp = email_config.get('smtp', {})
         if isinstance(smtp, dict) and smtp.get('enabled'):
             for k in ['sender_email', 'password']:
                 if not smtp.get(k):
                     errors.append(f"email_config.smtp 启用时缺少字段: {k}")
-            smtp_sender = smtp.get('sender_email', '')
-            if smtp_sender and not _is_valid_email(str(smtp_sender)):
-                errors.append(f"email_config.smtp.sender_email 格式无效: {smtp_sender}")
 
         local_cfg = email_config.get('local', {})
         if isinstance(local_cfg, dict) and local_cfg.get('enabled'):
@@ -1229,7 +1205,7 @@ def count_text_units(text: Any, language: str = "CN") -> int:
     """统计文本长度单位。
 
     - EN: 按英文单词数统计
-    - CN/其他: 按非空白字符数统计（近似"字数"）
+    - CN/其他: 按非空白字符数统计（近似“字数”）
     """
     if not isinstance(text, str):
         return 0
@@ -1245,7 +1221,7 @@ def count_text_units(text: Any, language: str = "CN") -> int:
         words = re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?|\d+(?:\.\d+)?", text)
         return len(words)
 
-    # CN/其他语言：统计非空白字符（更符合"字数"语义，且兼容中英混排）
+    # CN/其他语言：统计非空白字符（更符合“字数”语义，且兼容中英混排）
     return len(re.sub(r"\s+", "", text))
 
 

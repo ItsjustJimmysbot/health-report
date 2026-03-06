@@ -30,8 +30,8 @@ def get_member_config(member_idx=0):
         print(f"⚠️ 警告: 成员数 {len(members)} 超过上限 {MAX_MEMBERS}，仅处理前 {MAX_MEMBERS} 位", file=sys.stderr)
         members = members[:MAX_MEMBERS]
     
-    # 检查索引是否越界
-    if member_idx >= len(members):
+    # 检查索引是否越界（同时防止负索引误取最后一个成员）
+    if member_idx < 0 or member_idx >= len(members):
         print(f"⚠️ 警告: 成员索引 {member_idx} 超出范围，回退到第一个成员(0)", file=sys.stderr)
         member_idx = 0
     
@@ -454,7 +454,7 @@ if __name__ == '__main__':
         data = extract_daily_data(
             date_str,
             member_config['health_dir'],
-            member_config['workout_dir'], 
+            member_config['workout_dir'],
             member_config['profile'],
             sleep_config
         )

@@ -7,10 +7,6 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 
 > 详细文档请看 `README.md`（安装、全量配置、故障排查都在那边）。
 
-## 0) 版本状态
-- 当前推荐运行版本：**V5.9.1**
-- `config.version` 支持 `5.8.x / 5.9.x`（示例可写 `5.9.0` 或 `5.9.1`）
-
 ## 1) 核心能力
 - 提取 Apple Health JSON 数据（支持多成员，最多 3 位）
 - 生成日报 / 周报 / 月报 PDF
@@ -21,7 +17,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 ## 2) 最小配置（config.json）
 ```json
 {
-  "version": "5.9.1",
+  "version": "5.9.0",
   "members": [
     {
       "name": "Jimmy",
@@ -77,13 +73,13 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 ## 3) 标准命令
 ### 日报
 ```bash
-# 首次使用请先准备 config.json
-cp config.json.example config.json
-
 python3 scripts/extract_data_v5.py YYYY-MM-DD [member_index|all]
 python3 scripts/generate_v5_medical_dashboard.py YYYY-MM-DD < ai_analysis.json
 python3 scripts/send_health_report_email.py YYYY-MM-DD [member_index|all]
 ```
+
+# 可选：显式指定配置与schema
+python3 scripts/validate_config.py --config ./config.json --schema ./config.schema.json
 
 ### 周报
 ```bash
@@ -137,7 +133,9 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 
 ## 5) 必须遵守
 - `language` 与 AI 输出语言需一致（CN/EN）。
-- `analysis_limits` 会被脚本校验；`validation_mode` 仅影响长度/语言阈值类校验（CN按字数，EN按单词数）。
+- `analysis_limits` 会被脚本校验；`validation_mode` 影响长度/语言阈值校验（CN按字数，EN按单词数）。
+- 当 `report_metrics.require_ai_for_selected=true` 时，缺失已选指标 AI 段落也走同一校验通道（strict 报错 / warn 警告继续）。
+- 月报趋势对比使用上月平均值，且上月可用缓存数据需 ≥15 天，否则趋势默认持平。
 - 多成员默认最多处理前 3 位。
 - 详细规则、限制与排障请查 `README.md`。
 
