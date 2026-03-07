@@ -281,10 +281,8 @@ body {
   font-size: 14px;
   font-weight: 600;
   margin-top: 8px;
+  /* V6.0.2: 删除非标准的:contains选择器，使用内联样式 */
 }
-
-.age-impact:contains("-") { color: #51cf66; }
-.age-impact:contains("+") { color: #ff6b6b; }
 
 .age-arrow {
   font-size: 32px;
@@ -1071,7 +1069,7 @@ body {
       
       <div class="age-arrow">→</div>
       
-      <div class="age-box body {% if AGE_IMPACT < 0 %}younger{% elif AGE_IMPACT > 0 %}older{% endif %}">
+      <div class="age-box body {{AGE_BOX_CLASS}}">
         <div class="age-label">身体年龄</div>
         <div class="age-value">{{BODY_AGE}}</div>
         <div class="age-unit">岁</div>

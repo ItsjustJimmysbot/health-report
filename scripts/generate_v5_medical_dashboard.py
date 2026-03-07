@@ -1476,8 +1476,28 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     recovery_status_cn = '优秀' if health_scores['recovery'] >= 67 else '良好' if health_scores['recovery'] >= 34 else '需恢复'
     html = html.replace('{{RECOVERY_STATUS_CN}}', recovery_status_cn)
     
-    # V6.0.1: Body Age 提示
+    # V6.0.2: Body Age 模板替换（修复PDF渲染）
     age_impact = health_scores['age_impact']
+    
+    # CSS类根据age_impact动态选择
+    if age_impact < 0:
+        age_box_class = "younger"
+        age_impact_color = "#51cf66"
+    elif age_impact > 0:
+        age_box_class = "older"
+        age_impact_color = "#ff6b6b"
+    else:
+        age_box_class = ""
+        age_impact_color = "#74c0fc"
+    
+    # 替换CSS类
+    html = html.replace('{{AGE_BOX_CLASS}}', age_box_class)
+    
+    # 年龄影响带颜色（使用内联样式）
+    age_impact_str = f"{age_impact:+.1f}"
+    html = html.replace('{{AGE_IMPACT}}', f'<span style="color: {age_impact_color}">{age_impact_str}</span>')
+    
+    # Body Age 提示
     if age_impact < -1:
         age_hint = f"🎉 你的身体比实际年龄年轻{abs(age_impact):.1f}岁，继续保持！" if LANGUAGE == 'CN' else f"🎉 Your body is {abs(age_impact):.1f} years younger than your actual age!"
     elif age_impact < 0:
