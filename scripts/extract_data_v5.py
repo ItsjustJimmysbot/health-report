@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V5.9.1报告生成 - 支持多成员"""
+"""提取Apple Health数据用于V6.0.0报告生成 - 支持多成员"""
 
 import json
 import sys
@@ -185,7 +185,7 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
                 print(f"⚠️  时间解析失败: {start_ts} - {e}", file=sys.stderr)
                 continue
 
-            # V5.9.1: 仅保留目标日期的运动记录，避免跨天数据混入
+            # V6.0.0: 仅保留目标日期的运动记录，避免跨天数据混入
             if start_dt.strftime('%Y-%m-%d') != date_str:
                 continue
             
@@ -323,7 +323,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
     
-    # ===== 高级指标提取（V5.9.1 新增）=====
+    # ===== 高级指标提取（V6.0.0 新增）=====
     # 心肺能力
     vo2_max, _ = extract_metric_avg(metrics, 'vo2_max')
     physical_effort, _ = extract_metric_avg(metrics, 'physical_effort')
@@ -417,7 +417,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         'spo2': round(spo2, 1) if spo2 else None,
         'basal_energy_kcal': round(basal_energy / KJ_TO_KCAL, 1) if basal_energy else 0,
         'respiratory_rate': round(respiratory, 1) if respiratory else None,
-        # 高级指标（V5.9.1 新增）
+        # 高级指标（V6.0.0 新增）
         'heart_rate_avg': round(heart_rate_avg, 1) if heart_rate_avg else None,
         'vo2_max': round(vo2_max, 1) if vo2_max else None,
         'physical_effort': round(physical_effort, 2) if physical_effort else None,

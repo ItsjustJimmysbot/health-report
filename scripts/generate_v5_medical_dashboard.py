@@ -26,6 +26,9 @@ from playwright.sync_api import sync_playwright
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL, count_text_units
 
+# V6.0.0: 导入健康评分模块
+from health_score import calculate_all_scores, HealthScoreHistory
+
 # ==================== 全局配置（从 config.json 加载）====================
 CONFIG = load_config()
 LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
@@ -464,7 +467,7 @@ def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
 
-    # V5.9.1: 统一兼容字符串日期与数字时间戳（秒/毫秒）
+    # V6.0.0: 统一兼容字符串日期与数字时间戳（秒/毫秒）
     if target_date:
         filtered_arr = []
         for x in arr:
@@ -1427,6 +1430,52 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SCORE_SLEEP}}', str(sleep_score)).replace('{{BADGE_SLEEP_CLASS}}', sc).replace('{{BADGE_SLEEP_TEXT}}', st)
     html = html.replace('{{SCORE_EXERCISE}}', str(exercise)).replace('{{BADGE_EXERCISE_CLASS}}', ec).replace('{{BADGE_EXERCISE_TEXT}}', et)
 
+    # V6.0.0: 计算新的健康评分系统
+    cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
+    history = HealthScoreHistory(cache_dir)
+    
+    health_scores = calculate_all_scores(data, member_cfg, history)
+    
+    print(f"   Strain: {health_scores['strain']}/21")
+    print(f"   Recovery: {health_scores['recovery']}% ({health_scores['recovery_status']})")
+    print(f"   Sleep Performance: {health_scores['sleep_performance']}%")
+    print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
+    print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
+    
+    # V6.0.0: 新的健康评分替换
+    html = html.replace('{{STRAIN}}', str(health_scores['strain']))
+    html = html.replace('{{STRAIN_PERCENT}}', str(int(health_scores['strain'] / 21 * 100)))
+    html = html.replace('{{RECOVERY}}', str(health_scores['recovery']))
+    html = html.replace('{{RECOVERY_STATUS}}', health_scores['recovery_status'])
+    html = html.replace('{{SLEEP_PERFORMANCE}}', str(health_scores['sleep_performance']))
+    html = html.replace('{{SLEEP_NEED}}', str(health_scores['sleep_need']))
+    html = html.replace('{{BODY_AGE}}', str(health_scores['body_age']))
+    html = html.replace('{{CHRONOLOGICAL_AGE}}', str(health_scores['chronological_age']))
+    html = html.replace('{{AGE_IMPACT}}', f"{health_scores['age_impact']:+.1f}")
+    html = html.replace('{{PACE_OF_AGING}}', str(health_scores['pace_of_aging']))
+    
+    # Pace描述
+    pace = health_scores['pace_of_aging']
+    if pace < -0.3:
+        pace_desc = "逆龄中 🟢" if LANGUAGE == 'CN' else "Reverse Aging 🟢"
+        pace_class = "reverse-aging"
+    elif pace < 0.3:
+        pace_desc = "停龄 ⚪" if LANGUAGE == 'CN' else "Stable ⚪"
+        pace_class = "stable"
+    elif pace < 1.0:
+        pace_desc = "正常衰老 🟡" if LANGUAGE == 'CN' else "Normal Aging 🟡"
+        pace_class = "normal"
+    else:
+        pace_desc = "加速衰老 🔴" if LANGUAGE == 'CN' else "Accelerated 🔴"
+        pace_class = "accelerated"
+    
+    html = html.replace('{{PACE_DESC}}', pace_desc)
+    html = html.replace('{{PACE_CLASS}}', pace_class)
+    
+    # Recovery状态中文
+    recovery_status_cn = '优秀' if health_scores['recovery'] >= 67 else '良好' if health_scores['recovery'] >= 34 else '需恢复'
+    html = html.replace('{{RECOVERY_STATUS_CN}}', recovery_status_cn)
+
     # V5.9.0: 动态指标表渲染
     selected_metric_keys = get_selected_metric_keys()
     rows_html = build_metrics_table_rows(data, ai_analysis, selected_metric_keys)
@@ -1781,6 +1830,37 @@ if __name__ == '__main__':
 
             # 保存缓存
             try:
+                # V6.0.0: 扩展缓存数据，添加睡眠债和健康评分
+                sleep_data = data.get('sleep', {})
+                sleep_total = sleep_data.get('total_hours', 0)
+                sleep_need = health_scores['sleep_need']
+                
+                # 计算当日睡眠债
+                if sleep_total < sleep_need:
+                    daily_debt = sleep_need - sleep_total
+                else:
+                    daily_debt = max(0, -0.5)
+                
+                # 获取累积睡眠债（从昨天缓存）
+                prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+                prev_cache = history.get_scores(prev_date, member_name)
+                accumulated_debt = 0
+                if prev_cache and 'sleep_debt_accumulated' in prev_cache:
+                    accumulated_debt = max(0, prev_cache['sleep_debt_accumulated'] + daily_debt)
+                else:
+                    accumulated_debt = max(0, daily_debt)
+                
+                # 提取就寝/起床时间
+                bedtime = "--"
+                waketime = "--"
+                if sleep_data.get('records') and len(sleep_data['records']) > 0:
+                    first_record = sleep_data['records'][0]
+                    last_record = sleep_data['records'][-1]
+                    if 'start' in first_record:
+                        bedtime = first_record['start']
+                    if 'end' in last_record:
+                        waketime = last_record['end']
+                
                 cache_data = {
                     'date': date_str,
                     'member': member_name,
@@ -1792,7 +1872,28 @@ if __name__ == '__main__':
                     'spo2': data['spo2'],
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],
-                    'sleep': data['sleep']
+                    'sleep': sleep_data,
+                    # V6.0.0: 睡眠细节
+                    'bedtime': bedtime,
+                    'waketime': waketime,
+                    'sleep_latency_min': 20,
+                    'sleep_debt_daily': round(daily_debt, 2),
+                    'sleep_debt_accumulated': round(accumulated_debt, 2),
+                    # V6.0.0: 健康评分
+                    'health_scores': {
+                        'strain': health_scores['strain'],
+                        'recovery': health_scores['recovery'],
+                        'recovery_status': health_scores['recovery_status'],
+                        'sleep_performance': health_scores['sleep_performance'],
+                        'sleep_need': health_scores['sleep_need'],
+                        'actual_sleep_hours': round(sleep_total, 2),
+                        'body_age': health_scores['body_age'],
+                        'chronological_age': health_scores['chronological_age'],
+                        'age_impact': health_scores['age_impact'],
+                        'pace_of_aging': health_scores['pace_of_aging'],
+                        'hrv_rmssd': data['hrv'].get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
+                        'rhr': data['resting_hr'].get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0
+                    }
                 }
                 cache_path = CACHE_DIR / f'{date_str}_{safe_name}.json'
                 with open(cache_path, 'w', encoding='utf-8') as f:

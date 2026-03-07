@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V5.9.1 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V6.0.0 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < ai_analysis.json
@@ -14,7 +14,7 @@ from pathlib import Path
 from html import escape as html_escape
 from playwright.sync_api import sync_playwright
 
-# V5.9.1: 使用共用工具函数
+# V6.0.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS, count_text_units
 

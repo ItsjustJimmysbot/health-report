@@ -180,6 +180,126 @@ body {
 .badge-average { background: var(--yellow-light); color: var(--yellow-dark); }
 .badge-poor { background: #FEE2E2; color: #DC2626; }
 
+/* V6.0.0: 健康评分新样式 */
+.score-card.strain::before { background: linear-gradient(90deg, #ff6b6b, #ff8787); }
+.score-card.sleep-performance::before { background: linear-gradient(90deg, #74c0fc, #a5d8ff); }
+
+.score-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0;
+}
+
+.score-status-badge.green { background: #d3f9d8; color: #2b8a3e; }
+.score-status-badge.yellow { background: #fff9db; color: #f08c00; }
+.score-status-badge.red { background: #ffe3e3; color: #c92a2a; }
+
+/* Pace of Aging */
+.pace-section {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.pace-section.reverse-aging { border: 2px solid #51cf66; }
+.pace-section.stable { border: 2px solid #74c0fc; }
+.pace-section.normal { border: 2px solid #ffd93d; }
+.pace-section.accelerated { border: 2px solid #ff6b6b; }
+
+.pace-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pace-icon { font-size: 24px; }
+.pace-label { font-size: 14px; color: #888; }
+.pace-value { font-size: 36px; font-weight: bold; color: #fff; }
+
+.pace-desc {
+  font-size: 16px;
+  color: #fff;
+  margin: 8px 0;
+}
+
+.pace-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #666;
+}
+
+.pace-legend span.active { color: #fff; font-weight: 600; }
+
+/* Body Age */
+.body-age-section { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+
+.body-age-display {
+  padding: 24px;
+}
+
+.age-comparison {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+
+.age-box {
+  text-align: center;
+  padding: 20px 32px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 16px;
+  min-width: 120px;
+}
+
+.age-box.younger {
+  background: linear-gradient(135deg, rgba(81,207,102,0.2), rgba(81,207,102,0.05));
+  border: 2px solid #51cf66;
+}
+
+.age-box.older {
+  background: linear-gradient(135deg, rgba(255,107,107,0.2), rgba(255,107,107,0.05));
+  border: 2px solid #ff6b6b;
+}
+
+.age-label { font-size: 14px; color: #888; margin-bottom: 8px; }
+.age-value { font-size: 42px; font-weight: bold; color: #fff; }
+.age-unit { font-size: 14px; color: #666; margin-top: 4px; }
+
+.age-impact {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.age-impact:contains("-") { color: #51cf66; }
+.age-impact:contains("+") { color: #ff6b6b; }
+
+.age-arrow {
+  font-size: 32px;
+  color: #666;
+}
+
+.age-hint {
+  text-align: center;
+  padding: 16px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  font-size: 14px;
+  color: #ccc;
+}
+
 /* ===== Section Cards ===== */
 .section-card {
   background: var(--white);
@@ -793,22 +913,58 @@ body {
   </div>
 </div>
 
-<!-- Score Cards -->
-<div class="score-section">
-  <div class="score-card recovery">
-    <div class="score-value">{{SCORE_RECOVERY}}</div>
-    <div class="score-label">恢复度</div>
-    <span class="badge {{BADGE_RECOVERY_CLASS}}">{{BADGE_RECOVERY_TEXT}}</span>
+<!-- V6.0.0: 健康评分核心指标 -->
+<div class="score-section v6-health-scores">
+  <!-- Strain -->
+  <div class="score-card strain" data-score="{{STRAIN}}">
+    <div class="score-header">
+      <span class="score-name">日负荷</span>
+      <span class="score-value" style="color: #ff6b6b;">{{STRAIN}}</span>
+    </div>
+    <div class="score-bar">
+      <div class="score-fill" style="width: {{STRAIN_PERCENT}}%; background: linear-gradient(90deg, #51cf66, #ffd93d, #ff6b6b);"></div>
+    </div>
+    <div class="score-scale">0-21</div>
   </div>
-  <div class="score-card sleep">
-    <div class="score-value">{{SCORE_SLEEP}}</div>
-    <div class="score-label">睡眠质量</div>
-    <span class="badge {{BADGE_SLEEP_CLASS}}">{{BADGE_SLEEP_TEXT}}</span>
+  
+  <!-- Recovery -->
+  <div class="score-card recovery {{RECOVERY_STATUS}}">
+    <div class="score-header">
+      <span class="score-name">恢复度</span>
+      <span class="score-value" style="color: {% if RECOCOVERY >= 67 %}#51cf66{% elif RECOVERY >= 34 %}#ffd93d{% else %}#ff6b6b{% endif %};">{{RECOVERY}}%</span>
+    </div>
+    <div class="score-status-badge {{RECOVERY_STATUS}}">{{RECOVERY_STATUS_CN}}</div>
+    <div class="score-bar">
+      <div class="score-fill" style="width: {{RECOVERY}}%; background: {% if RECOVERY >= 67 %}#51cf66{% elif RECOVERY >= 34 %}#ffd93d{% else %}#ff6b6b{% endif %};"></div>
+    </div>
   </div>
-  <div class="score-card exercise">
-    <div class="score-value">{{SCORE_EXERCISE}}</div>
-    <div class="score-label">运动完成</div>
-    <span class="badge {{BADGE_EXERCISE_CLASS}}">{{BADGE_EXERCISE_TEXT}}</span>
+  
+  <!-- Sleep Performance -->
+  <div class="score-card sleep-performance">
+    <div class="score-header">
+      <span class="score-name">睡眠质量</span>
+      <span class="score-value" style="color: #74c0fc;">{{SLEEP_PERFORMANCE}}%</span>
+    </div>
+    <div class="score-sub">需要 {{SLEEP_NEED}}h</div>
+    <div class="score-bar">
+      <div class="score-fill" style="width: {{SLEEP_PERFORMANCE}}%; background: #74c0fc;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- V6.0.0: Pace of Aging -->
+<div class="pace-section {{PACE_CLASS}}">
+  <div class="pace-header">
+    <span class="pace-icon">⏱️</span>
+    <span class="pace-label">衰老速度趋势 (7天)</span>
+    <span class="pace-value">{{PACE_OF_AGING}}x</span>
+  </div>
+  <div class="pace-desc">{{PACE_DESC}}</div>
+  <div class="pace-legend">
+    <span class="{% if PACE_OF_AGING < -0.3 %}active{% endif %}">🟢 逆龄</span>
+    <span class="{% if PACE_OF_AGING >= -0.3 and PACE_OF_AGING < 0.3 %}active{% endif %}">⚪ 停龄</span>
+    <span class="{% if PACE_OF_AGING >= 0.3 and PACE_OF_AGING < 1.0 %}active{% endif %}">🟡 正常</span>
+    <span class="{% if PACE_OF_AGING >= 1.0 %}active{% endif %}">🔴 加速</span>
   </div>
 </div>
 
@@ -893,6 +1049,47 @@ body {
 
   <div class="sleep-analysis-box">
     <strong>AI深度分析：</strong>{{SLEEP_ANALYSIS_TEXT}}
+  </div>
+</div>
+
+<!-- V6.0.0: Body Age -->
+<div class="section-card body-age-section">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">⏱️</span>
+      身体年龄
+    </div>
+  </div>
+  
+  <div class="body-age-display">
+    <div class="age-comparison">
+      <div class="age-box chronological">
+        <div class="age-label">实际年龄</div>
+        <div class="age-value">{{CHRONOLOGICAL_AGE}}</div>
+        <div class="age-unit">岁</div>
+      </div>
+      
+      <div class="age-arrow">→</div>
+      
+      <div class="age-box body {% if AGE_IMPACT < 0 %}younger{% elif AGE_IMPACT > 0 %}older{% endif %}">
+        <div class="age-label">身体年龄</div>
+        <div class="age-value">{{BODY_AGE}}</div>
+        <div class="age-unit">岁</div>
+        <div class="age-impact">{{AGE_IMPACT}}</div>
+      </div>
+    </div>
+    
+    <div class="age-hint">
+      {% if AGE_IMPACT < -1 %}
+        🎉 你的身体比实际年龄年轻{{AGE_IMPACT|abs}}岁，继续保持！
+      {% elif AGE_IMPACT < 0 %}
+        ✅ 你的身体状态略优于实际年龄
+      {% elif AGE_IMPACT < 2 %}
+        ⚠️ 身体年龄与实际年龄接近，注意调整作息
+      {% else %}
+        🔴 身体年龄比实际年龄老{{AGE_IMPACT}}岁，建议改善生活习惯
+      {% endif %}
+    </div>
   </div>
 </div>
 

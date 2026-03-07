@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Health Report 共用工具函数 - V5.9.1"""
+"""Health Report 共用工具函数 - V6.0.0"""
 
 import json
 import re

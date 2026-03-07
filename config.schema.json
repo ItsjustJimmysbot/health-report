@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Health Report Config",
-  "description": "Configuration schema for Health Report V5.9.1",
+  "description": "Configuration schema for Health Report V6.0.0",
   "type": "object",
   "required": [
     "version",
@@ -11,8 +11,8 @@
   "properties": {
     "version": {
       "type": "string",
-      "pattern": "^5\\.(8|9)\\.\\d+$",
-      "description": "配置版本号，格式: 5.x.x"
+      "pattern": "^(5\\.(8|9)|6\\.0)\\.\\d+$",
+      "description": "配置版本号，格式: 5.x.x 或 6.0.x"
     },
     "members": {
       "type": "array",

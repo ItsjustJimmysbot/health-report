@@ -145,7 +145,7 @@ python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < monthly_
 - `ai3_title`, `ai3_problem`, `ai3_action`, `ai3_expectation`
 - `breakfast`, `lunch`, `dinner`, `snack`
 
-> **强制AI分析版（V5.9.1）**：所有 `report_metrics.selected` 中的指标必须有对应的 AI 分析字段，字数必须达标（150-200字），否则报错。
+> **强制AI分析版（V6.0.0）**：所有 `report_metrics.selected` 中的指标必须有对应的 AI 分析字段，字数必须达标（150-200字），否则报错。
 
 ## 5) 必须遵守
 - `language` 与 AI 输出语言需一致（CN/EN）。
