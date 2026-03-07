@@ -750,6 +750,56 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WEEKLY_TOTAL_ZONE_TIME}}', str(total_zone_hours))
     html = html.replace('{{WEEKLY_PRIMARY_ZONE}}', primary_zone)
 
+    # V6.0.2: 计算平均Pace of Aging和Body Age
+    pace_values = []
+    body_ages = []
+    age_impacts = []
+
+    for day in weekly_data:
+        hs = day.get('health_scores', {})
+        pace = hs.get('pace_of_aging')
+        if pace is not None:
+            pace_values.append(pace)
+        body_age = hs.get('body_age')
+        if body_age:
+            body_ages.append(body_age)
+        age_impact = hs.get('age_impact')
+        if age_impact is not None:
+            age_impacts.append(age_impact)
+
+    avg_pace = sum(pace_values) / len(pace_values) if pace_values else 0
+    avg_body_age = sum(body_ages) / len(body_ages) if body_ages else (member_cfg.get('age', 30) if member_cfg else 30)
+    avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0
+
+    html = html.replace('{{AVERAGE_PACE_OF_AGING}}', f'{avg_pace:.2f}')
+    html = html.replace('{{AVERAGE_BODY_AGE}}', f'{avg_body_age:.1f}')
+    html = html.replace('{{AVERAGE_AGE_IMPACT}}', f'{avg_age_impact:+.1f}')
+    html = html.replace('{{CHRONOLOGICAL_AGE}}', str(member_cfg.get('age', 30) if member_cfg else 30))
+
+    # CSS类
+    if avg_age_impact < 0:
+        age_box_class = "younger"
+        pace_desc = "逆龄中 - 你的身体正在变年轻"
+    elif avg_age_impact > 0:
+        age_box_class = "older"
+        pace_desc = "加速衰老 - 需要注意生活方式"
+    else:
+        age_box_class = ""
+        pace_desc = "停龄 - 身体年龄保持稳定"
+    
+    # 根据pace调整描述
+    if avg_pace < -0.3:
+        pace_desc = "逆龄中 🟢 - 你的身体正在变年轻"
+    elif avg_pace < 0.3:
+        pace_desc = "停龄 ⚪ - 身体年龄保持稳定"
+    elif avg_pace < 1.0:
+        pace_desc = "正常衰老 🟡 - 与实际年龄同步"
+    else:
+        pace_desc = "加速衰老 🔴 - 需要注意生活方式"
+    
+    html = html.replace('{{AGE_BOX_CLASS}}', age_box_class)
+    html = html.replace('{{PACE_DESC}}', pace_desc)
+
     # 验证AI分析长度
     print(f"📏 验证AI分析长度...")
     validation_errors = verify_ai_analysis_weekly(ai_analysis)

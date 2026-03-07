@@ -495,6 +495,44 @@ body {
   </div>
 </div>
 
+<!-- V6.0.2: Pace of Aging 和 Body Age -->
+<div class="section-card pace-section">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">⏱️</span>
+      衰老速度趋势
+    </div>
+  </div>
+  <div class="pace-display" style="text-align: center; padding: 20px;">
+    <div class="pace-value" style="font-size: 48px; font-weight: bold; color: var(--text-primary);">{{AVERAGE_PACE_OF_AGING}}x</div>
+    <div class="pace-desc" style="font-size: 16px; color: var(--text-secondary); margin-top: 10px;">{{PACE_DESC}}</div>
+  </div>
+</div>
+
+<!-- V6.0.2: Body Age -->
+<div class="section-card body-age-section">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">⏱️</span>
+      身体年龄
+    </div>
+  </div>
+  <div class="body-age-display" style="padding: 24px;">
+    <div class="age-comparison" style="display: flex; justify-content: center; align-items: center; gap: 32px; margin-bottom: 20px;">
+      <div class="age-box chronological" style="text-align: center; padding: 20px 32px; background: linear-gradient(135deg, #3d5a80, #2c4a6e); border-radius: 16px; border: 2px solid #4a6fa5;">
+        <div class="age-label" style="font-size: 14px; color: #a8c6e8; margin-bottom: 8px;">实际年龄</div>
+        <div class="age-value" style="font-size: 42px; font-weight: bold; color: #fff;">{{CHRONOLOGICAL_AGE}}岁</div>
+      </div>
+      <div class="age-arrow" style="font-size: 32px; color: #74b9ff;">→</div>
+      <div class="age-box body {{AGE_BOX_CLASS}}" style="text-align: center; padding: 20px 32px; border-radius: 16px; border: 2px solid;">
+        <div class="age-label" style="font-size: 14px; margin-bottom: 8px;">身体年龄</div>
+        <div class="age-value" style="font-size: 42px; font-weight: bold; color: #fff;">{{AVERAGE_BODY_AGE}}岁</div>
+        <div class="age-impact" style="font-size: 14px; font-weight: 600; margin-top: 8px;">{{AVERAGE_AGE_IMPACT}}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 每日明细 -->
 <div class="section-card">
   <div class="section-header">
