@@ -52,11 +52,20 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
         if not member_cfg:
             print(f"   ❌ {date_str} - 成员配置不存在")
             return False
-            
-        data = extract_daily_data(date_str, user_profile=member_cfg)
+        
+        # 获取睡眠配置
+        sleep_config = config.get('sleep_config', {'read_mode': 'next_day', 'start_hour': 20, 'end_hour': 12})
+        
+        data = extract_daily_data(date_str, user_profile=member_cfg, sleep_config=sleep_config)
         if not data:
             print(f"   ⚠️  {date_str} - 无数据")
             return False
+        
+        # 检查数据有效性
+        if not isinstance(data, dict) or 'hrv' not in data:
+            print(f"   ⚠️  {date_str} - 数据格式异常")
+            return False
+            
     except Exception as e:
         print(f"   ❌ {date_str} - 提取失败: {e}")
         return False
