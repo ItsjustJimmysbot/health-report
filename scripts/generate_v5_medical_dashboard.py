@@ -1476,26 +1476,25 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     recovery_status_cn = '优秀' if health_scores['recovery'] >= 67 else '良好' if health_scores['recovery'] >= 34 else '需恢复'
     html = html.replace('{{RECOVERY_STATUS_CN}}', recovery_status_cn)
     
-    # V6.0.2: Body Age 模板替换（修复PDF渲染）
+    # V6.0.3: Body Age 简化版模板替换
     age_impact = health_scores['age_impact']
     
-    # CSS类根据age_impact动态选择
+    # 简化版颜色：绿色(年轻) / 红色(老化) / 蓝色(持平)
     if age_impact < 0:
-        age_box_class = "younger"
-        age_impact_color = "#51cf66"
+        body_age_color = "#55efc4"  # 绿色
     elif age_impact > 0:
-        age_box_class = "older"
-        age_impact_color = "#ff6b6b"
+        body_age_color = "#ff7675"  # 红色
     else:
-        age_box_class = ""
-        age_impact_color = "#74c0fc"
+        body_age_color = "#74b9ff"  # 蓝色
     
-    # 替换CSS类
-    html = html.replace('{{AGE_BOX_CLASS}}', age_box_class)
+    html = html.replace('{{BODY_AGE_COLOR}}', body_age_color)
     
-    # 年龄影响带颜色（使用内联样式）
+    # 保持向后兼容
+    html = html.replace('{{AGE_BOX_CLASS}}', "")
+    
+    # 年龄影响值
     age_impact_str = f"{age_impact:+.1f}"
-    html = html.replace('{{AGE_IMPACT}}', f'<span style="color: {age_impact_color}">{age_impact_str}</span>')
+    html = html.replace('{{AGE_IMPACT}}', age_impact_str)
     
     # Body Age 提示
     if age_impact < -1:

@@ -1149,8 +1149,8 @@ body {
   </div>
 </div>
 
-<!-- V6.0.0: Body Age -->
-<div class="section-card body-age-section">
+<!-- V6.0.3: 简化版身体年龄 -->
+<div class="section-card">
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">⏱️</span>
@@ -1158,25 +1158,22 @@ body {
     </div>
   </div>
   
-  <div class="body-age-display">
-    <div class="age-comparison">
-      <div class="age-card chronological">
-        <div class="age-label">实际年龄</div>
-        <div class="age-value">{{CHRONOLOGICAL_AGE}}岁</div>
-      </div>
-      
-      <div class="age-arrow">→</div>
-      
-      <div class="age-card body {{AGE_BOX_CLASS}}">
-        <div class="age-label">身体年龄</div>
-        <div class="age-value">{{BODY_AGE}}岁</div>
-        <div class="age-difference">{{AGE_IMPACT}}</div>
-      </div>
-    </div>
+  <div style="text-align: center; padding: 20px; font-size: 18px;">
+    <span style="color: #888;">实际年龄：</span>
+    <span style="font-size: 32px; font-weight: bold; color: #74b9ff;">{{CHRONOLOGICAL_AGE}}</span>
+    <span style="color: #888;">岁</span>
     
-    <div class="age-hint">
-      {{AGE_HINT}}
-    </div>
+    <span style="margin: 0 20px; color: #666;">→</span>
+    
+    <span style="color: #888;">身体年龄：</span>
+    <span style="font-size: 32px; font-weight: bold; color: {{BODY_AGE_COLOR}};">{{BODY_AGE}}</span>
+    <span style="color: #888;">岁</span>
+    
+    <span style="margin-left: 10px; font-size: 14px; color: {{BODY_AGE_COLOR}};">({{AGE_IMPACT}})</span>
+  </div>  
+  
+  <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 10px; color: #bbb;">
+    {{AGE_HINT}}
   </div>
 </div>
 

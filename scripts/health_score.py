@@ -105,6 +105,17 @@ def calculate_strain_simple(active_energy: float, steps: int,
     
     return round(strain, 1)
 
+def estimate_zone_times_from_steps(steps: int) -> Dict:
+    """V6.0.3: 基于步数估算zone时间（无workout时使用）"""
+    if steps < 3000:
+        return {'zone_1': 30, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+    elif steps < 8000:
+        return {'zone_1': 30, 'zone_2': 20, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+    elif steps < 12000:
+        return {'zone_1': 30, 'zone_2': 40, 'zone_3': 20, 'zone_4': 0, 'zone_5': 0}
+    else:
+        return {'zone_1': 30, 'zone_2': 50, 'zone_3': 30, 'zone_4': 10, 'zone_5': 0}
+
 # ============ 2. Recovery 评分 (0-100%) ============
 
 @dataclass
@@ -444,14 +455,14 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
         strain = strain_result.strain
         zone_times = strain_result.zone_times
     else:
-        # 没有workout，使用简化版
+        # V6.0.3: 没有workout，使用简化版 + 基于步数估算zone_times
         strain = calculate_strain_simple(
             data.get('active_energy', 0),
             data.get('steps', 0),
             workouts,
             age
         )
-        zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+        zone_times = estimate_zone_times_from_steps(data.get('steps', 0))
     
     # 2. Sleep Performance
     sleep = data.get('sleep', {})
