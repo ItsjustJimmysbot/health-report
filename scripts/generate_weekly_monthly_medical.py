@@ -787,17 +787,22 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         age_box_class = ""
         pace_desc = "停龄 - 身体年龄保持稳定"
     
-    # 根据pace调整描述
+    # 根据pace调整描述和CSS类
     if avg_pace < -0.3:
         pace_desc = "逆龄中 🟢 - 你的身体正在变年轻"
+        pace_class = "reverse"
     elif avg_pace < 0.3:
         pace_desc = "停龄 ⚪ - 身体年龄保持稳定"
+        pace_class = "stable"
     elif avg_pace < 1.0:
         pace_desc = "正常衰老 🟡 - 与实际年龄同步"
+        pace_class = "normal"
     else:
         pace_desc = "加速衰老 🔴 - 需要注意生活方式"
+        pace_class = "accelerated"
     
     html = html.replace('{{AGE_BOX_CLASS}}', age_box_class)
+    html = html.replace('{{PACE_CLASS}}', pace_class)
     html = html.replace('{{PACE_DESC}}', pace_desc)
 
     # 验证AI分析长度

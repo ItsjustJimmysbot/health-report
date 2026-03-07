@@ -425,6 +425,142 @@ body {
   color: var(--text-primary);
 }
 
+/* V6.0.2: Pace of Aging & Body Age 样式 */
+.health-aging-section {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 20px 0;
+}
+
+.pace-display {
+  text-align: center;
+  padding: 24px;
+}
+
+.pace-value {
+  font-size: 56px;
+  font-weight: bold;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.pace-value.reverse { color: #55efc4; }
+.pace-value.stable { color: #74b9ff; }
+.pace-value.normal { color: #fdcb6e; }
+.pace-value.accelerated { color: #ff7675; }
+
+.pace-label {
+  font-size: 14px;
+  color: #b2bec3;
+  margin-top: 12px;
+  letter-spacing: 1px;
+}
+
+.pace-desc {
+  font-size: 16px;
+  color: #dfe6e9;
+  margin-top: 8px;
+}
+
+.body-age-weekly {
+  margin-top: 24px;
+}
+
+.age-cards-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  padding: 20px 0;
+}
+
+.age-card-weekly {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 36px;
+  border-radius: 16px;
+  min-width: 140px;
+  text-align: center;
+}
+
+.age-card-weekly.chronological {
+  background: linear-gradient(135deg, #3d5a80 0%, #2c4a6e 100%);
+  border: 2px solid #4a6fa5;
+  box-shadow: 0 4px 15px rgba(61, 90, 128, 0.3);
+}
+
+.age-card-weekly.chronological .age-card-label {
+  font-size: 14px;
+  color: #a8c6e8;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.age-card-weekly.chronological .age-card-value {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.age-card-weekly.body {
+  background: linear-gradient(135deg, #2d3436 0%, #1a1a2e 100%);
+  border: 2px solid #636e72;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.age-card-weekly.body.younger {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  border: 2px solid #58d68d;
+  box-shadow: 0 4px 20px rgba(46, 204, 113, 0.4);
+}
+
+.age-card-weekly.body.older {
+  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+  border: 2px solid #ec7063;
+  box-shadow: 0 4px 20px rgba(231, 76, 60, 0.4);
+}
+
+.age-card-weekly .age-card-label {
+  font-size: 14px;
+  color: #b2bec3;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.age-card-weekly.body.younger .age-card-label { color: #d5f4e6; }
+.age-card-weekly.body.older .age-card-label { color: #fadbd8; }
+
+.age-card-weekly .age-card-value {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.age-card-weekly .age-card-diff {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.2);
+  color: #ffffff;
+}
+
+.age-arrow-weekly {
+  font-size: 32px;
+  color: #74b9ff;
+  font-weight: bold;
+}
+
 /* ===== 图表区域 ===== */
 .chart-container {
   background: var(--white);
@@ -496,41 +632,39 @@ body {
 </div>
 
 <!-- V6.0.2: Pace of Aging 和 Body Age -->
-<div class="section-card pace-section">
+<div class="section-card health-aging-section">
   <div class="section-header">
     <div class="section-title">
       <span class="section-icon">⏱️</span>
-      衰老速度趋势
+      本周健康年龄评估
     </div>
   </div>
-  <div class="pace-display" style="text-align: center; padding: 20px;">
-    <div class="pace-value" style="font-size: 48px; font-weight: bold; color: var(--text-primary);">{{AVERAGE_PACE_OF_AGING}}x</div>
-    <div class="pace-desc" style="font-size: 16px; color: var(--text-secondary); margin-top: 10px;">{{PACE_DESC}}</div>
+  
+  <!-- Pace of Aging -->
+  <div class="pace-display">
+    <div class="pace-value {{PACE_CLASS}}">{{AVERAGE_PACE_OF_AGING}}x</div>
+    <div class="pace-label">衰老速度趋势</div>
+    <div class="pace-desc">{{PACE_DESC}}</div>
+  </div>
+  
+  <!-- Body Age -->
+  <div class="body-age-weekly">
+    <div class="age-cards-container">
+      <div class="age-card-weekly chronological">
+        <div class="age-card-label">实际年龄</div>
+        <div class="age-card-value">{{CHRONOLOGICAL_AGE}}岁</div>
+      </div>
+      
+      <div class="age-arrow-weekly">→</div>
+      
+      <div class="age-card-weekly body {{AGE_BOX_CLASS}}">
+        <div class="age-card-label">身体年龄</div>
+        <div class="age-card-value">{{AVERAGE_BODY_AGE}}岁</div>
+        <div class="age-card-diff">{{AVERAGE_AGE_IMPACT}}</div>
+      </div>
+    </div>
   </div>
 </div>
-
-<!-- V6.0.2: Body Age -->
-<div class="section-card body-age-section">
-  <div class="section-header">
-    <div class="section-title">
-      <span class="section-icon">⏱️</span>
-      身体年龄
-    </div>
-  </div>
-  <div class="body-age-display" style="padding: 24px;">
-    <div class="age-comparison" style="display: flex; justify-content: center; align-items: center; gap: 32px; margin-bottom: 20px;">
-      <div class="age-box chronological" style="text-align: center; padding: 20px 32px; background: linear-gradient(135deg, #3d5a80, #2c4a6e); border-radius: 16px; border: 2px solid #4a6fa5;">
-        <div class="age-label" style="font-size: 14px; color: #a8c6e8; margin-bottom: 8px;">实际年龄</div>
-        <div class="age-value" style="font-size: 42px; font-weight: bold; color: #fff;">{{CHRONOLOGICAL_AGE}}岁</div>
-      </div>
-      <div class="age-arrow" style="font-size: 32px; color: #74b9ff;">→</div>
-      <div class="age-box body {{AGE_BOX_CLASS}}" style="text-align: center; padding: 20px 32px; border-radius: 16px; border: 2px solid;">
-        <div class="age-label" style="font-size: 14px; margin-bottom: 8px;">身体年龄</div>
-        <div class="age-value" style="font-size: 42px; font-weight: bold; color: #fff;">{{AVERAGE_BODY_AGE}}岁</div>
-        <div class="age-impact" style="font-size: 14px; font-weight: 600; margin-top: 8px;">{{AVERAGE_AGE_IMPACT}}</div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- 每日明细 -->
