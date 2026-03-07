@@ -1080,15 +1080,7 @@ body {
     </div>
     
     <div class="age-hint">
-      {% if AGE_IMPACT < -1 %}
-        🎉 你的身体比实际年龄年轻{{AGE_IMPACT|abs}}岁，继续保持！
-      {% elif AGE_IMPACT < 0 %}
-        ✅ 你的身体状态略优于实际年龄
-      {% elif AGE_IMPACT < 2 %}
-        ⚠️ 身体年龄与实际年龄接近，注意调整作息
-      {% else %}
-        🔴 身体年龄比实际年龄老{{AGE_IMPACT}}岁，建议改善生活习惯
-      {% endif %}
+      {{AGE_HINT}}
     </div>
   </div>
 </div>

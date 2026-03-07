@@ -1475,6 +1475,18 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     # Recovery状态中文
     recovery_status_cn = '优秀' if health_scores['recovery'] >= 67 else '良好' if health_scores['recovery'] >= 34 else '需恢复'
     html = html.replace('{{RECOVERY_STATUS_CN}}', recovery_status_cn)
+    
+    # V6.0.0: Body Age 提示
+    age_impact = health_scores['age_impact']
+    if age_impact < -1:
+        age_hint = f"🎉 你的身体比实际年龄年轻{abs(age_impact):.1f}岁，继续保持！" if LANGUAGE == 'CN' else f"🎉 Your body is {abs(age_impact):.1f} years younger than your actual age!"
+    elif age_impact < 0:
+        age_hint = "✅ 你的身体状态略优于实际年龄" if LANGUAGE == 'CN' else "✅ Your body condition is slightly better than your actual age"
+    elif age_impact < 2:
+        age_hint = "⚠️ 身体年龄与实际年龄接近，注意调整作息" if LANGUAGE == 'CN' else "⚠️ Body age is close to actual age, adjust your routine"
+    else:
+        age_hint = f"🔴 身体年龄比实际年龄老{age_impact:.1f}岁，建议改善生活习惯" if LANGUAGE == 'CN' else f"🔴 Your body age is {age_impact:.1f} years older than actual age"
+    html = html.replace('{{AGE_HINT}}', age_hint)
 
     # V5.9.0: 动态指标表渲染
     selected_metric_keys = get_selected_metric_keys()
