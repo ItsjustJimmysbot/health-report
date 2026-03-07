@@ -17,6 +17,7 @@ from playwright.sync_api import sync_playwright
 # V6.0.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS, count_text_units
+from health_score import calculate_body_age, HealthScoreHistory
 
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
@@ -673,6 +674,29 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{AVG_SLEEP}}', f"{avg_sleep:.1f}")
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
+
+    # V6.0.0: 计算周报 Body Age
+    avg_metrics = {
+        'sleep_hours': avg_sleep,
+        'steps': avg_steps,
+        'rhr': sum(d.get('resting_hr', {}).get('value', 70) for d in weekly_data if d.get('resting_hr', {}).get('value')) / max(1, sum(1 for d in weekly_data if d.get('resting_hr', {}).get('value')))
+    }
+    
+    # 获取成员配置
+    members = CONFIG.get('members', [])
+    member_cfg = None
+    for m in members:
+        if m.get('name') == member_name or safe_member_name(m.get('name', '')) == safe_member_name(member_name):
+            member_cfg = m
+            break
+    
+    if member_cfg:
+        body_age_result = calculate_body_age(avg_metrics, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
+        html = html.replace('{{WEEKLY_BODY_AGE}}', str(body_age_result.body_age))
+        html = html.replace('{{WEEKLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
+    else:
+        html = html.replace('{{WEEKLY_BODY_AGE}}', '--')
+        html = html.replace('{{WEEKLY_AGE_IMPACT}}', '--')
 
     # 验证AI分析长度
     print(f"📏 验证AI分析长度...")
