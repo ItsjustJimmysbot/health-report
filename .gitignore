@@ -32,12 +32,18 @@ ENV/
 # 日志
 logs/
 
-# Local files - should never be committed
+# 本地/个人文件（不应提交）
 .openclaw/
 memory/
 ai_analysis_*.json
-config.json
-*.pdf
 upload/
-cache/
-logs/
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+*.bak
+EOF
+LICEOF
+MEMEOF
