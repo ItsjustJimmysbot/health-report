@@ -109,7 +109,7 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
     cache_data = {
         'date': date_str, 'member': member_name,
         'hrv': data.get('hrv'), 'resting_hr': data.get('resting_hr'),
-        'steps': data.get('steps'), 'active_energy': data.get('active_energy') or 0,
+        'steps': data.get('steps'), 'active_energy': data.get('active_energy_kcal') or data.get('active_energy') or 0,
         'apple_stand_time': data.get('apple_stand_time') or 0,
         'apple_stand_hour': round(stand_hour_cache, 2), 'spo2': data.get('spo2'),
         'workouts': data.get('workouts', []), 'has_workout': data.get('has_workout', False),
