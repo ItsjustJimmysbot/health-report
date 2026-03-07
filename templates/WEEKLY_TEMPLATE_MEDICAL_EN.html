@@ -409,6 +409,38 @@ body {
   </div>
 </div>
 
+<!-- V6.0.3: Simplified age display - simple string replacement only -->
+<div class="section-card" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 20px; margin: 20px 0;">
+  <div class="section-header" style="border-bottom-color: #636e72;">
+    <div class="section-title" style="color: #ffffff;">
+      <span class="section-icon">⏱️</span>
+      Weekly Health Age Assessment
+    </div>
+  </div>
+  
+  <div style="display: flex; justify-content: center; align-items: center; gap: 30px; padding: 20px; color: #ffffff;">
+    <div style="text-align: center;">
+      <div style="font-size: 14px; color: #b2bec3; margin-bottom: 8px;">Chronological Age</div>
+      <div style="font-size: 42px; font-weight: bold;">{{CHRONOLOGICAL_AGE}}<span style="font-size: 18px;">y</span></div>
+    </div>
+    
+    <div style="font-size: 24px; color: #74b9ff;">→</div>
+    
+    <div style="text-align: center;">
+      <div style="font-size: 14px; color: #b2bec3; margin-bottom: 8px;">Body Age</div>
+      <div style="font-size: 42px; font-weight: bold;">{{AVERAGE_BODY_AGE}}<span style="font-size: 18px;">y</span></div>
+      <div style="font-size: 14px; margin-top: 4px; color: {{AGE_DIFF_COLOR}};">
+        {{AVERAGE_AGE_IMPACT}}
+      </div>
+    </div>
+  </div>
+  
+  <div style="text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+    <div style="font-size: 14px; color: #b2bec3;">Pace of Aging: <span style="font-size: 18px; font-weight: bold; color: {{PACE_COLOR}};">{{AVERAGE_PACE_OF_AGING}}x</span></div>
+    <div style="font-size: 13px; color: {{PACE_COLOR}}; margin-top: 4px;">{{PACE_DESC}}</div>
+  </div>
+</div>
+
 <!-- Daily Details -->
 <div class="section-card">
   <div class="section-header">

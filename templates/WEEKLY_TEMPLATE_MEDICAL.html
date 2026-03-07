@@ -339,14 +339,23 @@ body {
   line-height: 1.6;
 }
 
-/* V6.0.2: 心率区间分布样式 */
-.zone-distribution { margin: 20px 0; }
+/* V6.0.3: 修复横向溢出 */
+.zone-distribution { 
+  margin: 20px 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.zone-chart {
+  max-width: 100%;
+}
 
 .zone-bar {
-  margin: 16px 0;
-  padding: 16px;
+  margin: 12px 0;
+  padding: 12px;
   background: rgba(255,255,255,0.05);
-  border-radius: 12px;
+  border-radius: 8px;
+  max-width: 100%;
 }
 
 .zone-info {
@@ -632,38 +641,35 @@ body {
   </div>
 </div>
 
-<!-- V6.0.2: Pace of Aging 和 Body Age -->
-<div class="section-card health-aging-section">
-  <div class="section-header">
-    <div class="section-title">
+<!-- V6.0.3: 简化年龄显示 - 仅使用简单字符串替换 -->
+<div class="section-card" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 20px; margin: 20px 0;">
+  <div class="section-header" style="border-bottom-color: #636e72;">
+    <div class="section-title" style="color: #ffffff;">
       <span class="section-icon">⏱️</span>
       本周健康年龄评估
     </div>
   </div>
   
-  <!-- Pace of Aging -->
-  <div class="pace-display">
-    <div class="pace-value {{PACE_CLASS}}">{{AVERAGE_PACE_OF_AGING}}x</div>
-    <div class="pace-label">衰老速度趋势</div>
-    <div class="pace-desc">{{PACE_DESC}}</div>
-  </div>
-  
-  <!-- Body Age -->
-  <div class="body-age-weekly">
-    <div class="age-cards-container">
-      <div class="age-card-weekly chronological">
-        <div class="age-card-label">实际年龄</div>
-        <div class="age-card-value">{{CHRONOLOGICAL_AGE}}岁</div>
-      </div>
-      
-      <div class="age-arrow-weekly">→</div>
-      
-      <div class="age-card-weekly body {{AGE_BOX_CLASS}}">
-        <div class="age-card-label">身体年龄</div>
-        <div class="age-card-value">{{AVERAGE_BODY_AGE}}岁</div>
-        <div class="age-card-diff">{{AVERAGE_AGE_IMPACT}}</div>
+  <div style="display: flex; justify-content: center; align-items: center; gap: 30px; padding: 20px; color: #ffffff;">
+    <div style="text-align: center;">
+      <div style="font-size: 14px; color: #b2bec3; margin-bottom: 8px;">实际年龄</div>
+      <div style="font-size: 42px; font-weight: bold;">{{CHRONOLOGICAL_AGE}}<span style="font-size: 18px;">岁</span></div>
+    </div>
+    
+    <div style="font-size: 24px; color: #74b9ff;">→</div>
+    
+    <div style="text-align: center;">
+      <div style="font-size: 14px; color: #b2bec3; margin-bottom: 8px;">身体年龄</div>
+      <div style="font-size: 42px; font-weight: bold;">{{AVERAGE_BODY_AGE}}<span style="font-size: 18px;">岁</span></div>
+      <div style="font-size: 14px; margin-top: 4px; color: {{AGE_DIFF_COLOR}};">
+        {{AVERAGE_AGE_IMPACT}}
       </div>
     </div>
+  </div>
+  
+  <div style="text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+    <div style="font-size: 14px; color: #b2bec3;">衰老速度: <span style="font-size: 18px; font-weight: bold; color: {{PACE_COLOR}};">{{AVERAGE_PACE_OF_AGING}}x</span></div>
+    <div style="font-size: 13px; color: {{PACE_COLOR}}; margin-top: 4px;">{{PACE_DESC}}</div>
   </div>
 </div>
 </div>

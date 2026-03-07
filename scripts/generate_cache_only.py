@@ -76,7 +76,8 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
     
     # 计算健康评分
     try:
-        health_scores = calculate_all_scores(data, member_cfg, history)
+        zone_times = data.get('zone_times', {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0})
+        health_scores = calculate_all_scores(data, member_cfg, history, zone_times)
     except Exception as e:
         print(f"   ⚠️ {date_str} - 评分计算失败: {e}，使用默认值")
         health_scores = {
@@ -113,6 +114,7 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
         'apple_stand_time': data.get('apple_stand_time') or 0,
         'apple_stand_hour': round(stand_hour_cache, 2), 'spo2': data.get('spo2'),
         'workouts': data.get('workouts', []), 'has_workout': data.get('has_workout', False),
+        'zone_times': data.get('zone_times', {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}),  # V6.0.3: 添加 zone_times
         'sleep': data.get('sleep', {}),
         'bedtime': '--', 'waketime': '--', 'sleep_latency_min': 20,
         'sleep_debt_daily': round(daily_debt, 2), 'sleep_debt_accumulated': round(accumulated_debt, 2),

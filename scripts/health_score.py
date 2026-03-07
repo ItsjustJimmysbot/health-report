@@ -80,10 +80,13 @@ def calculate_strain(hr_data: List[Tuple[datetime, int]],
     )
 
 def calculate_strain_simple(active_energy: float, steps: int, 
-                           workouts: List[Dict], age: int = 30) -> float:
+                           workouts: List[Dict], age: int = 30,
+                           hr_data: List[Dict] = None) -> Tuple[float, Dict]:
     """
-    简化版Strain计算 V6.0.2（没有全天HR数据时使用）
-    基于活动能量、步数和运动记录估算
+    简化版Strain计算 V6.0.3（没有全天HR数据时使用）
+    基于活动能量、步数、运动记录和心率数据估算
+    
+    返回: (strain, zone_times_dict)
     """
     # 基于活动能量估算
     energy_load = min(10, active_energy / 100) if active_energy else 0
@@ -103,7 +106,14 @@ def calculate_strain_simple(active_energy: float, steps: int,
     # 缩放到0-21
     strain = min(21, total_load * 0.8)
     
-    return round(strain, 1)
+    # V6.0.3: 如果有心率数据，从心率数据计算真实zone_times
+    if hr_data and len(hr_data) > 0:
+        zone_times = calculate_zone_times_from_hr_data(hr_data, age)
+    else:
+        # 没有心率数据时，基于步数估算（仅作为fallback）
+        zone_times = estimate_zone_times_from_steps(steps)
+    
+    return round(strain, 1), zone_times
 
 def estimate_zone_times_from_steps(steps: int) -> Dict:
     """V6.0.3: 基于步数估算zone时间（无workout时使用）"""
@@ -115,6 +125,51 @@ def estimate_zone_times_from_steps(steps: int) -> Dict:
         return {'zone_1': 30, 'zone_2': 40, 'zone_3': 20, 'zone_4': 0, 'zone_5': 0}
     else:
         return {'zone_1': 30, 'zone_2': 50, 'zone_3': 30, 'zone_4': 10, 'zone_5': 0}
+
+
+def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int) -> Dict:
+    """
+    从心率数据计算真实的心率区间分布时间
+    
+    参数:
+        hr_data: 心率数据列表，每项包含 {'timestamp': xxx, 'hr': xxx}
+        age: 年龄，用于计算最大心率
+    
+    返回:
+        {'zone_1': 分钟, 'zone_2': 分钟, ...}
+    """
+    max_hr = calculate_max_hr(age)
+    zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    
+    if not hr_data or len(hr_data) < 2:
+        return {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+    
+    # 按时间排序
+    sorted_hr = sorted(hr_data, key=lambda x: x.get('timestamp', 0))
+    
+    for i in range(len(sorted_hr) - 1):
+        hr = sorted_hr[i].get('hr', 60)
+        
+        # 计算时间差（分钟）
+        ts1 = sorted_hr[i].get('timestamp', 0)
+        ts2 = sorted_hr[i+1].get('timestamp', 0)
+        if isinstance(ts1, (int, float)) and isinstance(ts2, (int, float)):
+            duration_min = (ts2 - ts1) / 60  # 假设时间戳是秒
+        else:
+            duration_min = 1  # 默认1分钟
+        
+        # 计算心率区间
+        zone = get_hr_zone(hr, max_hr)
+        if zone >= 1:
+            zone_times[zone] += duration_min
+    
+    return {
+        'zone_1': round(zone_times[1], 1),
+        'zone_2': round(zone_times[2], 1),
+        'zone_3': round(zone_times[3], 1),
+        'zone_4': round(zone_times[4], 1),
+        'zone_5': round(zone_times[5], 1)
+    }
 
 # ============ 2. Recovery 评分 (0-100%) ============
 
@@ -373,7 +428,8 @@ class HealthScoreHistory:
 
 # ============ 7. 一键计算 ============
 
-def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory) -> Dict:
+def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
+                         zone_times: Dict = None) -> Dict:
     """
     一键计算所有健康评分
     
@@ -381,6 +437,7 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
         data: 当日健康数据
         profile: 用户档案 (age, gender, height, weight)
         history: 历史数据管理器
+        zone_times: 可选，从 workout 数据计算的心率区间时间
     """
     age = profile.get('age', 30)
     gender = profile.get('gender', 'male')
@@ -450,19 +507,34 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
                        if any(k in w.get('name', '').lower() for k in ['strength', '力量', '举重', 'weight']))
     
     # 如果有workout数据，使用标准Strain计算
-    if workouts and len(workouts) > 0:
-        strain_result = calculate_strain(hr_data, strength_time, age, gender)
-        strain = strain_result.strain
-        zone_times = strain_result.zone_times
+    # V6.0.3: 优先使用从 workout 数据计算的 zone_times
+    if zone_times is None:
+        if workouts and len(workouts) > 0:
+            strain_result = calculate_strain(hr_data, strength_time, age, gender)
+            strain = strain_result.strain
+            zone_times = strain_result.zone_times
+        else:
+            # 没有workout，使用简化计算
+            strain, zone_times = calculate_strain_simple(
+                data.get('active_energy', 0),
+                data.get('steps', 0),
+                workouts,
+                age,
+                data.get('heart_rate_data', [])
+            )
     else:
-        # V6.0.3: 没有workout，zone_times全为0，不估算
-        strain = calculate_strain_simple(
-            data.get('active_energy', 0),
-            data.get('steps', 0),
-            workouts,
-            age
-        )
-        zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+        # 使用传入的 zone_times，但仍需计算 strain
+        if workouts and len(workouts) > 0:
+            strain_result = calculate_strain(hr_data, strength_time, age, gender)
+            strain = strain_result.strain
+        else:
+            strain, _ = calculate_strain_simple(
+                data.get('active_energy', 0),
+                data.get('steps', 0),
+                workouts,
+                age,
+                data.get('heart_rate_data', [])
+            )
     
     # 2. Sleep Performance
     sleep = data.get('sleep', {})

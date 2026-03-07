@@ -75,7 +75,29 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 - `analysis_limits`: AI 分析长度限制（可选 `monthly_trend_min_words`，默认150）。
 - `report_metrics`: 日报指标表选择与展示策略。
 
-## 3) 标准命令
+## 3) AI 分析生成（Agent 必读！）
+
+**重要：周报/月报需要 AI 分析 JSON，这个 JSON 应该由你（Agent）基于真实健康数据生成。**
+
+### 生成流程
+
+1. **读取健康数据缓存**：
+   ```bash
+   cat ~/.openclaw/workspace/shared/health-reports/cache/daily/2026-02-24_用户名.json
+   ```
+
+2. **你生成 AI 分析 JSON**（基于真实数据）：
+   - 周报需要 `trend_analysis` (≥800字) + `recommendations` 数组
+   - 月报需要 `hrv_analysis`/`sleep_analysis`/`activity_analysis`/`trend_assessment` (各≥150字)
+   
+3. **通过 stdin 传给生成脚本**：
+   ```bash
+   echo '{"members":[{"name":"...","trend_analysis":"..."}]}' | python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE
+   ```
+
+**详见**: `AI_GENERATION_GUIDE.md`
+
+## 4) 标准命令
 ### 日报
 ```bash
 python3 scripts/extract_data_v5.py YYYY-MM-DD [member_index|all]

@@ -388,6 +388,13 @@ python3 scripts/setup_oauth2.py
 
 **注意：** 周报与月报的 AI 分析字段要求不同，请分别提供：
 
+> **🤖 Agent 提示：** 以下 AI 分析 JSON 需要由你（Agent）基于真实健康数据生成，不是调用外部 API，也不是读取文件。你需要：
+> 1. 读取缓存数据了解用户本周/本月健康指标
+> 2. 基于真实数据生成有意义的分析文本（确保字数达标）
+> 3. 通过 `echo '{...}' | python3 scripts/generate_xxx.py` 管道传给脚本
+> 
+> 详见 `AI_GENERATION_GUIDE.md`
+
 **周报（weekly）最小要求：**
 - `trend_analysis` 或 `weekly_analysis`（主体分析，建议总字数≥800字）
 - `recommendations` 数组（每项需包含 `priority` / `title` / `content`）

@@ -408,8 +408,8 @@ def _stand_hours(day_obj: dict):
     return None
 
 
-def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px):
-    # 动态计算 Y 轴范围（忽略 None）
+def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px_per_chart=160):
+    """V6.0.3: 构建三个上下排列的图表 - HRV、步数、睡眠各一个"""
     def calc_range(values, min_default, max_default, padding=0.1):
         valid = [v for v in values if isinstance(v, (int, float))]
         if not valid:
@@ -418,7 +418,7 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
         max_val = max(valid)
         range_val = max_val - min_val
         if range_val == 0:
-            range_val = max(abs(max_val), 1.0) * 0.1  # 避免除以零
+            range_val = max(abs(max_val), 1.0) * 0.1
         padding_val = range_val * padding
         return max(0, min_val - padding_val), max_val + padding_val
 
@@ -432,151 +432,176 @@ def _build_chartjs_template(canvas_id, display_dates, hrv_values, steps_values, 
                 arr.append('null')
         return ','.join(arr)
 
-    # 计算各轴范围
     hrv_min, hrv_max = calc_range(hrv_values, 30, 100)
     sleep_min, sleep_max = calc_range(sleep_values, 0, 10)
-
-    # 步数范围：除以1000后的值
     steps_normalized = [s / 1000 for s in steps_values if isinstance(s, (int, float))]
     steps_min, steps_max = calc_range(steps_normalized, 0, 15)
 
     hrv_js = js_array(hrv_values)
     steps_js = js_array(steps_values, transform=lambda x: x / 1000)
     sleep_js = js_array(sleep_values)
-    return f'''<div style="height: {height_px}px;">
-  <canvas id="{canvas_id}"></canvas>
+    
+    hrv_label = lang_labels["hrv"]
+    steps_label = lang_labels["steps"]
+    sleep_label = lang_labels["sleep"]
+    
+    total_height = height_px_per_chart * 3 + 40
+    
+    return f'''<div style="height: {total_height}px; width: 88%; padding-right: 100px; margin: 0 auto; box-sizing: border-box;">
+  <div style="height: {height_px_per_chart}px; margin-bottom: 20px; width: 100%;">
+    <canvas id="{canvas_id_prefix}_hrv"></canvas>
+  </div>
+  <div style="height: {height_px_per_chart}px; margin-bottom: 20px; width: 100%;">
+    <canvas id="{canvas_id_prefix}_steps"></canvas>
+  </div>
+  <div style="height: {height_px_per_chart}px; width: 100%;">
+    <canvas id="{canvas_id_prefix}_sleep"></canvas>
+  </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-  const ctx = document.getElementById('{canvas_id}').getContext('2d');
-  new Chart(ctx, {{
-    type: 'line',
-    data: {{
-      labels: {display_dates},
-      datasets: [
-        {{
-          label: '{lang_labels["hrv"]}',
+  (function() {{
+    new Chart(document.getElementById('{canvas_id_prefix}_hrv').getContext('2d'), {{
+      type: 'line',
+      data: {{
+        labels: {display_dates},
+        datasets: [{{
+          label: '{hrv_label}',
           data: [{hrv_js}],
           borderColor: '#22C55E',
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
-          yAxisID: 'y',
           tension: 0.3,
           fill: true,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          pointRadius: 4,
+          clip: false
+        }}]
+      }},
+      options: {{
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {{ padding: {{ right: 80 }} }},
+        plugins: {{
+          legend: {{ display: false }},
+          title: {{ display: true, text: '{hrv_label}', font: {{ size: 12 }}, align: 'start' }}
         }},
-        {{
-          label: '{lang_labels["steps"]}',
+        scales: {{
+          x: {{ offset: false, grid: {{ display: true }}, ticks: {{ font: {{ size: 10 }} }} }},
+          y: {{
+            type: 'linear', display: true, position: 'left',
+            title: {{ display: true, text: 'ms', font: {{ size: 10 }} }},
+            min: {int(hrv_min)}, max: {int(hrv_max)},
+            ticks: {{ font: {{ size: 10 }} }}
+          }}
+        }}
+      }}
+    }});
+    
+    new Chart(document.getElementById('{canvas_id_prefix}_steps').getContext('2d'), {{
+      type: 'line',
+      data: {{
+        labels: {display_dates},
+        datasets: [{{
+          label: '{steps_label}',
           data: [{steps_js}],
           borderColor: '#3B82F6',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          yAxisID: 'y1',
           tension: 0.3,
           fill: true,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          pointRadius: 4,
+          clip: false
+        }}]
+      }},
+      options: {{
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {{ padding: {{ right: 80 }} }},
+        plugins: {{
+          legend: {{ display: false }},
+          title: {{ display: true, text: '{steps_label}', font: {{ size: 12 }}, align: 'start' }}
         }},
-        {{
-          label: '{lang_labels["sleep"]}',
+        scales: {{
+          x: {{ offset: false, grid: {{ display: true }}, ticks: {{ font: {{ size: 10 }} }} }},
+          y: {{
+            type: 'linear', display: true, position: 'left',
+            title: {{ display: true, text: 'k', font: {{ size: 10 }} }},
+            min: {int(steps_min)}, max: {int(steps_max)},
+            ticks: {{ font: {{ size: 10 }} }}
+          }}
+        }}
+      }}
+    }});
+    
+    new Chart(document.getElementById('{canvas_id_prefix}_sleep').getContext('2d'), {{
+      type: 'line',
+      data: {{
+        labels: {display_dates},
+        datasets: [{{
+          label: '{sleep_label}',
           data: [{sleep_js}],
           borderColor: '#A855F7',
           backgroundColor: 'rgba(168, 85, 247, 0.1)',
-          yAxisID: 'y2',
           tension: 0.3,
           fill: true,
-          pointRadius: 5,
-          pointHoverRadius: 7
-        }}
-      ]
-    }},
-    options: {{
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {{
-        mode: 'index',
-        intersect: false,
+          pointRadius: 4,
+          clip: false
+        }}]
       }},
-      plugins: {{
-        legend: {{
-          position: 'top',
-          labels: {{ font: {{ size: 12 }} }}
+      options: {{
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {{ padding: {{ right: 80 }} }},
+        plugins: {{
+          legend: {{ display: false }},
+          title: {{ display: true, text: '{sleep_label}', font: {{ size: 12 }}, align: 'start' }}
         }},
-        title: {{
-          display: true,
-          text: '{lang_labels["title"]}',
-          font: {{ size: 14 }}
-        }}
-      }},
-      scales: {{
-        y: {{
-          type: 'linear',
-          display: true,
-          position: 'left',
-          title: {{ display: true, text: 'HRV (ms)' }},
-          min: {int(hrv_min)},
-          max: {int(hrv_max)}
-        }},
-        y1: {{
-          type: 'linear',
-          display: true,
-          position: 'right',
-          title: {{ display: true, text: '{lang_labels["steps"]}' }},
-          min: {int(steps_min)},
-          max: {int(steps_max)},
-          grid: {{ drawOnChartArea: false }}
-        }},
-        y2: {{
-          type: 'linear',
-          display: true,
-          position: 'right',
-          title: {{ display: true, text: '{lang_labels["sleep"]}' }},
-          min: {sleep_min:.1f},
-          max: {sleep_max:.1f},
-          grid: {{ drawOnChartArea: false }}
+        scales: {{
+          x: {{ offset: false, grid: {{ display: true }}, ticks: {{ font: {{ size: 10 }} }} }},
+          y: {{
+            type: 'linear', display: true, position: 'left',
+            title: {{ display: true, text: 'h', font: {{ size: 10 }} }},
+            min: {sleep_min:.1f}, max: {sleep_max:.1f},
+            ticks: {{ font: {{ size: 10 }} }}
+          }}
         }}
       }}
-    }}
-  }});
+    }});
+  }})();
 </script>'''
 
 def generate_trend_chart(dates, hrv_values, steps_values, sleep_values, chart_type='weekly'):
-    """生成Chart.js趋势图表"""
+    """V6.0.3: 生成三个上下排列的Chart.js趋势图表"""
     valid_hrv = [v for v in hrv_values if isinstance(v, (int, float))]
     if not dates or not valid_hrv:
         return f'<div style="text-align:center;color:#999;padding:40px;">{get_text("no_trend_data")}</div>'
 
-    # 格式化日期显示
     display_dates = [d[5:] if len(d) > 5 else d for d in dates]
 
-    # 多语言图表标签
     labels = {
-        "CN": {"hrv": "HRV (ms)", "steps": "步数 (÷1000)", "sleep": "睡眠 (h)", "title": "HRV · 步数 · 睡眠 趋势"},
-        "EN": {"hrv": "HRV (ms)", "steps": "Steps (÷1000)", "sleep": "Sleep (h)", "title": "HRV · Steps · Sleep Trends"}
+        "CN": {"hrv": "HRV (ms)", "steps": "步数 (÷1000)", "sleep": "睡眠 (小时)"},
+        "EN": {"hrv": "HRV (ms)", "steps": "Steps (÷1000)", "sleep": "Sleep (hours)"}
     }
     lang_labels = labels.get(LANGUAGE, labels["CN"])
 
-    return _build_chartjs_template('trendChart', display_dates, hrv_values, steps_values, sleep_values, lang_labels, 250)
+    return _build_triple_chartjs_template('trendChart', display_dates, hrv_values, steps_values, sleep_values, lang_labels, 160)
 
 def generate_monthly_chart(dates, hrv_values, steps_values, sleep_values):
-    """生成月度Chart.js趋势图表"""
+    """V6.0.3: 生成月度三Chart.js趋势图表"""
     valid_hrv = [v for v in hrv_values if isinstance(v, (int, float))]
     if not dates or not valid_hrv:
         return f'<div style="text-align:center;color:#999;padding:40px;">{get_text("no_monthly_data")}</div>'
 
-    # 格式化日期显示 (只显示日)
     if LANGUAGE == "CN":
         display_dates = [d[8:10] + '日' if len(d) >= 10 else d for d in dates]
     else:
         display_dates = [d[8:10] if len(d) >= 10 else d for d in dates]
 
-    # 多语言图表标签
     labels = {
-        "CN": {"hrv": "HRV (ms)", "steps": "步数 (÷1000)", "sleep": "睡眠 (h)", "title": "月度 HRV · 步数 · 睡眠 趋势"},
-        "EN": {"hrv": "HRV (ms)", "steps": "Steps (÷1000)", "sleep": "Sleep (h)", "title": "Monthly HRV · Steps · Sleep Trends"}
+        "CN": {"hrv": "HRV (ms)", "steps": "步数 (÷1000)", "sleep": "睡眠 (小时)"},
+        "EN": {"hrv": "HRV (ms)", "steps": "Steps (÷1000)", "sleep": "Sleep (hours)"}
     }
     lang_labels = labels.get(LANGUAGE, labels["CN"])
 
-    return _build_chartjs_template('monthlyChart', display_dates, hrv_values, steps_values, sleep_values, lang_labels, 280)
+    return _build_triple_chartjs_template('monthlyChart', display_dates, hrv_values, steps_values, sleep_values, lang_labels, 160)
 
 def generate_weekly_report(start_date, end_date, ai_analysis, template, member_name="默认用户"):
     """生成周报 - 使用Medical Dashboard模板"""
@@ -776,33 +801,39 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{AVERAGE_AGE_IMPACT}}', f'{avg_age_impact:+.1f}')
     html = html.replace('{{CHRONOLOGICAL_AGE}}', str(member_cfg.get('age', 30) if member_cfg else 30))
 
-    # CSS类
+    # V6.0.3: 计算年龄和pace的颜色（模板只支持简单字符串替换，不支持条件语法）
     if avg_age_impact < 0:
         age_box_class = "younger"
-        pace_desc = "逆龄中 - 你的身体正在变年轻"
+        age_diff_color = "#55efc4"  # 绿色 - 年轻
     elif avg_age_impact > 0:
         age_box_class = "older"
-        pace_desc = "加速衰老 - 需要注意生活方式"
+        age_diff_color = "#ff7675"  # 红色 - 衰老
     else:
         age_box_class = ""
-        pace_desc = "停龄 - 身体年龄保持稳定"
-    
-    # 根据pace调整描述和CSS类
+        age_diff_color = "#dfe6e9"  # 灰色 - 持平
+
+    # 根据pace调整描述、CSS类和颜色
     if avg_pace < -0.3:
         pace_desc = "逆龄中 🟢 - 你的身体正在变年轻"
         pace_class = "reverse"
+        pace_color = "#55efc4"  # 绿色
     elif avg_pace < 0.3:
         pace_desc = "停龄 ⚪ - 身体年龄保持稳定"
         pace_class = "stable"
+        pace_color = "#74b9ff"  # 蓝色
     elif avg_pace < 1.0:
         pace_desc = "正常衰老 🟡 - 与实际年龄同步"
         pace_class = "normal"
+        pace_color = "#fdcb6e"  # 黄色
     else:
         pace_desc = "加速衰老 🔴 - 需要注意生活方式"
         pace_class = "accelerated"
-    
+        pace_color = "#ff7675"  # 红色
+
     html = html.replace('{{AGE_BOX_CLASS}}', age_box_class)
+    html = html.replace('{{AGE_DIFF_COLOR}}', age_diff_color)
     html = html.replace('{{PACE_CLASS}}', pace_class)
+    html = html.replace('{{PACE_COLOR}}', pace_color)
     html = html.replace('{{PACE_DESC}}', pace_desc)
 
     # 验证AI分析长度

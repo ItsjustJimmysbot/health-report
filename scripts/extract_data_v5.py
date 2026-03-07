@@ -5,6 +5,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import List, Dict
 
 
 # V5.8.1: 使用共用工具函数
@@ -236,6 +237,90 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     
     return workouts
 
+def calculate_zone_times_from_workouts(workouts: List[Dict], age: int) -> Dict[str, float]:
+    """
+    V6.0.3: 从 workout 的心率时间线计算真实的心率区间时间
+    
+    参数:
+        workouts: workout 列表，每项包含 hr_timeline
+        age: 用户年龄，用于计算最大心率
+    
+    返回:
+        {'zone_1': 分钟数, 'zone_2': 分钟数, ...}
+    """
+    # 计算最大心率 (标准公式: 208 - 0.7 * age)
+    max_hr = int(208 - 0.7 * age) if age and age > 0 else 185
+    
+    # 初始化各区间的累计时间（分钟）
+    zone_times = {'zone_1': 0.0, 'zone_2': 0.0, 'zone_3': 0.0, 'zone_4': 0.0, 'zone_5': 0.0}
+    
+    def get_zone_from_hr(hr: int, max_hr: int) -> int:
+        """根据心率值确定所属区间 (1-5)"""
+        if hr <= 0 or max_hr <= 0:
+            return 0
+        pct = hr / max_hr
+        if pct < 0.5:
+            return 0
+        elif pct < 0.6:
+            return 1
+        elif pct < 0.7:
+            return 2
+        elif pct < 0.8:
+            return 3
+        elif pct < 0.9:
+            return 4
+        else:
+            return 5
+    
+    for workout in workouts:
+        # 获取心率时间线数据 (支持多种字段名)
+        hr_timeline = (workout.get('hr_timeline', []) or 
+                      workout.get('heartRateData', []) or 
+                      workout.get('hrData', []))
+        
+        if not hr_timeline or len(hr_timeline) < 2:
+            # 没有时间线数据，用平均心率估算整个运动时长
+            avg_hr = workout.get('avg_hr', 0)
+            duration_min = workout.get('duration_min', 0)
+            if avg_hr > 0 and duration_min > 0:
+                zone = get_zone_from_hr(avg_hr, max_hr)
+                if zone >= 1:
+                    zone_times[f'zone_{zone}'] += duration_min
+            continue
+        
+        # 处理心率时间线数据
+        for i in range(len(hr_timeline) - 1):
+            point = hr_timeline[i]
+            next_point = hr_timeline[i + 1]
+            
+            # 提取心率值 (兼容不同字段名)
+            hr = (point.get('hr') or point.get('qty') or 
+                  point.get('heartRate') or point.get('value') or
+                  point.get('Avg') or 0)
+            
+            # 提取时间戳
+            ts1 = point.get('timestamp') or point.get('date') or 0
+            ts2 = next_point.get('timestamp') or next_point.get('date') or 0
+            
+            # 计算时间差（分钟）
+            if isinstance(ts1, (int, float)) and isinstance(ts2, (int, float)) and ts2 > ts1:
+                # 判断时间戳单位 (秒或毫秒)
+                if ts1 > 1e12:  # 毫秒时间戳
+                    duration_sec = (ts2 - ts1) / 1000.0
+                else:  # 秒时间戳
+                    duration_sec = ts2 - ts1
+                duration_min = duration_sec / 60.0
+            else:
+                duration_min = 1.0  # 默认1分钟
+            
+            # 确定心率区间并累加时间
+            zone = get_zone_from_hr(hr, max_hr)
+            if zone >= 1:
+                zone_times[f'zone_{zone}'] += duration_min
+    
+    # 四舍五入到1位小数
+    return {k: round(v, 1) for k, v in zone_times.items()}
+
 def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None, sleep_config=None):
     """提取完整的一天数据 - V5.8.1: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
@@ -373,6 +458,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     
     # V5.8.1: 睡眠数据使用统一解析函数
     from utils import parse_sleep_data_unified
+    if sleep_config is None:
+        sleep_config = {'read_mode': 'next_day', 'start_hour': 20, 'end_hour': 12}
     sleep_result = parse_sleep_data_unified(
         date_str, health_dir, 
         read_mode=sleep_config.get('read_mode', 'next_day'),
@@ -390,12 +477,31 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 运动数据
     workouts = extract_workout_data(date_str, workout_dir, health_dir)
     
+    # 心率数据（用于计算心率区间）
+    heart_rate_data = []
+    hr_metric = metrics.get('heart_rate', {})
+    for hr_point in hr_metric.get('data', []):
+        if 'date' in hr_point and 'qty' in hr_point:
+            heart_rate_data.append({
+                'timestamp': hr_point['date'],
+                'hr': hr_point['qty']
+            })
+    
     # 活动能量合并（统一换算到 kcal）
     # active_energy 来源于 Apple Health 指标，单位是 kJ；workout.energy_kcal 已经是 kcal
     if active_energy and active_energy > 0:
         total_energy_kcal = active_energy / KJ_TO_KCAL
     else:
         total_energy_kcal = sum(w.get('energy_kcal', 0) for w in workouts)
+    
+    # 计算是否有运动
+    has_workout = len(workouts) > 0 if workouts else False
+    
+    # V6.0.3: 从 workout 心率时间线计算真实的心率区间时间
+    user_age = user_profile.get('age', 30) if user_profile else 30
+    if user_age is None:
+        user_age = 30
+    zone_times = calculate_zone_times_from_workouts(workouts, user_age)
     
     result = {
         'date': date_str,
@@ -445,7 +551,10 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
             'awake_hours': round(sleep_awake, 2) if sleep_awake else 0,
             'records': len(sleep_records) if sleep_records else 0
         },
-        'workouts': workouts
+        'workouts': workouts,
+        'has_workout': has_workout,
+        'heart_rate_data': heart_rate_data,
+        'zone_times': zone_times,
     }
     
     return result
