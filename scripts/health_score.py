@@ -455,14 +455,14 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
         strain = strain_result.strain
         zone_times = strain_result.zone_times
     else:
-        # V6.0.3: 没有workout，使用简化版 + 基于步数估算zone_times
+        # V6.0.3: 没有workout，zone_times全为0，不估算
         strain = calculate_strain_simple(
             data.get('active_energy', 0),
             data.get('steps', 0),
             workouts,
             age
         )
-        zone_times = estimate_zone_times_from_steps(data.get('steps', 0))
+        zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
     
     # 2. Sleep Performance
     sleep = data.get('sleep', {})
