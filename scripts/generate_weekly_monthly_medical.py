@@ -22,6 +22,9 @@ from health_score import calculate_body_age, HealthScoreHistory
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
 
+# V6.0.0: 导入健康评分模块
+from health_score import calculate_body_age, HealthScoreHistory
+
 # ==================== 配置加载 ====================
 CONFIG = load_config()
 LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
@@ -896,6 +899,29 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(monthly_data)} {get_text('days')}")
     html = html.replace('{{AVG_CALORIES}}', f"{int(avg_calories):,}")
     html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
+    
+    # V6.0.0: 计算月报Body Age
+    avg_metrics = {
+        'sleep_hours': avg_sleep,
+        'steps': avg_steps,
+        'rhr': avg_hrv  # 使用平均HRV作为参考
+    }
+    
+    # 获取成员配置
+    members = CONFIG.get("members", [])
+    member_cfg = None
+    for m in members:
+        if safe_member_name(m.get("name", "")) == safe_member_name(member_name):
+            member_cfg = m
+            break
+    
+    if member_cfg:
+        body_age_result = calculate_body_age(avg_metrics, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
+        html = html.replace('{{MONTHLY_BODY_AGE}}', str(body_age_result.body_age))
+        html = html.replace('{{MONTHLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
+    else:
+        html = html.replace('{{MONTHLY_BODY_AGE}}', '--')
+        html = html.replace('{{MONTHLY_AGE_IMPACT}}', '--')
 
     # 验证AI分析长度
     print(f"📏 验证AI分析长度...")
