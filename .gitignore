@@ -31,3 +31,13 @@ ENV/
 
 # 日志
 logs/
+
+# Local files - should never be committed
+.openclaw/
+memory/
+ai_analysis_*.json
+config.json
+*.pdf
+upload/
+cache/
+logs/
