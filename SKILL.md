@@ -17,7 +17,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 ## 2) 最小配置（config.json）
 ```json
 {
-  "version": "5.9.1",
+  "version": "6.0.2",
   "members": [
     {
       "name": "Jimmy",
@@ -63,7 +63,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
     "show_empty_categories": true,
     "show_sleep_in_metrics_table": false,
     "hide_no_data_metrics": true,
-    "require_ai_for_selected": false
+    "require_ai_for_selected": true
   }
 }
 ```
@@ -96,6 +96,38 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
    ```
 
 **详见**: `AI_GENERATION_GUIDE.md`
+
+### 日报 AI 分析字段要求
+
+日报必须为以下指标提供 AI 分析（每项 150-200 字）：
+
+**核心指标**（默认必须）：
+- `hrv`, `resting_hr`, `steps`, `distance`, `active_energy`, `spo2`
+- `flights`（对应 flights_climbed）, `stand`（对应 apple_stand_time）
+- `basal`（对应 basal_energy_burned）, `respiratory`（对应 respiratory_rate）
+- `sleep`, `workout`
+
+**如果配置了额外指标**（如 `vo2_max`, `apple_exercise_time` 等），也需要提供对应的 AI 分析。
+
+**优先级建议**（250-300 字）：
+- `priority.title`, `priority.problem`, `priority.action`, `priority.expectation`
+
+**次级建议**（每项 ≥100 字）：
+- `ai2_title`, `ai2_problem`, `ai2_action`, `ai2_expectation`
+- `ai3_title`, `ai3_problem`, `ai3_action`, `ai3_expectation`
+
+**饮食方案**（每项 ≥30 字）：
+- `breakfast`, `lunch`, `dinner`, `snack`
+
+### 周报/月报 AI 分析字段
+
+周报必须包含：
+- `trend_analysis` 或 `weekly_analysis`（建议≥800字）
+- `recommendations` 数组（每项包含 `priority` `title` `content`）
+
+月报必须包含：
+- `hrv_analysis`, `sleep_analysis`, `activity_analysis`, `trend_assessment`（各≥150字）
+- `recommendations` 数组
 
 ## 4) 标准命令
 ### 日报

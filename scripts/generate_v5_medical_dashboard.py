@@ -46,7 +46,7 @@ REPORT_SELECTED_METRICS = REPORT_METRICS_CFG.get("selected", [])
 REPORT_SHOW_EMPTY_CATEGORIES = bool(REPORT_METRICS_CFG.get("show_empty_categories", True))
 REPORT_SORT_BY_IMPORTANCE = bool(REPORT_METRICS_CFG.get("sort_by_importance", True))
 REPORT_HIDE_NO_DATA_METRICS = bool(REPORT_METRICS_CFG.get("hide_no_data_metrics", True))
-REPORT_REQUIRE_AI_FOR_SELECTED = bool(REPORT_METRICS_CFG.get("require_ai_for_selected", False))
+REPORT_REQUIRE_AI_FOR_SELECTED = bool(REPORT_METRICS_CFG.get("require_ai_for_selected", True))
 
 # 新字段优先，旧字段兼容
 if "show_sleep_in_metrics_table" in REPORT_METRICS_CFG:
@@ -1790,9 +1790,12 @@ if __name__ == '__main__':
                 print(f"⚠️  警告: 找不到成员 {member_name} 的有效分析数据")
                 return None
 
+            # 获取选中的指标键
+            selected_metric_keys = get_selected_metric_keys()
+            
             # 验证AI分析
             print(f"📏 验证AI分析长度...")
-            validation_errors = verify_ai_analysis(ai_analysis)
+            validation_errors = verify_ai_analysis(ai_analysis, selected_metric_keys)
             if validation_errors:
                 print(f"⚠️  发现 {len(validation_errors)} 处验证问题:")
                 for error in validation_errors:
