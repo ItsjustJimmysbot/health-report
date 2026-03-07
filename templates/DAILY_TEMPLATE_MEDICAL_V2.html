@@ -241,77 +241,160 @@ body {
 .pace-legend span.active { color: #fff; font-weight: 600; }
 
 /* Body Age */
-.body-age-section { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+/* V6.0.2: Body Age 美化设计 */
+.body-age-section {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px;
+  padding: 24px;
+}
 
 .body-age-display {
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .age-comparison {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 32px;
-  margin-bottom: 20px;
+  justify-content: center;
+  gap: 40px;
+  margin: 24px 0;
 }
 
-.age-box {
-  text-align: center;
-  padding: 20px 32px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+/* 基础卡片样式 */
+.age-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 32px;
   border-radius: 16px;
-  min-width: 120px;
-  border: 1px solid rgba(255,255,255,0.1);
+  min-width: 140px;
+  text-align: center;
 }
 
-.age-box.younger {
-  background: linear-gradient(135deg, rgba(81,207,102,0.3), rgba(81,207,102,0.1));
-  border: 2px solid #51cf66;
+/* 实际年龄卡片 - 中性色 */
+.age-card.chronological {
+  background: linear-gradient(135deg, #3d5a80 0%, #2c4a6e 100%);
+  border: 2px solid #4a6fa5;
+  box-shadow: 0 4px 15px rgba(61, 90, 128, 0.3);
 }
 
-.age-box.older {
-  background: linear-gradient(135deg, rgba(255,107,107,0.3), rgba(255,107,107,0.1));
-  border: 2px solid #ff6b6b;
+.age-card.chronological .age-label {
+  font-size: 14px;
+  color: #a8c6e8;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-.age-label { 
-  font-size: 14px; 
-  color: #bbb;
-  margin-bottom: 8px; 
+.age-card.chronological .age-value {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.age-value { 
-  font-size: 42px; 
-  font-weight: bold; 
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+.age-card.chronological .age-unit {
+  font-size: 16px;
+  color: #8fb8e8;
+  margin-top: 4px;
 }
 
-.age-unit { 
-  font-size: 14px; 
-  color: #999;
-  margin-top: 4px; 
+/* 身体年龄卡片 - 动态颜色 */
+.age-card.body {
+  background: linear-gradient(135deg, #2d3436 0%, #1a1a2e 100%);
+  border: 2px solid #636e72;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-.age-impact {
+/* 身体状态好的样式 */
+.age-card.body.younger {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  border: 2px solid #58d68d;
+  box-shadow: 0 4px 20px rgba(46, 204, 113, 0.4);
+}
+
+.age-card.body.younger .age-label { color: #d5f4e6; }
+.age-card.body.younger .age-value { color: #ffffff; }
+.age-card.body.younger .age-unit { color: #abebc6; }
+
+/* 身体状态差的样式 */
+.age-card.body.older {
+  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+  border: 2px solid #ec7063;
+  box-shadow: 0 4px 20px rgba(231, 76, 60, 0.4);
+}
+
+.age-card.body.older .age-label { color: #fadbd8; }
+.age-card.body.older .age-value { color: #ffffff; }
+.age-card.body.older .age-unit { color: #f5b7b1; }
+
+/* 身体年龄卡片默认文字颜色 */
+.age-card.body .age-label {
+  font-size: 14px;
+  color: #b2bec3;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.age-card.body .age-value {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.age-card.body .age-unit {
+  font-size: 16px;
+  color: #dfe6e9;
+  margin-top: 4px;
+}
+
+/* 差异值显示 */
+.age-difference {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
-  margin-top: 8px;
-  /* V6.0.2: 删除非标准的:contains选择器，使用内联样式 */
 }
 
+.age-card.body.younger .age-difference {
+  background: rgba(255,255,255,0.2);
+  color: #ffffff;
+}
+
+.age-card.body.older .age-difference {
+  background: rgba(255,255,255,0.2);
+  color: #ffffff;
+}
+
+.age-card.body .age-difference {
+  background: rgba(99, 110, 114, 0.5);
+  color: #dfe6e9;
+}
+
+/* 箭头 */
 .age-arrow {
   font-size: 32px;
-  color: #666;
+  color: #74b9ff;
+  font-weight: bold;
 }
 
+/* 提示信息 */
 .age-hint {
   text-align: center;
-  padding: 16px;
+  padding: 16px 24px;
   background: rgba(255,255,255,0.05);
   border-radius: 12px;
   font-size: 14px;
-  color: #ccc;
+  color: #b2bec3;
+  max-width: 400px;
+  line-height: 1.6;
 }
 
 /* ===== Section Cards ===== */
@@ -1077,7 +1160,7 @@ body {
   
   <div class="body-age-display">
     <div class="age-comparison">
-      <div class="age-box chronological">
+      <div class="age-card chronological">
         <div class="age-label">实际年龄</div>
         <div class="age-value">{{CHRONOLOGICAL_AGE}}</div>
         <div class="age-unit">岁</div>
@@ -1085,11 +1168,11 @@ body {
       
       <div class="age-arrow">→</div>
       
-      <div class="age-box body {{AGE_BOX_CLASS}}">
+      <div class="age-card body {{AGE_BOX_CLASS}}">
         <div class="age-label">身体年龄</div>
         <div class="age-value">{{BODY_AGE}}</div>
         <div class="age-unit">岁</div>
-        <div class="age-impact">{{AGE_IMPACT}}</div>
+        <div class="age-difference">{{AGE_IMPACT}}</div>
       </div>
     </div>
     
