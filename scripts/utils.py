@@ -958,12 +958,12 @@ def validate_config_schema(config: dict) -> list:
         if field not in config:
             errors.append(f"缺少必填字段: {field}")
 
-    # version - 支持 5.8.x 和 5.9.x
+    # version - 支持 5.8.x、5.9.x 和 6.0.x
     version = config.get('version')
     if version is not None:
         import re
-        if not re.match(r'^5\.(8|9)\.\d+$', str(version)):
-            errors.append(f"version '{version}' 无效，格式应为 5.8.x 或 5.9.x")
+        if not re.match(r'^(5\.(8|9)|6\.0)\.\d+$', str(version)):
+            errors.append(f"version '{version}' 无效，格式应为 5.8.x, 5.9.x 或 6.0.x")
 
     # members
     members = config.get('members', [])

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康评分算法模块 V6.0.0
+"""健康评分算法模块 V6.0.1
 
 核心评分：
 - Strain (0-21): 日心血管负荷
@@ -72,6 +72,32 @@ def calculate_strain(hr_data: List[Tuple[datetime, int]],
         total_load=round(total_load, 1),
         zone_times={k: round(v, 1) for k, v in zone_times.items()}
     )
+
+def calculate_strain_simple(active_energy: float, steps: int, 
+                           workouts: List[Dict], age: int = 30) -> float:
+    """
+    简化版Strain计算 V6.0.1（没有全天HR数据时使用）
+    基于活动能量、步数和运动记录估算
+    """
+    # 基于活动能量估算
+    energy_load = min(10, active_energy / 100) if active_energy else 0
+    
+    # 基于步数估算
+    steps_load = min(5, steps / 2000) if steps else 0
+    
+    # 基于运动记录估算
+    workout_load = 0
+    for w in workouts:
+        duration = w.get('duration_min', 0)
+        intensity = 2.0 if 'run' in w.get('name', '').lower() else 1.5 if 'strength' in w.get('name', '').lower() else 1.0
+        workout_load += duration / 60 * intensity
+    
+    total_load = energy_load + steps_load + workout_load
+    
+    # 缩放到0-21
+    strain = min(21, total_load * 0.8)
+    
+    return round(strain, 1)
 
 # ============ 2. Recovery 评分 (0-100%) ============
 
@@ -165,43 +191,67 @@ class BodyAgeResult:
     chronological_age: int
     age_impact: float
     breakdown: Dict[str, float]
+    risk_ratios: Dict[str, float] = None
 
 def calculate_body_age(metrics: Dict, chronological_age: int, gender: str = 'male') -> BodyAgeResult:
-    """计算Body Age"""
-    # 简化的身体年龄计算
+    """计算Body Age - V6.0.1改进版（带数据有效性检查）"""
     impacts = {}
     
-    # 睡眠
-    sleep_hours = metrics.get('sleep_hours', 7)
-    if 7 <= sleep_hours <= 9:
-        impacts['sleep'] = 0
-    elif sleep_hours >= 6:
-        impacts['sleep'] = 1.2
-    else:
-        impacts['sleep'] = 2.5
+    # 获取实际数据（带默认值保护）
+    sleep_hours = metrics.get('sleep_hours', 0)
+    steps = metrics.get('steps', 0)
+    rhr = metrics.get('rhr', 0)
     
-    # 步数
-    steps = metrics.get('steps', 8000)
-    target = 8000 if chronological_age <= 30 else 7000 if chronological_age <= 50 else 5600
-    if steps >= target:
-        impacts['steps'] = -1.0
-    else:
-        impacts['steps'] = (target - steps) / 1000 * 2.3
+    # 数据有效性检查 - 如果没有真实数据，返回实际年龄
+    has_real_data = (sleep_hours > 0 or steps > 0 or rhr > 0)
+    if not has_real_data:
+        return BodyAgeResult(
+            body_age=float(chronological_age),
+            chronological_age=chronological_age,
+            age_impact=0.0,
+            breakdown={'note': '数据不足，无法计算'},
+            risk_ratios={}
+        )
     
-    # HRV/RHR综合
-    rhr = metrics.get('rhr', 70)
-    if rhr < 60:
-        impacts['cardio'] = -1.5
-    elif rhr < 70:
-        impacts['cardio'] = 0
-    else:
-        impacts['cardio'] = (rhr - 70) / 10 * 0.9
+    # 睡眠影响（只有有数据时才计算）
+    if sleep_hours > 0:
+        if 7 <= sleep_hours <= 9:
+            impacts['sleep'] = 0
+        elif sleep_hours >= 6:
+            impacts['sleep'] = 1.2
+        else:
+            impacts['sleep'] = 2.5
+    
+    # 步数影响（使用对数缩放避免极端值）
+    if steps > 0:
+        target = 8000 if chronological_age <= 30 else 7000 if chronological_age <= 50 else 5600
+        if steps >= target:
+            impacts['steps'] = -1.0
+        else:
+            # 使用对数缩放，避免steps=0时产生巨大影响
+            deficit_ratio = (target - steps) / target
+            impacts['steps'] = min(5.0, deficit_ratio * 5)  # 最大影响5岁
+    
+    # RHR影响
+    if rhr > 0:
+        target_rhr = 60 if gender == 'male' else 64
+        if rhr < target_rhr:
+            impacts['cardio'] = -0.5
+        elif rhr < target_rhr + 10:
+            impacts['cardio'] = 0
+        else:
+            impacts['cardio'] = min(3.0, (rhr - target_rhr) / 10 * 0.9)
     
     total_impact = sum(impacts.values())
     body_age = chronological_age + total_impact
     
-    return BodyAgeResult(round(body_age, 1), chronological_age, round(total_impact, 1), 
-                        {k: round(v, 2) for k, v in impacts.items()})
+    return BodyAgeResult(
+        body_age=round(body_age, 1),
+        chronological_age=chronological_age,
+        age_impact=round(total_impact, 1),
+        breakdown={k: round(v, 2) for k, v in impacts.items()},
+        risk_ratios={}
+    )
 
 # ============ 5. Pace of Aging ============
 
@@ -332,7 +382,20 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
     strength_time = sum(w.get('duration_minutes', 0) for w in workouts 
                        if 'strength' in w.get('name', '').lower())
     
-    strain_result = calculate_strain(hr_data, strength_time, age, gender)
+    # V6.0.1: 改进Strain计算
+    workouts = data.get('workouts', [])
+    
+    # 如果没有足够HR数据，使用简化版
+    if not hr_data or len(hr_data) < 10:
+        strain = calculate_strain_simple(
+            data.get('active_energy', 0),
+            data.get('steps', 0),
+            workouts,
+            age
+        )
+    else:
+        strain_result = calculate_strain(hr_data, strength_time, age, gender)
+        strain = strain_result.strain
     
     # 2. Sleep Performance
     sleep = data.get('sleep', {})
@@ -380,7 +443,7 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
     pace = calculate_pace_of_aging(current_7day, previous_7day)
     
     return {
-        'strain': strain_result.strain,
+        'strain': strain,
         'recovery': recovery_result.recovery,
         'recovery_status': recovery_result.status,
         'sleep_performance': sleep_result.performance,
@@ -390,7 +453,6 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
         'age_impact': body_age_result.age_impact,
         'pace_of_aging': pace,
         'breakdown': {
-            'strain_detail': asdict(strain_result),
             'recovery_detail': asdict(recovery_result),
             'sleep_detail': asdict(sleep_result),
             'body_age_detail': asdict(body_age_result)

@@ -26,7 +26,7 @@ from playwright.sync_api import sync_playwright
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL, count_text_units
 
-# V6.0.0: 导入健康评分模块
+# V6.0.1: 导入健康评分模块
 from health_score import calculate_all_scores, HealthScoreHistory
 
 # ==================== 全局配置（从 config.json 加载）====================
@@ -467,7 +467,7 @@ def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
 
-    # V6.0.0: 统一兼容字符串日期与数字时间戳（秒/毫秒）
+    # V6.0.1: 统一兼容字符串日期与数字时间戳（秒/毫秒）
     if target_date:
         filtered_arr = []
         for x in arr:
@@ -1430,7 +1430,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{SCORE_SLEEP}}', str(sleep_score)).replace('{{BADGE_SLEEP_CLASS}}', sc).replace('{{BADGE_SLEEP_TEXT}}', st)
     html = html.replace('{{SCORE_EXERCISE}}', str(exercise)).replace('{{BADGE_EXERCISE_CLASS}}', ec).replace('{{BADGE_EXERCISE_TEXT}}', et)
 
-    # V6.0.0: 计算新的健康评分系统
+    # V6.0.1: 计算新的健康评分系统
     cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
     history = HealthScoreHistory(cache_dir)
     
@@ -1442,7 +1442,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
     print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
     
-    # V6.0.0: 新的健康评分替换
+    # V6.0.1: 新的健康评分替换
     html = html.replace('{{STRAIN}}', str(health_scores['strain']))
     html = html.replace('{{STRAIN_PERCENT}}', str(int(health_scores['strain'] / 21 * 100)))
     html = html.replace('{{RECOVERY}}', str(health_scores['recovery']))
@@ -1476,7 +1476,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     recovery_status_cn = '优秀' if health_scores['recovery'] >= 67 else '良好' if health_scores['recovery'] >= 34 else '需恢复'
     html = html.replace('{{RECOVERY_STATUS_CN}}', recovery_status_cn)
     
-    # V6.0.0: Body Age 提示
+    # V6.0.1: Body Age 提示
     age_impact = health_scores['age_impact']
     if age_impact < -1:
         age_hint = f"🎉 你的身体比实际年龄年轻{abs(age_impact):.1f}岁，继续保持！" if LANGUAGE == 'CN' else f"🎉 Your body is {abs(age_impact):.1f} years younger than your actual age!"
@@ -1842,7 +1842,7 @@ if __name__ == '__main__':
 
             # 保存缓存
             try:
-                # V6.0.0: 扩展缓存数据，添加睡眠债和健康评分
+                # V6.0.1: 扩展缓存数据，添加睡眠债和健康评分
                 sleep_data = data.get('sleep', {})
                 sleep_total = sleep_data.get('total_hours', 0)
                 sleep_need = health_scores['sleep_need']
@@ -1885,13 +1885,13 @@ if __name__ == '__main__':
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],
                     'sleep': sleep_data,
-                    # V6.0.0: 睡眠细节
+                    # V6.0.1: 睡眠细节
                     'bedtime': bedtime,
                     'waketime': waketime,
                     'sleep_latency_min': 20,
                     'sleep_debt_daily': round(daily_debt, 2),
                     'sleep_debt_accumulated': round(accumulated_debt, 2),
-                    # V6.0.0: 健康评分
+                    # V6.0.1: 健康评分
                     'health_scores': {
                         'strain': health_scores['strain'],
                         'recovery': health_scores['recovery'],
