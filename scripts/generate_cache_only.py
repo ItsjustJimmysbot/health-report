@@ -124,6 +124,10 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
             'actual_sleep_hours': round(sleep_total, 2),
             'body_age': health_scores['body_age'], 'chronological_age': health_scores['chronological_age'],
             'age_impact': health_scores['age_impact'], 'pace_of_aging': health_scores['pace_of_aging'],
+            # V6.0.2: 新增心率区间时间（分钟）
+            'zone_times': health_scores.get('zone_times', {
+                'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0
+            }),
             'hrv_rmssd': data.get('hrv', {}).get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
             'rhr': data.get('resting_hr', {}).get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0
         }

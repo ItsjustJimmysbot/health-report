@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康评分算法模块 V6.0.1
+"""健康评分算法模块 V6.0.2
 
 核心评分：
 - Strain (0-21): 日心血管负荷
@@ -70,13 +70,19 @@ def calculate_strain(hr_data: List[Tuple[datetime, int]],
         cardio_load=round(cardio_load, 1),
         muscle_load=round(muscle_load, 1),
         total_load=round(total_load, 1),
-        zone_times={k: round(v, 1) for k, v in zone_times.items()}
+        zone_times={
+            'zone_1': round(zone_times[1], 1),
+            'zone_2': round(zone_times[2], 1),
+            'zone_3': round(zone_times[3], 1),
+            'zone_4': round(zone_times[4], 1),
+            'zone_5': round(zone_times[5], 1)
+        }
     )
 
 def calculate_strain_simple(active_energy: float, steps: int, 
                            workouts: List[Dict], age: int = 30) -> float:
     """
-    简化版Strain计算 V6.0.1（没有全天HR数据时使用）
+    简化版Strain计算 V6.0.2（没有全天HR数据时使用）
     基于活动能量、步数和运动记录估算
     """
     # 基于活动能量估算
@@ -194,7 +200,7 @@ class BodyAgeResult:
     risk_ratios: Dict[str, float] = None
 
 def calculate_body_age(metrics: Dict, chronological_age: int, gender: str = 'male') -> BodyAgeResult:
-    """计算Body Age - V6.0.1改进版（带数据有效性检查）"""
+    """计算Body Age - V6.0.2改进版（带数据有效性检查）"""
     impacts = {}
     
     # 获取实际数据（带默认值保护）
@@ -370,32 +376,82 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
     date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
     member_name = profile.get('name', '默认用户')
     
-    # 1. Strain
-    # 从workouts构建心率数据（简化版）
+    # 1. Strain - V6.0.2修复：基于Workout构建心率数据
+    workouts = data.get('workouts', [])
+    
+    # 构建全天心率数据
     hr_data = []
-    base_time = datetime.now().replace(hour=6, minute=0)
-    for i in range(24 * 12):
-        hr = 60  # 默认值
-        hr_data.append((base_time + timedelta(minutes=i*5), hr))
+    base_time = datetime.now().replace(hour=6, minute=0, second=0)
     
-    workouts = data.get('workouts', [])
-    strength_time = sum(w.get('duration_minutes', 0) for w in workouts 
-                       if 'strength' in w.get('name', '').lower())
+    # 基础静息心率（全天默认60bpm）
+    base_hr = 60
+    max_hr = calculate_max_hr(age, gender)
     
-    # V6.0.1: 改进Strain计算
-    workouts = data.get('workouts', [])
+    # 为每个5分钟时间点生成心率
+    for i in range(24 * 12):  # 24小时，每5分钟一个点
+        current_time = base_time + timedelta(minutes=i*5)
+        current_hr = base_hr
+        
+        # 检查当前时间是否在任何workout时段内
+        for workout in workouts:
+            workout_start = workout.get('start')
+            workout_duration = workout.get('duration_min', 0)
+            
+            if workout_start and workout_duration > 0:
+                # 解析workout开始时间
+                try:
+                    if isinstance(workout_start, str):
+                        # 格式: "2026-03-05 10:00:00 +0800"
+                        wt = datetime.strptime(workout_start[:19], '%Y-%m-%d %H:%M:%S')
+                    else:
+                        wt = workout_start
+                    
+                    workout_end = wt + timedelta(minutes=workout_duration)
+                    
+                    # 如果当前时间在workout时段内
+                    if wt.time() <= current_time.time() < workout_end.time():
+                        # 根据workout类型设置心率
+                        workout_name = workout.get('name', '').lower()
+                        
+                        if 'run' in workout_name or '跑步' in workout_name:
+                            # 跑步：Zone 4-5 (80-95% max_hr)
+                            current_hr = int(max_hr * 0.85)
+                        elif 'strength' in workout_name or '力量' in workout_name or '举重' in workout_name:
+                            # 力量训练：Zone 3-4 (70-85% max_hr)
+                            current_hr = int(max_hr * 0.75)
+                        elif 'walk' in workout_name or '步行' in workout_name or '走路' in workout_name:
+                            # 步行：Zone 2 (60-70% max_hr)
+                            current_hr = int(max_hr * 0.65)
+                        else:
+                            # 其他运动：Zone 3 (70-80% max_hr)
+                            current_hr = int(max_hr * 0.72)
+                        
+                        break  # 找到匹配的workout，跳出循环
+                        
+                except Exception as e:
+                    # 解析失败，使用默认心率
+                    pass
+        
+        hr_data.append((current_time, current_hr))
     
-    # 如果没有足够HR数据，使用简化版
-    if not hr_data or len(hr_data) < 10:
+    # 计算力量训练时间
+    strength_time = sum(w.get('duration_min', 0) for w in workouts 
+                       if any(k in w.get('name', '').lower() for k in ['strength', '力量', '举重', 'weight']))
+    
+    # 如果有workout数据，使用标准Strain计算
+    if workouts and len(workouts) > 0:
+        strain_result = calculate_strain(hr_data, strength_time, age, gender)
+        strain = strain_result.strain
+        zone_times = strain_result.zone_times
+    else:
+        # 没有workout，使用简化版
         strain = calculate_strain_simple(
             data.get('active_energy', 0),
             data.get('steps', 0),
             workouts,
             age
         )
-    else:
-        strain_result = calculate_strain(hr_data, strength_time, age, gender)
-        strain = strain_result.strain
+        zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
     
     # 2. Sleep Performance
     sleep = data.get('sleep', {})
@@ -452,6 +508,7 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory)
         'chronological_age': body_age_result.chronological_age,
         'age_impact': body_age_result.age_impact,
         'pace_of_aging': pace,
+        'zone_times': zone_times,  # V6.0.2: 新增心率区间时间
         'breakdown': {
             'recovery_detail': asdict(recovery_result),
             'sleep_detail': asdict(sleep_result),

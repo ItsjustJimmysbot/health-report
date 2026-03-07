@@ -339,6 +339,92 @@ body {
   line-height: 1.6;
 }
 
+/* V6.0.2: 心率区间分布样式 */
+.zone-distribution { margin: 20px 0; }
+
+.zone-bar {
+  margin: 16px 0;
+  padding: 16px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+}
+
+.zone-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.zone-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.zone-range {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.zone-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.zone-time {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.zone-pct {
+  font-size: 14px;
+  color: var(--blue-main);
+}
+
+.zone-progress {
+  height: 8px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.zone-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.zone-fill.z1 { background: #74c0fc; }
+.zone-fill.z2 { background: #51cf66; }
+.zone-fill.z3 { background: #ffd93d; }
+.zone-fill.z4 { background: #ff922b; }
+.zone-fill.z5 { background: #ff6b6b; }
+
+.zone-summary {
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.zone-summary .total-time {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.zone-summary .primary-zone {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.zone-summary strong {
+  color: var(--text-primary);
+}
+
 /* ===== 图表区域 ===== */
 .chart-container {
   background: var(--white);
@@ -435,6 +521,94 @@ body {
       {{DAILY_ROWS}}
     </tbody>
   </table>
+</div>
+
+<!-- V6.0.2: 心率区间分布 -->
+<div class="section-card zone-distribution">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">💓</span>
+      本周心率区间分布
+    </div>
+    <div class="section-subtitle">基于运动数据的Zone时间统计</div>
+  </div>
+  
+  <div class="zone-chart">
+    <div class="zone-bar">
+      <div class="zone-info">
+        <span class="zone-name">Zone 1</span>
+        <span class="zone-range">50-60%</span>
+      </div>
+      <div class="zone-stats">
+        <span class="zone-time">{{WEEKLY_ZONE_1}}h</span>
+        <span class="zone-pct">{{WEEKLY_ZONE_1_PCT}}%</span>
+      </div>
+      <div class="zone-progress">
+        <div class="zone-fill z1" style="width: {{WEEKLY_ZONE_1_PCT}}%"></div>
+      </div>
+    </div>
+    
+    <div class="zone-bar">
+      <div class="zone-info">
+        <span class="zone-name">Zone 2</span>
+        <span class="zone-range">60-70%</span>
+      </div>
+      <div class="zone-stats">
+        <span class="zone-time">{{WEEKLY_ZONE_2}}h</span>
+        <span class="zone-pct">{{WEEKLY_ZONE_2_PCT}}%</span>
+      </div>
+      <div class="zone-progress">
+        <div class="zone-fill z2" style="width: {{WEEKLY_ZONE_2_PCT}}%"></div>
+      </div>
+    </div>
+    
+    <div class="zone-bar">
+      <div class="zone-info">
+        <span class="zone-name">Zone 3</span>
+        <span class="zone-range">70-80%</span>
+      </div>
+      <div class="zone-stats">
+        <span class="zone-time">{{WEEKLY_ZONE_3}}h</span>
+        <span class="zone-pct">{{WEEKLY_ZONE_3_PCT}}%</span>
+      </div>
+      <div class="zone-progress">
+        <div class="zone-fill z3" style="width: {{WEEKLY_ZONE_3_PCT}}%"></div>
+      </div>
+    </div>
+    
+    <div class="zone-bar">
+      <div class="zone-info">
+        <span class="zone-name">Zone 4</span>
+        <span class="zone-range">80-90%</span>
+      </div>
+      <div class="zone-stats">
+        <span class="zone-time">{{WEEKLY_ZONE_4}}h</span>
+        <span class="zone-pct">{{WEEKLY_ZONE_4_PCT}}%</span>
+      </div>
+      <div class="zone-progress">
+        <div class="zone-fill z4" style="width: {{WEEKLY_ZONE_4_PCT}}%"></div>
+      </div>
+    </div>
+    
+    <div class="zone-bar">
+      <div class="zone-info">
+        <span class="zone-name">Zone 5</span>
+        <span class="zone-range">90-100%</span>
+      </div>
+      <div class="zone-stats">
+        <span class="zone-time">{{WEEKLY_ZONE_5}}h</span>
+        <span class="zone-pct">{{WEEKLY_ZONE_5_PCT}}%</span>
+      </div>
+      <div class="zone-progress">
+        <div class="zone-fill z5" style="width: {{WEEKLY_ZONE_5_PCT}}%"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="zone-summary">
+    <div class="total-time">本周总运动时间: <strong>{{WEEKLY_TOTAL_ZONE_TIME}}小时</strong></div>
+    <div class="primary-zone">主要训练区间: <strong>{{WEEKLY_PRIMARY_ZONE}}</strong></div>
+  </div>
 </div>
 
 <!-- 趋势图表 -->

@@ -701,6 +701,55 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         html = html.replace('{{WEEKLY_BODY_AGE}}', '--')
         html = html.replace('{{WEEKLY_AGE_IMPACT}}', '--')
 
+    # V6.0.2: 计算本周心率区间分布
+    weekly_zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+    for day in weekly_data:
+        hs = day.get('health_scores', {})
+        zt = hs.get('zone_times', {})
+        for zone in ['zone_1', 'zone_2', 'zone_3', 'zone_4', 'zone_5']:
+            weekly_zone_times[zone] += zt.get(zone, 0)
+
+    # 转换为小时
+    weekly_zone_hours = {}
+    for zone in weekly_zone_times:
+        weekly_zone_hours[zone] = round(weekly_zone_times[zone] / 60, 1)
+
+    # 计算总时间和百分比
+    total_zone_minutes = sum(weekly_zone_times.values())
+    total_zone_hours = round(total_zone_minutes / 60, 1)
+
+    if total_zone_minutes > 0:
+        zone_percentages = {}
+        for zone in weekly_zone_times:
+            zone_percentages[zone] = round(weekly_zone_times[zone] / total_zone_minutes * 100, 1)
+    else:
+        zone_percentages = {z: 0 for z in weekly_zone_times}
+
+    # 确定主要训练区间
+    max_zone = max(weekly_zone_hours, key=weekly_zone_hours.get)
+    zone_names = {
+        'zone_1': 'Zone 1 (恢复/热身)',
+        'zone_2': 'Zone 2 (有氧燃脂)',
+        'zone_3': 'Zone 3 (有氧耐力)',
+        'zone_4': 'Zone 4 (乳酸阈值)',
+        'zone_5': 'Zone 5 (无氧极限)'
+    }
+    primary_zone = zone_names.get(max_zone, 'Zone 1')
+
+    # 模板替换
+    html = html.replace('{{WEEKLY_ZONE_1}}', str(weekly_zone_hours['zone_1']))
+    html = html.replace('{{WEEKLY_ZONE_2}}', str(weekly_zone_hours['zone_2']))
+    html = html.replace('{{WEEKLY_ZONE_3}}', str(weekly_zone_hours['zone_3']))
+    html = html.replace('{{WEEKLY_ZONE_4}}', str(weekly_zone_hours['zone_4']))
+    html = html.replace('{{WEEKLY_ZONE_5}}', str(weekly_zone_hours['zone_5']))
+    html = html.replace('{{WEEKLY_ZONE_1_PCT}}', str(zone_percentages['zone_1']))
+    html = html.replace('{{WEEKLY_ZONE_2_PCT}}', str(zone_percentages['zone_2']))
+    html = html.replace('{{WEEKLY_ZONE_3_PCT}}', str(zone_percentages['zone_3']))
+    html = html.replace('{{WEEKLY_ZONE_4_PCT}}', str(zone_percentages['zone_4']))
+    html = html.replace('{{WEEKLY_ZONE_5_PCT}}', str(zone_percentages['zone_5']))
+    html = html.replace('{{WEEKLY_TOTAL_ZONE_TIME}}', str(total_zone_hours))
+    html = html.replace('{{WEEKLY_PRIMARY_ZONE}}', primary_zone)
+
     # 验证AI分析长度
     print(f"📏 验证AI分析长度...")
     validation_errors = verify_ai_analysis_weekly(ai_analysis)
