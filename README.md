@@ -638,7 +638,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
   "show_empty_categories": true,
   "show_sleep_in_metrics_table": false,
   "hide_no_data_metrics": true,
-  "require_ai_for_selected": false,
+  "require_ai_for_selected": true,
   "category_order": [
     "core_health", "cardio_fitness", "sleep_recovery", "activity_mobility",
     "running_advanced", "walking_gait", "stairs_strength", "environment_audio"

@@ -22,9 +22,6 @@ from health_score import calculate_body_age, HealthScoreHistory
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
 
-# V6.0.0: 导入健康评分模块
-from health_score import calculate_body_age, HealthScoreHistory
-
 # ==================== 配置加载 ====================
 CONFIG = load_config()
 LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
@@ -1356,13 +1353,17 @@ def main():
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.pdf'
                 with sync_playwright() as p:
-                    browser = p.chromium.launch()
-                    page = browser.new_page()
-                    page.goto(html_path.resolve().as_uri())
-                    page.wait_for_timeout(2500)
-                    page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                             margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                    browser.close()
+                    browser = None
+                    try:
+                        browser = p.chromium.launch()
+                        page = browser.new_page()
+                        page.goto(html_path.resolve().as_uri())
+                        page.wait_for_timeout(2500)
+                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
+                    finally:
+                        if browser:
+                            browser.close()
 
                 if LANGUAGE == "EN":
                     print(f'✅ Weekly report generated: {pdf_path}')
@@ -1440,13 +1441,17 @@ def main():
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.pdf'
                 with sync_playwright() as p:
-                    browser = p.chromium.launch()
-                    page = browser.new_page()
-                    page.goto(html_path.resolve().as_uri())
-                    page.wait_for_timeout(2500)
-                    page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                             margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                    browser.close()
+                    browser = None
+                    try:
+                        browser = p.chromium.launch()
+                        page = browser.new_page()
+                        page.goto(html_path.resolve().as_uri())
+                        page.wait_for_timeout(2500)
+                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
+                    finally:
+                        if browser:
+                            browser.close()
 
                 success_count += 1
 

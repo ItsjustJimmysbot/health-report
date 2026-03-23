@@ -183,6 +183,11 @@ def safe_member_name(name: str) -> str:
     unsafe_chars = r'[\s/\\:*?"<>|]+'
     safe = re.sub(unsafe_chars, '_', safe)
 
+    # 防止路径遍历: 移除 .. 和 /
+    safe = safe.replace('..', '_')
+    safe = safe.replace('/', '_')
+    safe = safe.replace('\\', '_')
+
     # 合并连续下划线
     safe = re.sub(r'_+', '_', safe)
 
@@ -525,7 +530,9 @@ def parse_sleep_data_unified(
     try:
         with open(sleep_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.warning(f"解析睡眠数据失败: {e}")
         return {
             'records': [],
             'total_hours': 0,

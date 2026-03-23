@@ -46,7 +46,7 @@ REPORT_SELECTED_METRICS = REPORT_METRICS_CFG.get("selected", [])
 REPORT_SHOW_EMPTY_CATEGORIES = bool(REPORT_METRICS_CFG.get("show_empty_categories", True))
 REPORT_SORT_BY_IMPORTANCE = bool(REPORT_METRICS_CFG.get("sort_by_importance", True))
 REPORT_HIDE_NO_DATA_METRICS = bool(REPORT_METRICS_CFG.get("hide_no_data_metrics", True))
-REPORT_REQUIRE_AI_FOR_SELECTED = bool(REPORT_METRICS_CFG.get("require_ai_for_selected", False))
+REPORT_REQUIRE_AI_FOR_SELECTED = bool(REPORT_METRICS_CFG.get("require_ai_for_selected", True))
 
 # 新字段优先，旧字段兼容
 if "show_sleep_in_metrics_table" in REPORT_METRICS_CFG:
@@ -909,7 +909,9 @@ def metric_importance(metric_key: str) -> int:
             return max(0, min(10, x))
         except Exception:
             pass
-    return int(METRIC_DEFS[metric_key]['importance'])
+    metric_def = METRIC_DEFS.get(metric_key, {})
+    importance = metric_def.get('importance', 5)  # 默认5
+    return int(importance) if importance is not None else 5
 
 
 def get_selected_metric_keys():
@@ -931,8 +933,10 @@ def get_selected_metric_keys():
 
 def metric_label(metric_key: str) -> str:
     """获取指标标签"""
-    d = METRIC_DEFS[metric_key]
-    return d['label_en'] if LANGUAGE == 'EN' else d['label_cn']
+    d = METRIC_DEFS.get(metric_key, {})
+    if not d:
+        return metric_key  # 回退到key本身
+    return d.get('label_en', metric_key) if LANGUAGE == 'EN' else d.get('label_cn', metric_key)
 
 
 def metric_value_text(metric_key: str, data: dict) -> str:
@@ -1790,9 +1794,12 @@ if __name__ == '__main__':
                 print(f"⚠️  警告: 找不到成员 {member_name} 的有效分析数据")
                 return None
 
-            # 验证AI分析
+            # 获取选中的指标键（提前到验证前）
+            selected_metric_keys = get_selected_metric_keys()
+            
+            # 验证AI分析 - 传入选中指标确保所有选中指标都有AI分析
             print(f"📏 验证AI分析长度...")
-            validation_errors = verify_ai_analysis(ai_analysis)
+            validation_errors = verify_ai_analysis(ai_analysis, selected_metric_keys)
             if validation_errors:
                 print(f"⚠️  发现 {len(validation_errors)} 处验证问题:")
                 for error in validation_errors:
@@ -1840,14 +1847,18 @@ if __name__ == '__main__':
             for attempt in range(max_retries):
                 try:
                     with sync_playwright() as p:
-                        browser = p.chromium.launch()
-                        page = browser.new_page()
-                        page.goto(html_path.resolve().as_uri())
-                        page.wait_for_timeout(2500)
-                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
-                                 display_header_footer=False)
-                        browser.close()
+                        browser = None
+                        try:
+                            browser = p.chromium.launch()
+                            page = browser.new_page()
+                            page.goto(html_path.resolve().as_uri())
+                            page.wait_for_timeout(2500)
+                            page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                     margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
+                                     display_header_footer=False)
+                        finally:
+                            if browser:
+                                browser.close()
                     break
                 except Exception as e:
                     if attempt < max_retries - 1:
@@ -1866,11 +1877,13 @@ if __name__ == '__main__':
                 sleep_total = sleep_data.get('total_hours', 0)
                 sleep_need = health_scores['sleep_need']
                 
-                # 计算当日睡眠债
+                # 计算当日睡眠债（睡眠充足可以减少债务）
                 if sleep_total < sleep_need:
                     daily_debt = sleep_need - sleep_total
                 else:
-                    daily_debt = max(0, -0.5)
+                    # 睡眠充足时，每多睡1小时减少0.5小时债务，最多减到0
+                    surplus = sleep_total - sleep_need
+                    daily_debt = max(-0.5, -surplus * 0.5)
                 
                 # 获取累积睡眠债（从昨天缓存）
                 prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')

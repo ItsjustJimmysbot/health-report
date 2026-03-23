@@ -63,7 +63,7 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
     "show_empty_categories": true,
     "show_sleep_in_metrics_table": false,
     "hide_no_data_metrics": true,
-    "require_ai_for_selected": false
+    "require_ai_for_selected": true
   }
 }
 ```

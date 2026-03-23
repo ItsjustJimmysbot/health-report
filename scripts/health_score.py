@@ -598,3 +598,38 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
             'body_age_detail': asdict(body_age_result)
         }
     }
+
+
+def calculate_zone_times_from_workouts(workouts: List[Dict], age: int) -> Dict[str, float]:
+    """
+    V6.0.3: 从 workout 的心率时间线计算真实的心率区间时间
+    兼容包装函数，将 workouts 数据转换为 hr_data 格式
+    
+    参数:
+        workouts: workout 列表，每项包含 hr_timeline
+        age: 用户年龄，用于计算最大心率
+    
+    返回:
+        {'zone_1': 分钟数, 'zone_2': 分钟数, ...}
+    """
+    from typing import List, Dict
+    
+    # 合并所有 workouts 的心率时间线数据
+    all_hr_data = []
+    for workout in workouts:
+        hr_timeline = (workout.get('hr_timeline', []) or 
+                      workout.get('heartRateData', []) or 
+                      workout.get('hrData', []))
+        all_hr_data.extend(hr_timeline)
+    
+    # 调用核心计算函数
+    result = calculate_zone_times_from_hr_data(all_hr_data, age)
+    
+    # 转换返回格式为字符串键
+    return {
+        'zone_1': result.get(1, 0.0),
+        'zone_2': result.get(2, 0.0),
+        'zone_3': result.get(3, 0.0),
+        'zone_4': result.get(4, 0.0),
+        'zone_5': result.get(5, 0.0)
+    }
