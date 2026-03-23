@@ -439,6 +439,19 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
         end_hour=sleep_config.get('end_hour', 12)
     )
     
+    # 确保 sleep_result 包含所有必要字段
+    if not sleep_result:
+        sleep_result = {
+            'records': [],
+            'total_hours': 0,
+            'deep_hours': 0,
+            'core_hours': 0,
+            'rem_hours': 0,
+            'awake_hours': 0,
+            'bedtime': '--',
+            'waketime': '--',
+        }
+    
     sleep_records = sleep_result['records']
     sleep_total = sleep_result['total_hours']
     sleep_deep = sleep_result['deep_hours']
@@ -448,6 +461,8 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     
     # 运动数据
     workouts = extract_workout_data(date_str, workout_dir, health_dir)
+    if workouts is None:
+        workouts = []
     
     # 心率数据（用于计算心率区间）
     heart_rate_data = []

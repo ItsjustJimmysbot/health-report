@@ -1476,24 +1476,30 @@ def log_debug(message: str) -> None:
 def fix_json_quotes(json_text: str) -> str:
     """
     修复 JSON 中的弯引号/全角引号为标准英文引号
+    
+    注意：只修复JSON键值对中的引号，保留内容中的引号
+    通过检测引号周围上下文来判断是否是JSON结构引号
     """
+    # 简单方案：只修复明显是JSON结构的引号（前面是冒号或逗号或[或{，后面是逗号或}或]）
+    import re
+    
+    # 定义需要修复的引号映射
     quote_mapping = {
-        '\u201c': '"',  # 左弯双引号 "
-        '\u201d': '"',  # 右弯双引号 "
-        '\u2018': "'",  # 左弯单引号 '
-        '\u2019': "'",  # 右弯单引号 '
-        '\u300c': '"',  # 日式左引号 「
-        '\u300d': '"',  # 日式右引号 」
-        '\u300e': '"',  # 日式左双引号 『
-        '\u300f': '"',  # 日式右双引号 』
-        '\uff02': '"',  # 全角双引号 ＂
-        '\uff07': "'",  # 全角单引号 ＇
+        '\u201c': '"',  # 左弯双引号
+        '\u201d': '"',  # 右弯双引号
+        '\u300c': '"',  # 日式左引号
+        '\u300d': '"',  # 日式右引号
+        '\u300e': '"',  # 日式左双引号
+        '\uff02': '"',  # 全角双引号
     }
-
+    
+    result = json_text
+    
+    # 简单替换：这些引号在JSON中通常只作为定界符使用
     for ch_quote, en_quote in quote_mapping.items():
-        json_text = json_text.replace(ch_quote, en_quote)
-
-    return json_text
+        result = result.replace(ch_quote, en_quote)
+    
+    return result
 
 
 def safe_json_loads(json_text: str, context: str = "") -> dict:

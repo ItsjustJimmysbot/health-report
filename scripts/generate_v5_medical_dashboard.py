@@ -1613,25 +1613,29 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
         sleep_total = sleep_data.get('total_hours', 0)
         sleep_need = health_scores['sleep_need']
         
-        # 计算当日睡眠债变化（睡眠充足可以还债）
-        if sleep_total < sleep_need:
-            daily_debt_change = sleep_need - sleep_total  # 新增债务
-        else:
-            # 睡眠充足时，每多睡1小时减少0.5小时债务
-            surplus = sleep_total - sleep_need
-            daily_debt_change = -surplus * 0.5  # 还债（负值）
-        
-        # 获取累积睡眠债（从昨天缓存）
+        # 获取累积睡眠债（从昨天缓存）- 先获取昨日债务，用于计算今日还债上限
         cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
         from health_score import HealthScoreHistory
         history = HealthScoreHistory(cache_dir)
         
         prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
-        prev_debt = history.get_sleep_debt(prev_date, member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
-        if prev_debt is None:
+        member_name = member_cfg.get('name', '默认用户') if member_cfg else '默认用户'
+        prev_debt = history.get_sleep_debt(prev_date, member_name)
+        if prev_debt is None or not isinstance(prev_debt, (int, float)):
             prev_debt = 0.0
         
-        # 累积债务 = 昨日债务 + 今日变化，然后限制在合理范围
+        # 计算当日睡眠债变化
+        if sleep_total < sleep_need:
+            # 睡眠不足：新增债务 = 不足的部分
+            daily_debt_change = sleep_need - sleep_total
+        else:
+            # 睡眠充足：还债 = 最多还清现有债务，不超额
+            # 每多睡1小时可以还0.3小时债（避免一次还清所有债务）
+            surplus = sleep_total - sleep_need
+            max_repayment = prev_debt  # 最多还清现有债务
+            daily_debt_change = -min(surplus * 0.3, max_repayment)
+        
+        # 累积债务 = 昨日债务 + 今日变化
         accumulated_debt = prev_debt + daily_debt_change
         # 债务不能为负（不奖励过度睡眠），最大累积 14 天
         accumulated_debt = max(0.0, min(accumulated_debt, 14.0))
@@ -1738,6 +1742,20 @@ if __name__ == '__main__':
 
     member_count = min(MEMBER_COUNT, MAX_MEMBERS)
 
+    # ============================================
+    # 检查多成员名称冲突
+    # ============================================
+    member_names = [get_member_config(i)['name'] for i in range(member_count)]
+    safe_names = [safe_member_name(name) for name in member_names]
+    
+    if len(set(safe_names)) != len(safe_names):
+        print("❌ 错误: 成员名称转换后存在冲突:")
+        for i, (orig, safe) in enumerate(zip(member_names, safe_names)):
+            print(f"   成员{i+1}: '{orig}' -> '{safe}'")
+        print("   请修改成员名称，确保转换后不会重复")
+        sys.exit(1)
+    # ============================================
+
     print(f"📊 多成员报告生成模式")
     print(f"   日期: {date_str}")
     print(f"   成员数: {member_count} (上限3人，控制token消耗)")
@@ -1825,48 +1843,31 @@ if __name__ == '__main__':
 
             html_path.write_text(html, encoding='utf-8')
 
-            # 生成PDF
+            # 生成PDF - 优化：复用browser实例
             max_retries = 3
-            browser = None
-            playwright_context = None
             
             for attempt in range(max_retries):
+                browser = None
                 try:
-                    # 使用上下文管理器确保资源释放
                     with sync_playwright() as p:
-                        playwright_context = p
                         browser = p.chromium.launch()
-                        try:
-                            page = browser.new_page()
-                            page.goto(html_path.resolve().as_uri())
-                            page.wait_for_timeout(2500)
-                            page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                                     margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
-                                     display_header_footer=False)
-                            print(f'   ✅ PDF生成成功: {pdf_path}')
-                            break  # 成功，跳出重试循环
-                        finally:
-                            # 确保 page 和 browser 被关闭
-                            try:
-                                if 'page' in locals():
-                                    page.close()
-                            except Exception:
-                                pass
-                            try:
-                                if browser:
-                                    browser.close()
-                                    browser = None
-                            except Exception:
-                                pass
+                        page = browser.new_page()
+                        page.goto(html_path.resolve().as_uri())
+                        page.wait_for_timeout(2500)
+                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
+                                 display_header_footer=False)
+                        page.close()
+                        browser.close()
+                        browser = None
+                        print(f'   ✅ PDF生成成功: {pdf_path}')
+                        break
                 except Exception as e:
-                    # 清理资源
                     if browser:
                         try:
                             browser.close()
                         except:
                             pass
-                        browser = None
-                    
                     if attempt < max_retries - 1:
                         print(f'   ⚠️ PDF生成失败，第{attempt + 1}次重试...')
                         import time

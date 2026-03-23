@@ -35,26 +35,46 @@ def calculate_max_hr(age: int, gender: str = 'male') -> int:
     """估算最大心率"""
     return int(208 - 0.7 * age)
 
-def get_hr_zone(hr: int, max_hr: int) -> int:
-    """心率区间 1-5（基于 WHOOP 标准）
+def get_hr_zone(hr: int, max_hr: int, rhr: int = None) -> int:
+    """心率区间 1-5（基于 WHOOP 标准，使用 HRR 方法）
     
-    WHOOP 区间定义:
-    - Zone 0: < 50% (恢复区)
-    - Zone 1: 50-60% (轻度活动)
-    - Zone 2: 60-70% (有氧基础)
-    - Zone 3: 70-80% (有氧强化)
-    - Zone 4: 80-90% (无氧阈值)
-    - Zone 5: >= 90% (最大强度)
+    WHOOP 使用 Heart Rate Reserve (HRR) 方法:
+    - HRR = (HR - RHR) / (MaxHR - RHR)
+    
+    区间定义 (基于 HRR%):
+    - Zone 0: < 30% HRR (恢复区)
+    - Zone 1: 30-50% HRR (轻度活动)
+    - Zone 2: 50-60% HRR (有氧基础)
+    - Zone 3: 60-70% HRR (有氧强化)
+    - Zone 4: 70-80% HRR (无氧阈值)
+    - Zone 5: >= 80% HRR (最大强度)
+    
+    如果未提供 RHR，回退到简单的 %MaxHR 方法
     """
     if max_hr <= 0:
         return 0
-    pct = hr / max_hr
-    if pct < 0.50: return 0     # 恢复区: < 50%
-    elif pct < 0.60: return 1   # Zone 1: 50-60%
-    elif pct < 0.70: return 2   # Zone 2: 60-70%
-    elif pct < 0.80: return 3   # Zone 3: 70-80%
-    elif pct < 0.90: return 4   # Zone 4: 80-90%
-    else: return 5              # Zone 5: >= 90%
+    
+    # 如果提供了静息心率，使用 HRR 方法
+    if rhr is not None and rhr > 0 and max_hr > rhr:
+        hrr = max_hr - rhr
+        hr_reserve = hr - rhr
+        pct = hr_reserve / hrr if hrr > 0 else 0
+        
+        if pct < 0.30: return 0     # 恢复区: < 30% HRR
+        elif pct < 0.50: return 1   # Zone 1: 30-50% HRR
+        elif pct < 0.60: return 2   # Zone 2: 50-60% HRR
+        elif pct < 0.70: return 3   # Zone 3: 60-70% HRR
+        elif pct < 0.80: return 4   # Zone 4: 70-80% HRR
+        else: return 5              # Zone 5: >= 80% HRR
+    else:
+        # 回退到简单的 %MaxHR 方法
+        pct = hr / max_hr
+        if pct < 0.50: return 0     # 恢复区: < 50%
+        elif pct < 0.60: return 1   # Zone 1: 50-60%
+        elif pct < 0.70: return 2   # Zone 2: 60-70%
+        elif pct < 0.80: return 3   # Zone 3: 70-80%
+        elif pct < 0.90: return 4   # Zone 4: 80-90%
+        else: return 5              # Zone 5: >= 90%
 
 # ============ 1. Strain 评分 (0-21) ============
 
@@ -105,59 +125,153 @@ def calculate_strain(hr_data: List[Tuple[datetime, int]],
 
 def calculate_strain_simple(active_energy: float, steps: int, 
                            workouts: List[Dict], age: int = 30,
-                           hr_data: List[Dict] = None) -> Tuple[float, Dict]:
+                           hr_data: List[Dict] = None, 
+                           weight_kg: float = 70.0,
+                           gender: str = 'male') -> Tuple[float, Dict]:
     """
-    简化版Strain计算 V6.0.3（没有全天HR数据时使用）
+    简化版Strain计算 V6.0.5（没有全天HR数据时使用）
     基于活动能量、步数、运动记录和心率数据估算
+    
+    改进：
+    - 考虑体重和性别差异
+    - 个性化能量阈值
+    - 运动强度基于METs估算
     
     返回: (strain, zone_times_dict)
     """
-    # 基于活动能量估算
-    energy_load = min(10, active_energy / 100) if active_energy else 0
+    # 默认值处理
+    if not weight_kg or weight_kg <= 0:
+        weight_kg = 70.0
     
-    # 基于步数估算
-    steps_load = min(5, steps / 2000) if steps else 0
+    # 性别调整因子（女性基础代谢较低）
+    gender_factor = 0.9 if gender == 'female' else 1.0
     
-    # 基于运动记录估算
+    # 基于活动能量估算（考虑体重标准化）
+    # 70kg男性，100kcal ≈ 1 load unit
+    energy_threshold = 100 * (weight_kg / 70) * gender_factor
+    energy_load = min(10, active_energy / energy_threshold) if active_energy else 0
+    
+    # 基于步数估算（考虑体重和性别）
+    # 70kg男性，2000步 ≈ 1 load unit
+    steps_threshold = 2000 * (70 / weight_kg) * (1 / gender_factor)
+    steps_load = min(5, steps / steps_threshold) if steps else 0
+    
+    # 基于运动记录估算（使用METs估算强度）
     workout_load = 0
     for w in workouts:
         duration = w.get('duration_min', 0)
-        intensity = 2.0 if 'run' in w.get('name', '').lower() else 1.5 if 'strength' in w.get('name', '').lower() else 1.0
-        workout_load += duration / 60 * intensity
+        if duration <= 0:
+            continue
+        
+        # 根据运动类型估算METs
+        workout_name = w.get('name', '').lower()
+        if 'run' in workout_name or '跑步' in workout_name:
+            mets = 9.0
+        elif 'cycle' in workout_name or '骑行' in workout_name:
+            mets = 8.0
+        elif 'swim' in workout_name or '游泳' in workout_name:
+            mets = 8.0
+        elif 'strength' in workout_name or '力量' in workout_name or '举重' in workout_name:
+            mets = 5.0
+        elif 'hiit' in workout_name:
+            mets = 11.0
+        elif 'walk' in workout_name or '步行' in workout_name or '走路' in workout_name:
+            mets = 3.5
+        else:
+            mets = 4.0  # 默认中等强度
+        
+        # METs 转换为 load（METs * 小时）
+        intensity_factor = mets / 4  # 以4 METs为基准
+        workout_load += (duration / 60) * intensity_factor
     
     total_load = energy_load + steps_load + workout_load
     
-    # 缩放到0-21
-    strain = min(21, total_load * 0.8)
+    # 使用对数压缩，避免高负荷日过于突出
+    # 参考：21 * (1 - exp(-load / 180))
+    strain = 21 * (1 - math.exp(-total_load / 180))
+    strain = min(21, max(0, strain))
     
-    # V6.0.3: 如果有心率数据，从心率数据计算真实zone_times
+    # V6.0.5: 如果有心率数据，从心率数据计算真实zone_times
     if hr_data and len(hr_data) > 0:
         zone_times = calculate_zone_times_from_hr_data(hr_data, age)
     else:
-        # 没有心率数据时，基于步数估算（仅作为fallback）
-        zone_times = estimate_zone_times_from_steps(steps)
+        # 没有心率数据时，基于运动估算zone分布
+        zone_times = estimate_zone_times_from_workouts(workouts, steps)
     
     return round(strain, 1), zone_times
 
-def estimate_zone_times_from_steps(steps: int) -> Dict:
-    """V6.0.3: 基于步数估算zone时间（无workout时使用）"""
-    if steps < 3000:
-        return {'zone_1': 30, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
-    elif steps < 8000:
-        return {'zone_1': 30, 'zone_2': 20, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
-    elif steps < 12000:
-        return {'zone_1': 30, 'zone_2': 40, 'zone_3': 20, 'zone_4': 0, 'zone_5': 0}
-    else:
-        return {'zone_1': 30, 'zone_2': 50, 'zone_3': 30, 'zone_4': 10, 'zone_5': 0}
+
+def estimate_zone_times_from_workouts(workouts: List[Dict], steps: int) -> Dict:
+    """V6.0.5: 基于运动记录和步数估算zone时间（更精确）"""
+    zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+    
+    # 基于步数估算日常活动（主要在Zone 1-2）
+    if steps > 0:
+        # 假设每1000步 ≈ 10分钟活动
+        activity_minutes = steps / 100
+        zone_times['zone_1'] += activity_minutes * 0.6  # 60%在Zone 1
+        zone_times['zone_2'] += activity_minutes * 0.4  # 40%在Zone 2
+    
+    # 基于运动记录估算
+    for w in workouts:
+        duration = w.get('duration_min', 0)
+        if duration <= 0:
+            continue
+        
+        avg_hr = w.get('avg_hr')
+        workout_name = w.get('name', '').lower()
+        
+        if isinstance(avg_hr, (int, float)) and avg_hr > 0:
+            # 有平均心率，估算主要zone
+            max_hr = 220 - 30  # 假设平均30岁
+            hr_pct = avg_hr / max_hr
+            
+            if hr_pct >= 0.90:
+                zone_times['zone_5'] += duration * 0.7
+                zone_times['zone_4'] += duration * 0.3
+            elif hr_pct >= 0.80:
+                zone_times['zone_4'] += duration * 0.6
+                zone_times['zone_3'] += duration * 0.4
+            elif hr_pct >= 0.70:
+                zone_times['zone_3'] += duration * 0.6
+                zone_times['zone_2'] += duration * 0.4
+            elif hr_pct >= 0.60:
+                zone_times['zone_2'] += duration * 0.7
+                zone_times['zone_1'] += duration * 0.3
+            else:
+                zone_times['zone_1'] += duration
+        else:
+            # 没有心率，根据运动类型估算
+            if 'run' in workout_name:
+                zone_times['zone_3'] += duration * 0.5
+                zone_times['zone_2'] += duration * 0.3
+                zone_times['zone_4'] += duration * 0.2
+            elif 'hiit' in workout_name:
+                zone_times['zone_4'] += duration * 0.4
+                zone_times['zone_5'] += duration * 0.3
+                zone_times['zone_3'] += duration * 0.3
+            elif 'strength' in workout_name:
+                zone_times['zone_2'] += duration * 0.5
+                zone_times['zone_3'] += duration * 0.5
+            else:
+                zone_times['zone_2'] += duration * 0.6
+                zone_times['zone_1'] += duration * 0.4
+    
+    return {k: round(v, 1) for k, v in zone_times.items()}
 
 
 def _parse_timestamp_seconds(value) -> Optional[float]:
-    """兼容秒/毫秒时间戳、ISO 字符串、YYYY-MM-DD HH:MM:SS、HH:MM。"""
+    """兼容秒/毫秒时间戳、ISO 字符串、YYYY-MM-DD HH:MM:SS、HH:MM。
+    
+    注意：对于 HH:MM 格式，返回的是当天秒数，调用方需要处理跨天逻辑
+    """
     if value is None:
         return None
 
     if isinstance(value, (int, float)):
         ts = float(value)
+        if not math.isfinite(ts):
+            return None
         return ts / 1000.0 if ts > 1e12 else ts
 
     text = str(value).strip()
@@ -166,17 +280,22 @@ def _parse_timestamp_seconds(value) -> Optional[float]:
 
     try:
         ts = float(text)
+        if not math.isfinite(ts):
+            return None
         return ts / 1000.0 if ts > 1e12 else ts
     except (TypeError, ValueError):
         pass
 
-    # 仅有 HH:MM 时，假设是当前日期，转换为秒级时间戳
-    if re.match(r'^\d{2}:\d{2}$', text):
-        from datetime import datetime
-        hh, mm = text.split(':')
-        # 返回当天该时间的秒数（仅用于相对差值计算）
-        return float(int(hh) * 3600 + int(mm) * 60)
+    # 处理 HH:MM:SS 或 HH:MM 格式
+    time_only_match = re.match(r'^(\d{2}):(\d{2})(?::(\d{2}))?$', text)
+    if time_only_match:
+        # 返回当天该时间的秒数（调用方需要处理跨天）
+        hh = int(time_only_match.group(1))
+        mm = int(time_only_match.group(2))
+        ss = int(time_only_match.group(3)) if time_only_match.group(3) else 0
+        return float(hh * 3600 + mm * 60 + ss)
 
+    # 处理 ISO 格式（带时区）
     iso_text = text.replace('Z', '+00:00')
     m = re.match(r'(.+?)\s+([+-]\d{4})$', iso_text)
     if m:
@@ -188,10 +307,15 @@ def _parse_timestamp_seconds(value) -> Optional[float]:
     except ValueError:
         pass
 
-    try:
-        return datetime.strptime(text[:19], '%Y-%m-%d %H:%M:%S').timestamp()
-    except ValueError:
-        return None
+    # 处理常见日期时间格式
+    for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y/%m/%d %H:%M:%S', 
+                '%Y/%m/%d %H:%M', '%d/%m/%Y %H:%M:%S']:
+        try:
+            return datetime.strptime(text[:len(fmt)], fmt).timestamp()
+        except ValueError:
+            continue
+
+    return None
 
 
 def _sum_zone_minutes(zone_times: Dict) -> float:
@@ -203,8 +327,14 @@ def _sum_zone_minutes(zone_times: Dict) -> float:
     return total
 
 
-def calculate_zone_times_from_workouts(workouts: List[Dict], age: int) -> Dict:
-    """从 workout 列表尽可能恢复真实的心率区间时间。"""
+def calculate_zone_times_from_workouts(workouts: List[Dict], age: int, rhr: int = None) -> Dict:
+    """从 workout 列表尽可能恢复真实的心率区间时间。
+
+    Args:
+        workouts: 运动记录列表
+        age: 年龄
+        rhr: 静息心率(可选)，用于HRR计算
+    """
     max_hr = calculate_max_hr(age)
     zone_times = {'zone_1': 0.0, 'zone_2': 0.0, 'zone_3': 0.0, 'zone_4': 0.0, 'zone_5': 0.0}
 
@@ -229,20 +359,38 @@ def calculate_zone_times_from_workouts(workouts: List[Dict], age: int) -> Dict:
                     next_ts = hr_timeline[i + 1].get('timestamp') or hr_timeline[i + 1].get('date') or hr_timeline[i + 1].get('time')
                     ts1 = _parse_timestamp_seconds(current_ts)
                     ts2 = _parse_timestamp_seconds(next_ts)
-                    if ts1 is not None and ts2 is not None and ts2 > ts1:
-                        # 如果是 HH:MM，会得到分钟差；如果是 epoch，会得到秒差
+                    if ts1 is not None and ts2 is not None:
+                        # 处理跨天情况：如果时间差为负（比如23:59到00:01）
                         raw_gap = ts2 - ts1
-                        duration = raw_gap if raw_gap <= 30 else raw_gap / 60.0
-                        duration = max(0.5, min(duration, 10.0))
+                        
+                        # 检测跨天（时间差小于-20小时，说明是次日的同一时间）
+                        if raw_gap < -72000:  # -20小时
+                            raw_gap += 86400  # 加上一天的秒数
+                        
+                        # 检测异常大的时间差（可能是数据错误）
+                        if raw_gap > 3600:  # 超过1小时的间隔，可能是缺失数据
+                            raw_gap = 60  # 默认1分钟间隔
+                        
+                        if raw_gap > 0:
+                            # 如果是 HH:MM（小于100000），秒数需要转换
+                            if ts1 < 100000 and ts2 < 100000:  # 只有时间，没有日期
+                                duration = raw_gap / 60.0  # 秒转分钟
+                            else:  # 完整时间戳
+                                duration = raw_gap / 60.0  # 秒转分钟
+                            duration = max(0.5, min(duration, 10.0))
+                        else:
+                            duration = 1.0  # 默认1分钟
+                    else:
+                        duration = 1.0
 
-                zone = get_hr_zone(int(hr), max_hr)
+                zone = get_hr_zone(int(hr), max_hr, rhr)  # 传入 rhr
                 if zone >= 1:
                     zone_times[f'zone_{zone}'] += duration
             continue
 
         avg_hr = workout.get('avg_hr')
         if isinstance(avg_hr, (int, float)) and duration_min > 0:
-            zone = get_hr_zone(int(avg_hr), max_hr)
+            zone = get_hr_zone(int(avg_hr), max_hr, rhr)  # 传入 rhr
             if zone >= 1:
                 zone_times[f'zone_{zone}'] += duration_min
 
@@ -270,8 +418,14 @@ def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: float =
     return round(min(21, strain), 1)
 
 
-def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int) -> Dict:
-    """从全天心率数据计算真实心率区间时间，支持数字/字符串时间戳。"""
+def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int, rhr: int = None) -> Dict:
+    """从全天心率数据计算真实心率区间时间，支持数字/字符串时间戳。
+    
+    Args:
+        hr_data: 心率数据列表
+        age: 年龄
+        rhr: 静息心率(可选)，用于HRR计算
+    """
     max_hr = calculate_max_hr(age)
     zone_times = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0}
 
@@ -301,7 +455,7 @@ def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int) -> Dict:
         duration_min = (ts2 - ts1) / 60.0
         duration_min = max(0.5, min(duration_min, 10.0))
 
-        zone = get_hr_zone(int(hr), max_hr)
+        zone = get_hr_zone(int(hr), max_hr, rhr)  # 传入 rhr
         if zone >= 1:
             zone_times[zone] += duration_min
 
@@ -325,7 +479,12 @@ class RecoveryResult:
     status: str  # 'green', 'yellow', 'red'
 
 def get_baseline(values: list, days: int = BASELINE_DAYS) -> float:
-    """计算基线值（使用截尾均值，剔除异常值）"""
+    """计算基线值（使用截尾均值，剔除异常值）
+    
+    数据不足时使用加权平滑：
+    - 有数据时：使用实际数据的加权平均
+    - 数据很少时（<7天）：降低截尾比例，保留更多数据
+    """
     if not values:
         return 0.0
     
@@ -334,22 +493,39 @@ def get_baseline(values: list, days: int = BASELINE_DAYS) -> float:
     if not float_values:
         return 0.0
     
-    # 如果数据不足，直接返回平均值
+    # 数据不足时的平滑处理
     if len(float_values) < days:
-        return sum(float_values) / len(float_values)
+        # 使用所有可用数据，但降低截尾比例
+        recent = float_values
+        # 数据越少，截尾比例越低
+        trim_ratio = 0.1 * (len(float_values) / days)  # 线性降低
+    else:
+        # 取最近 days 天的数据
+        recent = float_values[-days:]
+        trim_ratio = 0.1
     
-    # 取最近 days 天的数据
-    recent = float_values[-days:]
-    
-    # 使用截尾均值（剔除最高/最低各 10%）
+    # 使用截尾均值（剔除最高/最低）
     recent_sorted = sorted(recent)
-    trim = max(1, int(len(recent) * 0.1))
-    if len(recent) > 3:
-        trimmed = recent_sorted[trim:-trim]
+    trim = max(0, int(len(recent) * trim_ratio))
+    
+    if len(recent) > 3 and trim > 0:
+        trimmed = recent_sorted[trim:-trim] if trim > 0 else recent_sorted
     else:
         trimmed = recent
     
-    return sum(trimmed) / len(trimmed) if trimmed else sum(recent) / len(recent)
+    baseline = sum(trimmed) / len(trimmed) if trimmed else sum(recent) / len(recent)
+    
+    # 数据不足时，使用加权平均（新数据权重更高）
+    if len(float_values) < days and len(float_values) >= 3:
+        # 计算加权平均：最近的数据权重更高
+        weights = [i + 1 for i in range(len(float_values))]  # 1, 2, 3, ...
+        weighted_sum = sum(v * w for v, w in zip(float_values, weights))
+        weighted_avg = weighted_sum / sum(weights)
+        
+        # 混合基线值：70% 截尾均值 + 30% 加权平均
+        baseline = 0.7 * baseline + 0.3 * weighted_avg
+    
+    return baseline
 
 def calculate_recovery(
     hrv_rmssd: float,
@@ -621,55 +797,122 @@ def calculate_pace_of_aging(
 ) -> float:
     """
     计算 Pace of Aging（年化衰老速度）
-    V6.0.4 更新：基于短期 Body Age 趋势投影
+    V6.0.5 更新：基于生理指标趋势的回归模型
     
     逻辑：
     - 1.0 = 与实际年龄同步（正常）
     - < 1.0 = 慢于实际年龄（逆龄）
     - > 1.0 = 快于实际年龄（加速）
     
-    Args:
-        daily_data: 每日数据列表
-        chronological_age: 实际年龄
-        gender: 性别
-        short_term_days: 短期窗口（默认 7 天）
-        long_term_days: 长期窗口（默认 14 天）
-    
-    Returns:
-        pace: 年化衰老速度（0.0-3.0），None 表示数据不足
+    新方法：基于 HRV、RHR、Recovery、Sleep Performance 的趋势
+    而不是简单的 Body Age 变化
     """
     # 数据完整性检查
-    if not daily_data or len(daily_data) < long_term_days:
+    if not daily_data or len(daily_data) < 7:  # 至少需要7天数据
         return None
     
-    # 分成两段：最近短期 vs 前一段长期
-    recent_short = daily_data[-short_term_days:]
-    previous_long = daily_data[-long_term_days:]
+    # 提取关键生理指标
+    hrv_values = []
+    rhr_values = []
+    recovery_values = []
+    sleep_perf_values = []
+    strain_values = []
     
-    # 计算两段各自的 Body Age
-    recent_age = calculate_body_age(recent_short, chronological_age, gender)
-    previous_age = calculate_body_age(previous_long, chronological_age, gender)
-    
-    # 计算年龄变化
-    age_change = recent_age.body_age - previous_age.body_age
-    
-    # 将变化率年化
-    # short_term_days 天的变化 → 年化到 365 天
-    if short_term_days > 0:
-        daily_change = age_change / short_term_days
-        annual_change = daily_change * 365
+    for day in daily_data:
+        if not isinstance(day, dict):
+            continue
         
-        # Pace = 1.0 表示与实际年龄同步
-        # Pace < 1.0 表示比实际年龄增长慢（逆龄）
-        # Pace > 1.0 表示比实际年龄增长快（加速）
-        if annual_change < 0:
-            # 逆龄：Body Age 在减少
-            pace = max(0.0, 1.0 + annual_change)
-        else:
-            # 正常或加速衰老
-            pace = min(3.0, 1.0 + annual_change)
+        # HRV
+        hrv = day.get('hrv', {}).get('value') if isinstance(day.get('hrv'), dict) else day.get('hrv')
+        if isinstance(hrv, (int, float)) and hrv > 0:
+            hrv_values.append(float(hrv))
+        
+        # RHR
+        rhr = day.get('resting_hr', {}).get('value') if isinstance(day.get('resting_hr'), dict) else day.get('rhr')
+        if isinstance(rhr, (int, float)) and rhr > 0:
+            rhr_values.append(float(rhr))
+        
+        # Recovery (从 health_scores 或直接字段)
+        hs = day.get('health_scores', {})
+        recovery = hs.get('recovery') if isinstance(hs, dict) else day.get('recovery')
+        if isinstance(recovery, (int, float)) and recovery > 0:
+            recovery_values.append(float(recovery))
+        
+        # Sleep Performance
+        sleep_perf = hs.get('sleep_performance') if isinstance(hs, dict) else day.get('sleep_performance')
+        if isinstance(sleep_perf, (int, float)) and sleep_perf > 0:
+            sleep_perf_values.append(float(sleep_perf))
+        
+        # Strain
+        strain = hs.get('strain') if isinstance(hs, dict) else day.get('strain')
+        if isinstance(strain, (int, float)) and strain >= 0:
+            strain_values.append(float(strain))
+    
+    # 检查是否有足够的数据
+    if len(hrv_values) < 5 or len(recovery_values) < 5:
+        return None
+    
+    # 计算趋势（使用简单线性回归的斜率）
+    def calculate_trend(values):
+        """计算趋势斜率（正值=上升，负值=下降）"""
+        if len(values) < 3:
+            return 0
+        
+        n = len(values)
+        x = list(range(n))
+        x_mean = sum(x) / n
+        y_mean = sum(values) / n
+        
+        numerator = sum((x[i] - x_mean) * (values[i] - y_mean) for i in range(n))
+        denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
+        
+        if denominator == 0:
+            return 0
+        
+        return numerator / denominator
+    
+    # 计算各指标的趋势
+    hrv_trend = calculate_trend(hrv_values)  # 正=改善，负=恶化
+    rhr_trend = calculate_trend(rhr_values)  # 负=改善（RHR下降），正=恶化
+    recovery_trend = calculate_trend(recovery_values)  # 正=改善
+    sleep_trend = calculate_trend(sleep_perf_values) if len(sleep_perf_values) >= 5 else 0
+    
+    # 计算相对趋势（标准化到 -1 到 1 范围）
+    def normalize_trend(trend, threshold):
+        """将趋势标准化，threshold 是认为是显著变化的阈值"""
+        return max(-1, min(1, trend / threshold))
+    
+    # 使用阈值标准化（基于经验值）
+    hrv_normalized = normalize_trend(hrv_trend, 2.0)  # HRV每天变化2ms算显著
+    rhr_normalized = normalize_trend(-rhr_trend, 1.0)  # RHR每天变化1bpm算显著（取负因为RHR下降是好）
+    recovery_normalized = normalize_trend(recovery_trend, 3.0)  # Recovery每天变化3%算显著
+    sleep_normalized = normalize_trend(sleep_trend, 2.0)  # Sleep perf每天变化2%算显著
+    
+    # 加权计算综合健康趋势
+    # 权重：HRV 30%, RHR 25%, Recovery 30%, Sleep 15%
+    health_trend = (
+        0.30 * hrv_normalized +
+        0.25 * rhr_normalized +
+        0.30 * recovery_normalized +
+        0.15 * sleep_normalized
+    )
+    
+    # 将健康趋势转换为 Pace of Aging
+    # health_trend 范围 -1 到 1
+    # -1 = 快速改善（逆龄）-> Pace ~ 0.5
+    # 0 = 稳定 -> Pace = 1.0
+    # 1 = 快速恶化（加速衰老）-> Pace ~ 2.0
+    
+    # 使用非线性映射，避免极端值
+    if health_trend > 0:
+        # 恶化：1.0 到 2.5
+        pace = 1.0 + health_trend * 1.5
     else:
-        pace = 1.0
+        # 改善：0.5 到 1.0
+        pace = 1.0 + health_trend * 0.5
+    
+    # 限制在合理范围
+    pace = max(0.3, min(2.5, pace))
     
     return round(pace, 2)
 
@@ -798,14 +1041,19 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
     # 1) Strain：优先使用全天心率数据计算，其次用 workout 心率
     resolved_zone_times = zone_times or data.get('zone_times') or {}
     
+    # 获取静息心率用于HRR计算
+    rhr = data.get('resting_hr', {}).get('value') if isinstance(data.get('resting_hr'), dict) else None
+    if not isinstance(rhr, (int, float)) or rhr <= 0:
+        rhr = None
+    
     if _sum_zone_minutes(resolved_zone_times) <= 0:
         # 首先尝试使用全天心率数据（更精确）
         hr_data = data.get('heart_rate_data') or []
         if hr_data and len(hr_data) >= 10:  # 需要足够的数据点
-            resolved_zone_times = calculate_zone_times_from_hr_data(hr_data, age)
+            resolved_zone_times = calculate_zone_times_from_hr_data(hr_data, age, rhr)
         else:
             # 退而求其次，使用 workout 心率
-            resolved_zone_times = calculate_zone_times_from_workouts(workouts, age)
+            resolved_zone_times = calculate_zone_times_from_workouts(workouts, age, rhr)
     
     if _sum_zone_minutes(resolved_zone_times) > 0:
         strain = calculate_strain_from_zone_times(resolved_zone_times, strength_time)
