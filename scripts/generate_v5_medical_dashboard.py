@@ -1438,16 +1438,16 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
     print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
     
-    # V6.0.3 调试: 检查 pace_of_aging 范围
+    # V6.0.4 调试: 检查 pace_of_aging 范围 (新范围 0.0-3.0)
     pace = health_scores['pace_of_aging']
     # 处理 pace 为 None 的情况（数据不足时）
     if pace is None:
-        pace = 0.0
-        print(f"   ℹ️ 提示: pace_of_aging 数据不足，使用默认值 0.0")
-    elif pace < -1.5 or pace > 1.5:
-        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [-1.5, 1.5]")
-    elif abs(pace) < 0.01:
-        print(f"   ℹ️ 提示: pace_of_aging 接近 0，表示近期数据无变化或历史数据不足")
+        pace = 1.0
+        print(f"   ℹ️ 提示: pace_of_aging 数据不足，使用默认值 1.0")
+    elif pace < 0.0 or pace > 3.0:
+        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [0.0, 3.0]")
+    elif 0.9 <= pace <= 1.1:
+        print(f"   ℹ️ 提示: pace_of_aging 接近 1.0，表示衰老速度与实际年龄同步")
     
     # V6.0.1: 新的健康评分替换
     html = html.replace('{{STRAIN}}', str(health_scores['strain']))
@@ -1461,18 +1461,19 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{AGE_IMPACT}}', f"{health_scores['age_impact']:+.1f}")
     html = html.replace('{{PACE_OF_AGING}}', str(health_scores['pace_of_aging']))
     
-    # Pace描述
+    # Pace描述（V6.0.4：新范围 0.0-3.0，1.0为正常）
     pace = health_scores['pace_of_aging']
     if pace is None:
-        pace = 0.0
-    if pace < -0.3:
+        pace = 1.0
+    
+    if pace < 0.7:
         pace_desc = "逆龄中 🟢" if LANGUAGE == 'CN' else "Reverse Aging 🟢"
         pace_class = "reverse-aging"
-    elif pace < 0.3:
-        pace_desc = "停龄 ⚪" if LANGUAGE == 'CN' else "Stable ⚪"
+    elif pace < 1.3:
+        pace_desc = "正常速度 ⚪" if LANGUAGE == 'CN' else "Normal Pace ⚪"
         pace_class = "stable"
-    elif pace < 1.0:
-        pace_desc = "正常衰老 🟡" if LANGUAGE == 'CN' else "Normal Aging 🟡"
+    elif pace < 2.0:
+        pace_desc = "略快于正常 🟡" if LANGUAGE == 'CN' else "Slightly Fast 🟡"
         pace_class = "normal"
     else:
         pace_desc = "加速衰老 🔴" if LANGUAGE == 'CN' else "Accelerated 🔴"
