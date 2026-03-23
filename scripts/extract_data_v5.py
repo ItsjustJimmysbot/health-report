@@ -453,19 +453,6 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     heart_rate_avg, _ = extract_metric_avg(metrics, 'heart_rate')
     running_vert_osc, _ = extract_metric_avg(metrics, 'running_vertical_oscillation')
     
-    # 新增：步行相关指标
-    walking_speed_val, _ = extract_metric_avg(metrics, 'walking_speed')
-    walking_step_len, _ = extract_metric_avg(metrics, 'walking_step_length')
-    walking_asymmetry, _ = extract_metric_avg(metrics, 'walking_asymmetry_percentage')
-    walking_double_support, _ = extract_metric_avg(metrics, 'walking_double_support_percentage')
-    
-    # 新增：爬楼梯速度
-    stair_speed_up_val, _ = extract_metric_avg(metrics, 'stair_speed_up')
-    
-    # 新增：音频暴露指标
-    headphone_exposure, _ = extract_metric_avg(metrics, 'headphone_audio_exposure')
-    environmental_exposure, _ = extract_metric_avg(metrics, 'environmental_audio_exposure')
-    
     # V5.8.1: 睡眠数据使用统一解析函数
     from utils import parse_sleep_data_unified
     if sleep_config is None:

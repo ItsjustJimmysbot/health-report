@@ -687,7 +687,6 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{END_DATE}}', end_date)
 
     # V5.8.1: 使用统一的周范围格式化
-    from utils import format_week_range
     week_range_text = format_week_range(start_date, end_date, LANGUAGE)
     html = html.replace('{{WEEK_RANGE}}', week_range_text)
 

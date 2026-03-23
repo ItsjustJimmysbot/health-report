@@ -416,7 +416,7 @@ def calculate_body_age(metrics: Dict, chronological_age: int, gender: str = 'mal
     target_rhr = 60 if gender == 'male' else 64
     
     # === 睡眠影响计算 ===
-    # 逻辑：7-9小时为最佳，6-7小时轻微负面影响，<6小时明显负面影响
+    # 逻辑：7-9小时为最佳，6-<7小时轻微负面影响，<6小时明显负面影响
     if sleep_hours > 0:
         if 7 <= sleep_hours <= 9:
             impacts['sleep'] = 0  # 最佳范围，无影响

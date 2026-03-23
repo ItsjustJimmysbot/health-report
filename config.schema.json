@@ -11,7 +11,7 @@
   "properties": {
     "version": {
       "type": "string",
-      "pattern": "^(5\\.(8|9)|6\\.\\d+)\\.\\d+$",
+      "pattern": "^(5\\.(8|9)|6\\.0)\\.\\d+$",
       "description": "配置版本号，格式: 5.x.x 或 6.0.x"
     },
     "members": {
