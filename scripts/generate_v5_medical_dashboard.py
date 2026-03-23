@@ -923,7 +923,9 @@ def metric_importance(metric_key: str) -> int:
             return max(0, min(10, x))
         except Exception:
             pass
-    return int(METRIC_DEFS[metric_key]['importance'])
+    metric_def = METRIC_DEFS.get(metric_key, {})
+    importance = metric_def.get('importance', 5)
+    return int(importance) if importance is not None else 5
 
 
 def get_selected_metric_keys():
@@ -945,8 +947,10 @@ def get_selected_metric_keys():
 
 def metric_label(metric_key: str) -> str:
     """获取指标标签"""
-    d = METRIC_DEFS[metric_key]
-    return d['label_en'] if LANGUAGE == 'EN' else d['label_cn']
+    d = METRIC_DEFS.get(metric_key, {})
+    if not d:
+        return metric_key  # 回退到key本身
+    return d.get('label_en', metric_key) if LANGUAGE == 'EN' else d.get('label_cn', metric_key)
 
 
 def metric_value_text(metric_key: str, data: dict) -> str:
@@ -1707,11 +1711,13 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         sleep_total = sleep_data.get('total_hours', 0)
         sleep_need = health_scores['sleep_need']
         
-        # 计算当日睡眠债
+        # 计算当日睡眠债（睡眠充足可以减少债务）
         if sleep_total < sleep_need:
             daily_debt = sleep_need - sleep_total
         else:
-            daily_debt = max(0, -0.5)
+            # 睡眠充足时，每多睡1小时减少0.5小时债务，最多减到0
+            surplus = sleep_total - sleep_need
+            daily_debt = max(-0.5, -surplus * 0.5)
         
         # 获取累积睡眠债（从昨天缓存）
         cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
