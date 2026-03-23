@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康评分算法模块 V6.0.2
+"""健康评分算法模块 V6.0.3
 
 核心评分：
 - Strain (0-21): 日心血管负荷
@@ -11,6 +11,7 @@
 
 import math
 import json
+import re
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
@@ -127,48 +128,164 @@ def estimate_zone_times_from_steps(steps: int) -> Dict:
         return {'zone_1': 30, 'zone_2': 50, 'zone_3': 30, 'zone_4': 10, 'zone_5': 0}
 
 
-def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int) -> Dict:
-    """
-    从心率数据计算真实的心率区间分布时间
-    
-    参数:
-        hr_data: 心率数据列表，每项包含 {'timestamp': xxx, 'hr': xxx}
-        age: 年龄，用于计算最大心率
-    
-    返回:
-        {'zone_1': 分钟, 'zone_2': 分钟, ...}
-    """
+def _parse_timestamp_seconds(value) -> Optional[float]:
+    """兼容秒/毫秒时间戳、ISO 字符串、YYYY-MM-DD HH:MM:SS、HH:MM。"""
+    if value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        ts = float(value)
+        return ts / 1000.0 if ts > 1e12 else ts
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        ts = float(text)
+        return ts / 1000.0 if ts > 1e12 else ts
+    except (TypeError, ValueError):
+        pass
+
+    # 仅有 HH:MM 时，返回"分钟数"，调用方只用于相邻差值
+    if re.match(r'^\d{2}:\d{2}$', text):
+        hh, mm = text.split(':')
+        return float(int(hh) * 60 + int(mm))
+
+    iso_text = text.replace('Z', '+00:00')
+    m = re.match(r'(.+?)\s+([+-]\d{4})$', iso_text)
+    if m:
+        dt_text, tz_text = m.groups()
+        iso_text = dt_text + tz_text[:3] + ':' + tz_text[3:]
+
+    try:
+        return datetime.fromisoformat(iso_text).timestamp()
+    except ValueError:
+        pass
+
+    try:
+        return datetime.strptime(text[:19], '%Y-%m-%d %H:%M:%S').timestamp()
+    except ValueError:
+        return None
+
+
+def _sum_zone_minutes(zone_times: Dict) -> float:
+    total = 0.0
+    for key in ('zone_1', 'zone_2', 'zone_3', 'zone_4', 'zone_5'):
+        value = zone_times.get(key, 0)
+        if isinstance(value, (int, float)):
+            total += float(value)
+    return total
+
+
+def calculate_zone_times_from_workouts(workouts: List[Dict], age: int) -> Dict:
+    """从 workout 列表尽可能恢复真实的心率区间时间。"""
     max_hr = calculate_max_hr(age)
-    zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-    
+    zone_times = {'zone_1': 0.0, 'zone_2': 0.0, 'zone_3': 0.0, 'zone_4': 0.0, 'zone_5': 0.0}
+
+    for workout in workouts or []:
+        duration_min = float(workout.get('duration_min') or 0)
+        hr_timeline = workout.get('hr_timeline') or []
+
+        if hr_timeline:
+            for i in range(len(hr_timeline)):
+                point = hr_timeline[i]
+                hr = point.get('hr')
+                if hr is None:
+                    hr = point.get('avg')
+                if hr is None:
+                    hr = point.get('max')
+                if not isinstance(hr, (int, float)):
+                    continue
+
+                duration = 1.0
+                if i < len(hr_timeline) - 1:
+                    current_ts = point.get('timestamp') or point.get('date') or point.get('time')
+                    next_ts = hr_timeline[i + 1].get('timestamp') or hr_timeline[i + 1].get('date') or hr_timeline[i + 1].get('time')
+                    ts1 = _parse_timestamp_seconds(current_ts)
+                    ts2 = _parse_timestamp_seconds(next_ts)
+                    if ts1 is not None and ts2 is not None and ts2 > ts1:
+                        # 如果是 HH:MM，会得到分钟差；如果是 epoch，会得到秒差
+                        raw_gap = ts2 - ts1
+                        duration = raw_gap if raw_gap <= 30 else raw_gap / 60.0
+                        duration = max(0.5, min(duration, 10.0))
+
+                zone = get_hr_zone(int(hr), max_hr)
+                if zone >= 1:
+                    zone_times[f'zone_{zone}'] += duration
+            continue
+
+        avg_hr = workout.get('avg_hr')
+        if isinstance(avg_hr, (int, float)) and duration_min > 0:
+            zone = get_hr_zone(int(avg_hr), max_hr)
+            if zone >= 1:
+                zone_times[f'zone_{zone}'] += duration_min
+
+    return {k: round(v, 1) for k, v in zone_times.items()}
+
+
+def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: float = 0) -> float:
+    """优先根据真实 zone_times 计算 Strain。"""
+    zone_weights = {
+        'zone_1': 0.3,
+        'zone_2': 1.0,
+        'zone_3': 2.5,
+        'zone_4': 5.0,
+        'zone_5': 10.0,
+    }
+    cardio_load = 0.0
+    for zone, weight in zone_weights.items():
+        minutes = zone_times.get(zone, 0)
+        if isinstance(minutes, (int, float)) and minutes > 0:
+            cardio_load += float(minutes) * weight
+
+    muscle_load = max(0.0, float(strength_minutes or 0)) * 0.2
+    total_load = cardio_load + muscle_load
+    strain = 21 * (1 - math.exp(-total_load / 180.0))
+    return round(min(21, strain), 1)
+
+
+def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int) -> Dict:
+    """从全天心率数据计算真实心率区间时间，支持数字/字符串时间戳。"""
+    max_hr = calculate_max_hr(age)
+    zone_times = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0}
+
     if not hr_data or len(hr_data) < 2:
         return {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
-    
-    # 按时间排序
-    sorted_hr = sorted(hr_data, key=lambda x: x.get('timestamp', 0))
-    
-    for i in range(len(sorted_hr) - 1):
-        hr = sorted_hr[i].get('hr', 60)
-        
-        # 计算时间差（分钟）
-        ts1 = sorted_hr[i].get('timestamp', 0)
-        ts2 = sorted_hr[i+1].get('timestamp', 0)
-        if isinstance(ts1, (int, float)) and isinstance(ts2, (int, float)):
-            duration_min = (ts2 - ts1) / 60  # 假设时间戳是秒
-        else:
-            duration_min = 1  # 默认1分钟
-        
-        # 计算心率区间
-        zone = get_hr_zone(hr, max_hr)
+
+    sortable = []
+    for item in hr_data:
+        ts_raw = item.get('timestamp')
+        ts = _parse_timestamp_seconds(ts_raw)
+        hr = item.get('hr')
+        if ts is None or not isinstance(hr, (int, float)):
+            continue
+        sortable.append((ts, float(hr)))
+
+    if len(sortable) < 2:
+        return {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
+
+    sortable.sort(key=lambda x: x[0])
+
+    for i in range(len(sortable) - 1):
+        ts1, hr = sortable[i]
+        ts2, _ = sortable[i + 1]
+        if ts2 <= ts1:
+            continue
+
+        duration_min = (ts2 - ts1) / 60.0
+        duration_min = max(0.5, min(duration_min, 10.0))
+
+        zone = get_hr_zone(int(hr), max_hr)
         if zone >= 1:
             zone_times[zone] += duration_min
-    
+
     return {
         'zone_1': round(zone_times[1], 1),
         'zone_2': round(zone_times[2], 1),
         'zone_3': round(zone_times[3], 1),
         'zone_4': round(zone_times[4], 1),
-        'zone_5': round(zone_times[5], 1)
+        'zone_5': round(zone_times[5], 1),
     }
 
 # ============ 2. Recovery 评分 (0-100%) ============
@@ -329,32 +446,31 @@ def calculate_body_age(metrics: Dict, chronological_age: int, gender: str = 'mal
 
 def calculate_pace_of_aging(current_scores: Dict, previous_scores: Dict, days_span: int = 7) -> float:
     """
-    计算Pace of Aging
-    
-    对比当前7天和前7天的健康评分变化
-    Pace > 0: 加速衰老
-    Pace = 0: 停龄
-    Pace < 0: 逆龄
+    计算 Pace of Aging（保持当前模板兼容：负数=逆龄，0=稳定，正数=衰老加快）。
+
+    这里不再做夸张的 30 天年化放大，避免结果经常被打满到 3.00 / 0.00。
     """
-    # 计算Recovery变化趋势
-    current_recovery = current_scores.get('recovery', 50)
-    previous_recovery = previous_scores.get('recovery', 50)
-    recovery_change = current_recovery - previous_recovery
-    
-    # 计算Sleep变化趋势
-    current_sleep = current_scores.get('sleep_performance', 70)
-    previous_sleep = previous_scores.get('sleep_performance', 70)
-    sleep_change = current_sleep - previous_sleep
-    
-    # 综合Pace (标准化到-1.0 ~ 3.0)
-    # Recovery和Sleep都提升 -> 逆龄
-    # 都下降 -> 加速衰老
-    combined_change = (recovery_change * 0.6 + sleep_change * 0.4) / 10  # 归一化
-    
-    # 年化处理
-    annualized_change = combined_change / days_span * 30  # 30天趋势
-    
-    pace = max(-1.0, min(3.0, annualized_change))
+    current_recovery = current_scores.get('recovery')
+    previous_recovery = previous_scores.get('recovery')
+    current_sleep = current_scores.get('sleep_performance')
+    previous_sleep = previous_scores.get('sleep_performance')
+
+    if not all(isinstance(v, (int, float)) for v in [current_recovery, previous_recovery, current_sleep, previous_sleep]):
+        return 0.0
+
+    recovery_improvement = float(current_recovery) - float(previous_recovery)
+    sleep_improvement = float(current_sleep) - float(previous_sleep)
+
+    # 改善越大，pace 越应该偏负；恶化越大，pace 越应该偏正。
+    improvement_score = recovery_improvement * 0.6 + sleep_improvement * 0.4
+    pace = -(improvement_score / max(1.0, float(days_span))) * 0.25
+
+    # 限幅，避免极端跳变
+    pace = max(-1.5, min(1.5, pace))
+
+    if abs(pace) < 0.01:
+        pace = 0.0
+
     return round(pace, 2)
 
 # ============ 6. 历史数据管理 ============
@@ -377,35 +493,60 @@ class HealthScoreHistory:
                 data = json.load(f)
                 return data.get('health_scores')
         return None
-    
-    def get_7day_average(self, end_date: str, member_name: str) -> Dict:
-        """获取7天平均值"""
-        from datetime import datetime, timedelta
-        
-        scores = []
+
+    def get_average_range(self, end_date: str, member_name: str, days: int = 7, skip_days: int = 0) -> Dict:
+        """获取一段时间窗口的平均值。end_date 为窗口锚点（含），skip_days 表示向前跳过的天数。"""
         end = datetime.strptime(end_date, '%Y-%m-%d')
-        
-        for i in range(7):
-            date = (end - timedelta(days=i)).strftime('%Y-%m-%d')
-            day_scores = self.get_scores(date, member_name)
+        scores = []
+
+        for i in range(skip_days, skip_days + days):
+            date_str = (end - timedelta(days=i)).strftime('%Y-%m-%d')
+            day_scores = self.get_scores(date_str, member_name)
             if day_scores:
                 scores.append(day_scores)
-        
+
         if not scores:
-            return {'strain': 10, 'recovery': 50, 'sleep_performance': 70}
-        
+            return {
+                'days_count': 0,
+                'strain': 10,
+                'recovery': 50,
+                'sleep_performance': 70,
+                'hrv_rmssd': None,
+                'rhr': None,
+                'respiratory_rate': None,
+            }
+
+        def _avg_numeric(key: str, default=None):
+            values = []
+            for item in scores:
+                value = item.get(key)
+                if isinstance(value, (int, float)):
+                    values.append(float(value))
+            if values:
+                return sum(values) / len(values)
+            return default
+
         return {
-            'strain': sum(s.get('strain', 10) for s in scores) / len(scores),
-            'recovery': sum(s.get('recovery', 50) for s in scores) / len(scores),
-            'sleep_performance': sum(s.get('sleep_performance', 70) for s in scores) / len(scores)
+            'days_count': len(scores),
+            'strain': _avg_numeric('strain', 10),
+            'recovery': _avg_numeric('recovery', 50),
+            'sleep_performance': _avg_numeric('sleep_performance', 70),
+            'hrv_rmssd': _avg_numeric('hrv_rmssd', None),
+            'rhr': _avg_numeric('rhr', None),
+            'respiratory_rate': _avg_numeric('respiratory_rate', None),
         }
+
+    def get_7day_average(self, end_date: str, member_name: str) -> Dict:
+        """兼容旧调用：返回最近 7 天平均值。"""
+        return self.get_average_range(end_date, member_name, days=7, skip_days=0)
     
     def get_sleep_debt(self, date_str: str, member_name: str) -> float:
-        """获取某天的累积睡眠债"""
-        scores = self.get_scores(date_str, member_name)
-        if scores:
-            return scores.get('sleep_debt_accumulated', 0)
-        return 0
+        """获取某天的累积睡眠债。注意：sleep_debt_accumulated 在缓存顶层，不在 health_scores 内。"""
+        cache = self._get_raw_cache(date_str, member_name)
+        if cache:
+            value = cache.get('sleep_debt_accumulated', 0)
+            return float(value) if isinstance(value, (int, float)) else 0.0
+        return 0.0
     
     def get_bedtime_waketime(self, date_str: str, member_name: str) -> Tuple[str, str]:
         """获取就寝和起床时间"""
@@ -430,157 +571,135 @@ class HealthScoreHistory:
 
 def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
                          zone_times: Dict = None) -> Dict:
-    """
-    一键计算所有健康评分
-    
-    Args:
-        data: 当日健康数据
-        profile: 用户档案 (age, gender, height, weight)
-        history: 历史数据管理器
-        zone_times: 可选，从 workout 数据计算的心率区间时间
-    """
-    age = profile.get('age', 30)
+    """一键计算所有健康评分（V6.0.3 修正版）"""
+    raw_age = profile.get('age')
+    age = int(raw_age) if isinstance(raw_age, (int, float)) and raw_age > 0 else 30
     gender = profile.get('gender', 'male')
     date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
     member_name = profile.get('name', '默认用户')
-    
-    # 1. Strain - V6.0.2修复：基于Workout构建心率数据
-    workouts = data.get('workouts', [])
-    
-    # 构建全天心率数据
-    hr_data = []
-    base_time = datetime.now().replace(hour=6, minute=0, second=0)
-    
-    # 基础静息心率（全天默认60bpm）
-    base_hr = 60
-    max_hr = calculate_max_hr(age, gender)
-    
-    # 为每个5分钟时间点生成心率
-    for i in range(24 * 12):  # 24小时，每5分钟一个点
-        current_time = base_time + timedelta(minutes=i*5)
-        current_hr = base_hr
-        
-        # 检查当前时间是否在任何workout时段内
-        for workout in workouts:
-            workout_start = workout.get('start')
-            workout_duration = workout.get('duration_min', 0)
-            
-            if workout_start and workout_duration > 0:
-                # 解析workout开始时间
-                try:
-                    if isinstance(workout_start, str):
-                        # 格式: "2026-03-05 10:00:00 +0800"
-                        wt = datetime.strptime(workout_start[:19], '%Y-%m-%d %H:%M:%S')
-                    else:
-                        wt = workout_start
-                    
-                    workout_end = wt + timedelta(minutes=workout_duration)
-                    
-                    # 如果当前时间在workout时段内
-                    if wt.time() <= current_time.time() < workout_end.time():
-                        # 根据workout类型设置心率
-                        workout_name = workout.get('name', '').lower()
-                        
-                        if 'run' in workout_name or '跑步' in workout_name:
-                            # 跑步：Zone 4-5 (80-95% max_hr)
-                            current_hr = int(max_hr * 0.85)
-                        elif 'strength' in workout_name or '力量' in workout_name or '举重' in workout_name:
-                            # 力量训练：Zone 3-4 (70-85% max_hr)
-                            current_hr = int(max_hr * 0.75)
-                        elif 'walk' in workout_name or '步行' in workout_name or '走路' in workout_name:
-                            # 步行：Zone 2 (60-70% max_hr)
-                            current_hr = int(max_hr * 0.65)
-                        else:
-                            # 其他运动：Zone 3 (70-80% max_hr)
-                            current_hr = int(max_hr * 0.72)
-                        
-                        break  # 找到匹配的workout，跳出循环
-                        
-                except Exception as e:
-                    # 解析失败，使用默认心率
-                    pass
-        
-        hr_data.append((current_time, current_hr))
-    
-    # 计算力量训练时间
-    strength_time = sum(w.get('duration_min', 0) for w in workouts 
-                       if any(k in w.get('name', '').lower() for k in ['strength', '力量', '举重', 'weight']))
-    
-    # 如果有workout数据，使用标准Strain计算
-    # V6.0.3: 优先使用从 workout 数据计算的 zone_times
-    if zone_times is None:
-        if workouts and len(workouts) > 0:
-            strain_result = calculate_strain(hr_data, strength_time, age, gender)
-            strain = strain_result.strain
-            zone_times = strain_result.zone_times
-        else:
-            # 没有workout，使用简化计算
-            strain, zone_times = calculate_strain_simple(
-                data.get('active_energy', 0),
-                data.get('steps', 0),
-                workouts,
-                age,
-                data.get('heart_rate_data', [])
-            )
+
+    workouts = data.get('workouts') or []
+    steps = int(data.get('steps') or 0)
+    active_energy = data.get('active_energy')
+    if active_energy is None:
+        active_energy = data.get('active_energy_kcal')
+    active_energy = float(active_energy or 0)
+
+    sleep = data.get('sleep') or {}
+    sleep_total = float(sleep.get('total_hours', 0) or 0)
+    awake_hours = float(sleep.get('awake_hours', 0) or 0)
+
+    strength_time = sum(
+        float(w.get('duration_min') or 0)
+        for w in workouts
+        if any(k in str(w.get('name', '')).lower() for k in ['strength', '力量', '举重', 'weight'])
+    )
+
+    # 1) Strain：优先使用真实 zone_times
+    resolved_zone_times = zone_times or data.get('zone_times') or {}
+    if _sum_zone_minutes(resolved_zone_times) <= 0:
+        resolved_zone_times = calculate_zone_times_from_workouts(workouts, age)
+
+    if _sum_zone_minutes(resolved_zone_times) > 0:
+        strain = calculate_strain_from_zone_times(resolved_zone_times, strength_time)
     else:
-        # 使用传入的 zone_times，但仍需计算 strain
-        if workouts and len(workouts) > 0:
-            strain_result = calculate_strain(hr_data, strength_time, age, gender)
-            strain = strain_result.strain
-        else:
-            strain, _ = calculate_strain_simple(
-                data.get('active_energy', 0),
-                data.get('steps', 0),
-                workouts,
-                age,
-                data.get('heart_rate_data', [])
-            )
-    
-    # 2. Sleep Performance
-    sleep = data.get('sleep', {})
-    previous_strain = history.get_scores(
-        (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d'),
-        member_name
-    ) or {}
-    prev_strain = previous_strain.get('strain', 10) if isinstance(previous_strain, dict) else 10
-    
+        strain, resolved_zone_times = calculate_strain_simple(
+            active_energy,
+            steps,
+            workouts,
+            age,
+            data.get('heart_rate_data') or []
+        )
+
+    # 2) Sleep Performance
+    yesterday = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+    previous_day_scores = history.get_scores(yesterday, member_name) or {}
+    prev_strain = float(previous_day_scores.get('strain', 10) or 10)
+
+    sleep_consistency = data.get('sleep_consistency')
+    if not isinstance(sleep_consistency, (int, float)):
+        sleep_consistency = 75
+
+    sleep_latency_min = data.get('sleep_latency_min')
+    if not isinstance(sleep_latency_min, (int, float)):
+        sleep_latency_min = 20
+
     sleep_result = calculate_sleep_performance(
-        sleep.get('total_hours', 7),
+        sleep_total,
         prev_strain,
-        75,  # consistency - 需要额外计算
-        sleep.get('awake_hours', 0) * 60,
-        20   # latency - 需要额外计算
+        float(sleep_consistency),
+        awake_hours * 60.0,
+        float(sleep_latency_min),
     )
-    
-    # 3. Recovery
-    hrv = data.get('hrv', {}).get('value', 50)
-    rhr = data.get('resting_hr', {}).get('value', 70)
-    respiratory = data.get('respiratory_rate', 14)
-    
-    # 获取baseline（30天平均）
-    baseline = history.get_7day_average(date_str, member_name)  # 简化：用7天代替30天
-    
+
+    # 3) Recovery：baseline 使用真实 7 天缓存，不再用 recovery 分数估 HRV
+    hrv = data.get('hrv', {}).get('value')
+    rhr = data.get('resting_hr', {}).get('value')
+    respiratory = data.get('respiratory_rate')
+
+    if not isinstance(hrv, (int, float)):
+        hrv = 50.0
+    if not isinstance(rhr, (int, float)):
+        rhr = 70.0 if gender == 'male' else 74.0
+    if not isinstance(respiratory, (int, float)):
+        respiratory = 14.0
+
+    baseline = history.get_average_range(yesterday, member_name, days=7, skip_days=0)
+    baseline_hrv = baseline.get('hrv_rmssd')
+    baseline_rhr = baseline.get('rhr')
+    baseline_respiratory = baseline.get('respiratory_rate')
+
+    if not isinstance(baseline_hrv, (int, float)) or baseline_hrv <= 0:
+        baseline_hrv = float(hrv)
+    if not isinstance(baseline_rhr, (int, float)) or baseline_rhr <= 0:
+        baseline_rhr = float(rhr)
+    if not isinstance(baseline_respiratory, (int, float)) or baseline_respiratory <= 0:
+        baseline_respiratory = float(respiratory)
+
     recovery_result = calculate_recovery(
-        hrv, rhr, sleep_result.performance, respiratory, 75,
-        baseline.get('recovery', 50) * 0.8,  # 估算baseline_hrv
-        65 if gender == 'male' else 68,
-        14,
-        gender
+        float(hrv),
+        float(rhr),
+        sleep_result.performance,
+        float(respiratory),
+        float(sleep_consistency),
+        float(baseline_hrv),
+        float(baseline_rhr),
+        float(baseline_respiratory),
+        gender,
     )
-    
-    # 4. Body Age
+
+    # 4) Body Age：只吃真实数据，不再用 7h / 8000 之类假默认
     body_metrics = {
-        'sleep_hours': sleep.get('total_hours', 7),
-        'steps': data.get('steps', 8000),
-        'rhr': rhr
+        'sleep_hours': sleep_total,
+        'steps': steps,
+        'rhr': float(rhr),
     }
     body_age_result = calculate_body_age(body_metrics, age, gender)
-    
-    # 5. Pace of Aging
-    current_7day = history.get_7day_average(date_str, member_name)
-    previous_7day = {'recovery': 50, 'sleep_performance': 70}  # 简化
-    pace = calculate_pace_of_aging(current_7day, previous_7day)
-    
+
+    # 5) Pace of Aging：当前 7 天 vs 前 7 天
+    recent_6day = history.get_average_range(yesterday, member_name, days=6, skip_days=0)
+    recent_count = int(recent_6day.get('days_count', 0) or 0)
+    if recent_count > 0:
+        current_7day = {
+            'recovery': (
+                float(recent_6day.get('recovery', 50)) * recent_count + recovery_result.recovery
+            ) / (recent_count + 1),
+            'sleep_performance': (
+                float(recent_6day.get('sleep_performance', 70)) * recent_count + sleep_result.performance
+            ) / (recent_count + 1),
+        }
+    else:
+        current_7day = {
+            'recovery': float(recovery_result.recovery),
+            'sleep_performance': float(sleep_result.performance),
+        }
+
+    previous_7day = history.get_average_range(yesterday, member_name, days=7, skip_days=6)
+    if int(previous_7day.get('days_count', 0) or 0) > 0:
+        pace = calculate_pace_of_aging(current_7day, previous_7day)
+    else:
+        pace = 0.0
+
     return {
         'strain': strain,
         'recovery': recovery_result.recovery,
@@ -591,10 +710,10 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
         'chronological_age': body_age_result.chronological_age,
         'age_impact': body_age_result.age_impact,
         'pace_of_aging': pace,
-        'zone_times': zone_times,  # V6.0.2: 新增心率区间时间
+        'zone_times': resolved_zone_times,
         'breakdown': {
             'recovery_detail': asdict(recovery_result),
             'sleep_detail': asdict(sleep_result),
-            'body_age_detail': asdict(body_age_result)
-        }
+            'body_age_detail': asdict(body_age_result),
+        },
     }

@@ -963,7 +963,7 @@ def validate_config_schema(config: dict) -> list:
     if version is not None:
         import re
         if not re.match(r'^(5\.(8|9)|6\.0)\.\d+$', str(version)):
-            errors.append(f"version '{version}' 无效，格式应为 5.8.x, 5.9.x 或 6.0.x")
+            errors.append(f"version '{version}' 无效，格式应为 5.8.x、5.9.x 或 6.0.x")
 
     # members
     members = config.get('members', [])

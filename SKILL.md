@@ -17,10 +17,10 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 ## 2) 最小配置（config.json）
 ```json
 {
-  "version": "6.0.2",
+  "version": "6.0.3",
   "members": [
     {
-      "name": "Jimmy",
+      "name": "Member1",
       "age": 30,
       "gender": "male",
       "height_cm": 175,

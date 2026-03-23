@@ -1,4 +1,4 @@
-# Health Agent V6.0.2 - OpenClaw 专业健康分析 Skill
+# Health Agent V6.0.3 - OpenClaw 专业健康分析 Skill
 
 > ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
 > 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。
@@ -46,20 +46,20 @@ python3 -m playwright install chromium
 安装完成后，OpenClaw 会自动通过 `SKILL.md` 发现并启用此 Skill。
 
 ### 3. 配置文件 (config.json)
-首次使用前，请编辑 `config.json` 配置你的数据路径（V6.0.2 配置结构）：
+首次使用前，请编辑 `config.json` 配置你的数据路径（V6.0.3 配置结构）：
 
 ```json
 {
-  "version": "6.0.2",
+  "version": "6.0.3",
   "members": [
     {
-      "name": "Jimmy",
+      "name": "Member1",
       "age": 30,
       "gender": "male",
       "height_cm": 175,
       "weight_kg": 70,
-      "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
-      "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
+      "health_dir": "~/Health Auto Export/Health Data",
+      "workout_dir": "~/Health Auto Export/Workout Data",
       "email": "your-email@example.com"
     }
   ],

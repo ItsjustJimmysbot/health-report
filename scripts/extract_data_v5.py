@@ -549,7 +549,9 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
             'core_hours': round(sleep_core, 2) if sleep_core else 0,
             'rem_hours': round(sleep_rem, 2) if sleep_rem else 0,
             'awake_hours': round(sleep_awake, 2) if sleep_awake else 0,
-            'records': len(sleep_records) if sleep_records else 0
+            'records': sleep_records if sleep_records else [],
+            'bedtime': sleep_result.get('bedtime', '--'),
+            'waketime': sleep_result.get('waketime', '--'),
         },
         'workouts': workouts,
         'has_workout': has_workout,

@@ -4,17 +4,21 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-### Fixed
-- weekly/monthly 缓存读取兼容旧字段（`active_energy_kcal`、`stand_time_min`）
-- 月报 trend 长度重复校验去重（统一在 `verify_ai_analysis_monthly()` 中处理）
+## [6.0.3] - 2026-03-23
 
-### Added
-- 新增语言阈值配置项（`lang_en_max_chinese_ratio_strict/warn`、`lang_cn_min_chinese_ratio_strict/warn`）
-- 语言检测支持通过 `analysis_limits` 自定义阈值
+### Fixed
+- Pace of Aging 改为真实窗口比较（当前 7 天 vs 前 7 天），修复方向反转与过度缩放问题。
+- Recovery baseline 改为读取真实缓存中的 HRV / RHR，而不是错误地使用 recovery 分数估算。
+- Strain 改为优先使用真实 workout / zone_times，不再伪造全天心率。
+- 修复 generate_cache_only.py 未传 member 专属 health_dir / workout_dir，导致运动数据丢失的问题。
+- 修复 monthly Body Age 错把 avg_hrv 当 avg_rhr 的问题。
+- 修复 sleep debt 从错误层级读取，导致累积睡眠债长期失真的问题。
+- 缓存写入 health_scores 时补齐 zone_times / respiratory_rate / sleep_debt_accumulated。
 
 ### Docs
-- README/SKILL.md 同步更新 analysis_limits 完整字段说明
-- TROUBLESHOOTING.md 补充语言阈值调参说明
+- 统一 README / SKILL / config schema / example configs / script headers 的版本号为 6.0.3。
+- 示例路径统一改为中性 `~/Health Auto Export/...`，避免中文 Google Drive 硬编码误导。
+- 示例成员名从 `Jimmy` 改为 `Member1`，去掉个人化硬编码。
 
 ## [5.9.1] - 2026-03-06
 

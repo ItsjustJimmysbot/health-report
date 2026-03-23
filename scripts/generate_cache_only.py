@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""批量生成健康数据缓存 - V6.0.1
+"""批量生成健康数据缓存 - V6.0.3
 
 用途：一次性生成历史日期的数据缓存，无需生成PDF报告
 节省时间和资源，特别适合补历史数据
@@ -56,7 +56,13 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
         # 获取睡眠配置
         sleep_config = config.get('sleep_config', {'read_mode': 'next_day', 'start_hour': 20, 'end_hour': 12})
         
-        data = extract_daily_data(date_str, user_profile=member_cfg, sleep_config=sleep_config)
+        data = extract_daily_data(
+            date_str,
+            health_dir=member_cfg.get('health_dir'),
+            workout_dir=member_cfg.get('workout_dir'),
+            user_profile=member_cfg,
+            sleep_config=sleep_config,
+        )
         if not data:
             print(f"   ⚠️  {date_str} - 无数据")
             return False
@@ -104,34 +110,46 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
     
     # 准备缓存数据
     safe_name = safe_member_name(member_name)
-    apple_stand_min = data.get('apple_stand_time', 0)
+    apple_stand_min = data.get('apple_stand_time') or data.get('stand_time_min') or 0
     stand_hour_cache = float(apple_stand_min) / 60.0 if isinstance(apple_stand_min, (int, float)) else 0.0
     
     cache_data = {
-        'date': date_str, 'member': member_name,
-        'hrv': data.get('hrv'), 'resting_hr': data.get('resting_hr'),
-        'steps': data.get('steps'), 'active_energy': data.get('active_energy_kcal') or data.get('active_energy') or 0,
-        'apple_stand_time': data.get('apple_stand_time') or 0,
-        'apple_stand_hour': round(stand_hour_cache, 2), 'spo2': data.get('spo2'),
-        'workouts': data.get('workouts', []), 'has_workout': data.get('has_workout', False),
-        'zone_times': data.get('zone_times', {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}),  # V6.0.3: 添加 zone_times
+        'date': date_str,
+        'member': member_name,
+        'hrv': data.get('hrv'),
+        'resting_hr': data.get('resting_hr'),
+        'steps': data.get('steps'),
+        'active_energy': data.get('active_energy_kcal') or data.get('active_energy') or 0,
+        'apple_stand_time': apple_stand_min,
+        'apple_stand_hour': round(stand_hour_cache, 2),
+        'spo2': data.get('spo2'),
+        'workouts': data.get('workouts', []),
+        'has_workout': data.get('has_workout', False),
+        'zone_times': data.get('zone_times', {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}),
         'sleep': data.get('sleep', {}),
-        'bedtime': '--', 'waketime': '--', 'sleep_latency_min': 20,
-        'sleep_debt_daily': round(daily_debt, 2), 'sleep_debt_accumulated': round(accumulated_debt, 2),
+        'bedtime': data.get('sleep', {}).get('bedtime', '--'),
+        'waketime': data.get('sleep', {}).get('waketime', '--'),
+        'sleep_latency_min': None,
+        'sleep_debt_daily': round(daily_debt, 2),
+        'sleep_debt_accumulated': round(accumulated_debt, 2),
         'health_scores': {
-            'strain': health_scores['strain'], 'recovery': health_scores['recovery'],
+            'strain': health_scores['strain'],
+            'recovery': health_scores['recovery'],
             'recovery_status': health_scores['recovery_status'],
             'sleep_performance': health_scores['sleep_performance'],
             'sleep_need': health_scores['sleep_need'],
             'actual_sleep_hours': round(sleep_total, 2),
-            'body_age': health_scores['body_age'], 'chronological_age': health_scores['chronological_age'],
-            'age_impact': health_scores['age_impact'], 'pace_of_aging': health_scores['pace_of_aging'],
-            # V6.0.2: 新增心率区间时间（分钟）
+            'body_age': health_scores['body_age'],
+            'chronological_age': health_scores['chronological_age'],
+            'age_impact': health_scores['age_impact'],
+            'pace_of_aging': health_scores['pace_of_aging'],
+            'sleep_debt_accumulated': round(accumulated_debt, 2),
             'zone_times': health_scores.get('zone_times', {
                 'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0
             }),
             'hrv_rmssd': data.get('hrv', {}).get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
-            'rhr': data.get('resting_hr', {}).get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0
+            'rhr': data.get('resting_hr', {}).get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0,
+            'respiratory_rate': data.get('respiratory_rate', 0),
         }
     }
     

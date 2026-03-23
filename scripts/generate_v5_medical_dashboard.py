@@ -355,13 +355,13 @@ def get_member_config(index: int):
     # 默认配置
     return {
         "name": f"成员{index+1}",
-        "health_dir": DEFAULT_HEALTH_DIR,
-        "workout_dir": DEFAULT_WORKOUT_DIR,
+        "health_dir": Path('~/Health Auto Export/Health Data').expanduser(),
+        "workout_dir": Path('~/Health Auto Export/Workout Data').expanduser(),
         "email": "",
-        "age": 30,
-        "gender": "male",
-        "height_cm": 175,
-        "weight_kg": 70
+        "age": None,
+        "gender": None,
+        "height_cm": None,
+        "weight_kg": None
     }
 
 
@@ -1877,23 +1877,11 @@ if __name__ == '__main__':
                 
                 # 获取累积睡眠债（从昨天缓存）
                 prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
-                prev_cache = history.get_scores(prev_date, member_name)
-                accumulated_debt = 0
-                if prev_cache and 'sleep_debt_accumulated' in prev_cache:
-                    accumulated_debt = max(0, prev_cache['sleep_debt_accumulated'] + daily_debt)
-                else:
-                    accumulated_debt = max(0, daily_debt)
+                prev_debt = history.get_sleep_debt(prev_date, member_name)
+                accumulated_debt = max(0, prev_debt + daily_debt) if prev_debt else max(0, daily_debt)
                 
-                # 提取就寝/起床时间
-                bedtime = "--"
-                waketime = "--"
-                if sleep_data.get('records') and len(sleep_data['records']) > 0:
-                    first_record = sleep_data['records'][0]
-                    last_record = sleep_data['records'][-1]
-                    if 'start' in first_record:
-                        bedtime = first_record['start']
-                    if 'end' in last_record:
-                        waketime = last_record['end']
+                bedtime = sleep_data.get('bedtime', '--') if isinstance(sleep_data, dict) else '--'
+                waketime = sleep_data.get('waketime', '--') if isinstance(sleep_data, dict) else '--'
                 
                 cache_data = {
                     'date': date_str,
@@ -1907,13 +1895,11 @@ if __name__ == '__main__':
                     'workouts': data['workouts'],
                     'has_workout': data['has_workout'],
                     'sleep': sleep_data,
-                    # V6.0.1: 睡眠细节
                     'bedtime': bedtime,
                     'waketime': waketime,
-                    'sleep_latency_min': 20,
+                    'sleep_latency_min': None,
                     'sleep_debt_daily': round(daily_debt, 2),
                     'sleep_debt_accumulated': round(accumulated_debt, 2),
-                    # V6.0.1: 健康评分
                     'health_scores': {
                         'strain': health_scores['strain'],
                         'recovery': health_scores['recovery'],
@@ -1925,8 +1911,13 @@ if __name__ == '__main__':
                         'chronological_age': health_scores['chronological_age'],
                         'age_impact': health_scores['age_impact'],
                         'pace_of_aging': health_scores['pace_of_aging'],
+                        'sleep_debt_accumulated': round(accumulated_debt, 2),
+                        'zone_times': health_scores.get('zone_times', {
+                            'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0
+                        }),
                         'hrv_rmssd': data['hrv'].get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
-                        'rhr': data['resting_hr'].get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0
+                        'rhr': data['resting_hr'].get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0,
+                        'respiratory_rate': data.get('respiratory_rate', 0),
                     }
                 }
                 cache_path = CACHE_DIR / f'{date_str}_{safe_name}.json'

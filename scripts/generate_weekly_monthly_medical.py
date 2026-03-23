@@ -704,10 +704,15 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
 
     # V6.0.0: 计算周报 Body Age
+    weekly_rhr_values = [
+        float(d.get('resting_hr', {}).get('value'))
+        for d in weekly_data
+        if isinstance(d.get('resting_hr', {}).get('value'), (int, float))
+    ]
     avg_metrics = {
         'sleep_hours': avg_sleep,
         'steps': avg_steps,
-        'rhr': sum(d.get('resting_hr', {}).get('value', 70) for d in weekly_data if d.get('resting_hr', {}).get('value')) / max(1, sum(1 for d in weekly_data if d.get('resting_hr', {}).get('value')))
+        'rhr': (sum(weekly_rhr_values) / len(weekly_rhr_values)) if weekly_rhr_values else 0,
     }
     
     # 获取成员配置
@@ -1036,10 +1041,15 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
     
     # V6.0.0: 计算月报Body Age
+    monthly_rhr_values = [
+        float(d.get('resting_hr', {}).get('value'))
+        for d in monthly_data
+        if isinstance(d.get('resting_hr', {}).get('value'), (int, float))
+    ]
     avg_metrics = {
         'sleep_hours': avg_sleep,
         'steps': avg_steps,
-        'rhr': avg_hrv  # 使用平均HRV作为参考
+        'rhr': (sum(monthly_rhr_values) / len(monthly_rhr_values)) if monthly_rhr_values else 0,
     }
     
     # 获取成员配置
@@ -1255,14 +1265,14 @@ def get_member_config(index: int):
         member = MEMBERS[index]
         return {
             "name": member.get("name", f"成员{index+1}"),
-            "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
-            "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
+            "health_dir": Path(member.get("health_dir", "~/Health Auto Export/Health Data")).expanduser(),
+            "workout_dir": Path(member.get("workout_dir", "~/Health Auto Export/Workout Data")).expanduser(),
             "email": member.get("email", "")
         }
     return {
         "name": f"成员{index+1}",
-        "health_dir": Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser(),
-        "workout_dir": Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser(),
+        "health_dir": Path('~/Health Auto Export/Health Data').expanduser(),
+        "workout_dir": Path('~/Health Auto Export/Workout Data').expanduser(),
         "email": ""
     }
 
