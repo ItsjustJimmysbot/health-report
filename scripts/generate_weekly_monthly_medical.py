@@ -33,6 +33,18 @@ WEEKLY_MIN_WORDS = ANALYSIS_LIMITS.get("weekly_min_words", 800)
 MONTHLY_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_min_words", 1000)
 MONTHLY_TREND_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_trend_min_words", 150)
 
+# 安全获取嵌套字典值的辅助函数
+def safe_get(obj: dict, *keys, default=None):
+    """安全获取嵌套字典值"""
+    current = obj
+    for key in keys:
+        if not isinstance(current, dict):
+            return default
+        current = current.get(key)
+        if current is None:
+            return default
+    return current
+
 OUTPUT_DIR = Path(
     CONFIG.get(
         "output_dir",
@@ -266,15 +278,20 @@ def load_previous_week_data(current_dates, member_name="默认用户"):
 
 def calculate_trend(current_values, previous_values):
     """计算趋势变化（环比）"""
+    # 过滤掉 None 和非数字值
+    current_values = [v for v in current_values if isinstance(v, (int, float)) and v is not None]
+    previous_values = [v for v in previous_values if isinstance(v, (int, float)) and v is not None]
+    
+    # 确保列表不为空
     if not current_values or not previous_values:
         return 0, 'stable'
 
     current_avg = sum(current_values) / len(current_values)
     previous_avg = sum(previous_values) / len(previous_values)
 
-    if previous_avg == 0:
+    if previous_avg == 0 or current_avg == 0:
         return 0, 'stable'
-
+    
     change_pct = ((current_avg - previous_avg) / previous_avg) * 100
 
     if change_pct > 5:
@@ -369,26 +386,32 @@ def _sleep_total(sleep_obj: dict) -> float:
     """兼容新旧睡眠字段：total_hours / total"""
     if not isinstance(sleep_obj, dict):
         return 0.0
-    return float(sleep_obj.get('total_hours', sleep_obj.get('total', 0)) or 0)
+    value = sleep_obj.get('total_hours', sleep_obj.get('total', 0))
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
 
 
 def _active_energy_kcal(day_obj: dict):
     """兼容活动能量字段：active_energy（新）/ active_energy_kcal（旧）"""
     if not isinstance(day_obj, dict):
-        return None
+        return 0.0
     v = day_obj.get('active_energy')
     if isinstance(v, (int, float)):
         return float(v)
     v = day_obj.get('active_energy_kcal')
     if isinstance(v, (int, float)):
         return float(v)
-    return None
+    return 0.0
 
 
 def _stand_hours(day_obj: dict):
     """兼容站立时长字段：apple_stand_hour（小时）/ apple_stand_time（分钟）/ stand_time_min（分钟）"""
     if not isinstance(day_obj, dict):
-        return None
+        return 0.0
 
     stand_hour_raw = day_obj.get('apple_stand_hour')
     if isinstance(stand_hour_raw, (int, float)):
@@ -402,7 +425,7 @@ def _stand_hours(day_obj: dict):
     if isinstance(stand_min_legacy, (int, float)):
         return float(stand_min_legacy) / 60.0
 
-    return None
+    return 0.0
 
 
 def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px_per_chart=160):
@@ -1421,14 +1444,24 @@ def main():
 
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.pdf'
-                with sync_playwright() as p:
-                    browser = p.chromium.launch()
-                    page = browser.new_page()
-                    page.goto(html_path.resolve().as_uri())
-                    page.wait_for_timeout(2500)
-                    page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                             margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                    browser.close()
+                browser = None
+                try:
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch()
+                        page = browser.new_page()
+                        page.goto(html_path.resolve().as_uri())
+                        page.wait_for_timeout(2500)
+                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
+                        browser.close()
+                        browser = None
+                except Exception as e:
+                    if browser:
+                        try:
+                            browser.close()
+                        except:
+                            pass
+                    raise
 
                 if LANGUAGE == "EN":
                     print(f'✅ Weekly report generated: {pdf_path}')
@@ -1505,14 +1538,24 @@ def main():
 
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.pdf'
-                with sync_playwright() as p:
-                    browser = p.chromium.launch()
-                    page = browser.new_page()
-                    page.goto(html_path.resolve().as_uri())
-                    page.wait_for_timeout(2500)
-                    page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                             margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                    browser.close()
+                browser = None
+                try:
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch()
+                        page = browser.new_page()
+                        page.goto(html_path.resolve().as_uri())
+                        page.wait_for_timeout(2500)
+                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
+                        browser.close()
+                        browser = None
+                except Exception as e:
+                    if browser:
+                        try:
+                            browser.close()
+                        except:
+                            pass
+                    raise
 
                 success_count += 1
 

@@ -121,17 +121,34 @@ def handle_error(error: Exception, context: str = "", exit_on_fatal: bool = True
 
 # ==================== 配置加载 ====================
 
+# 模块级缓存
+_config_cache = None
+_config_cache_path = None
+
 def load_config() -> dict:
-    """从 config.json 加载配置（带验证）
+    """从 config.json 加载配置（带验证和缓存）
 
     搜索路径（按优先级）：
     1. 脚本所在目录的父目录/config.json
     2. ~/.openclaw/workspace-health/config.json
     """
+    global _config_cache, _config_cache_path
+    
     config_paths = [
         Path(__file__).parent.parent / "config.json",
         Path.home() / '.openclaw' / 'workspace-health' / 'config.json',
     ]
+
+    # 检查是否有配置文件被修改
+    current_config_path = None
+    for config_path in config_paths:
+        if config_path.exists():
+            current_config_path = config_path
+            break
+    
+    # 使用缓存（如果文件路径没变）
+    if _config_cache is not None and _config_cache_path == current_config_path:
+        return _config_cache
 
     for config_path in config_paths:
         if config_path.exists():
@@ -146,6 +163,9 @@ def load_config() -> dict:
                     print(f"   - {error}", file=sys.stderr)
                 print(f"   配置文件位置: {config_path}\n", file=sys.stderr)
 
+            # 缓存配置
+            _config_cache = config
+            _config_cache_path = config_path
             return config
 
     return {}
@@ -620,6 +640,13 @@ def parse_sleep_data_unified(
 
             # 统一转换为小时（假设原始值可能是分钟或小时）
             def normalize_hours(value, field_name=""):
+                """将睡眠时长值归一化为小时数
+                
+                规则:
+                1. 值 < 3: 认为是小时，直接返回
+                2. 值 >= 3 且 < 100: 模糊区域，根据字段类型判断
+                3. 值 >= 100: 认为是分钟，转换为小时
+                """
                 if not value or value <= 0:
                     return 0.0
 
@@ -629,32 +656,25 @@ def parse_sleep_data_unified(
                 except (ValueError, TypeError):
                     return 0.0
 
-                # 合理性检查：如果值已经很小(<0.1)，认为已经是小时
-                if val < 0.1:
+                # 如果值很小(<3)，几乎肯定是小时（睡眠阶段不可能<3分钟）
+                if val < 3:
                     return round(val, 2)
 
                 # 判断是否为睡眠阶段字段
                 is_stage = any(x in field_name.lower() for x in ['deep', 'core', 'rem', 'awake'])
 
-                # 更智能的单位判断逻辑（带边界保护）
                 if is_stage:
-                    # 睡眠阶段正常范围：0.5-5 小时（30-300 分钟）
-                    # 值 > 30 几乎肯定是分钟，但需要有上限保护
-                    if 30 < val <= 600:  # 上限 600 分钟 = 10 小时（单阶段不可能超过10小时）
+                    # 睡眠阶段：正常范围 0.1-5 小时（6-300 分钟）
+                    # 如果值 > 30，认为是分钟
+                    if val > 30:
                         return round(val / 60.0, 2)
-                    # 值在 10-30 之间：如果是整数可能是分钟，如果是小数可能是小时
-                    elif 10 < val <= 30 and val == int(val):
-                        return round(val / 60.0, 2)
-                    # 如果值 > 600，可能是异常数据，但仍尝试转换
-                    elif val > 600:
+                    # 如果值在 3-30 之间，整数可能是分钟，小数可能是小时
+                    if val > 10 and val == int(val):
                         return round(val / 60.0, 2)
                 else:
-                    # 总睡眠正常范围：3-12 小时（180-720 分钟）
-                    # 值 > 100 且 < 1440（24小时）认为是分钟
-                    if 100 < val <= 1440:
-                        return round(val / 60.0, 2)
-                    # 如果值 > 24小时，可能是异常，但仍做转换
-                    elif val > 1440:
+                    # 总睡眠：正常范围 3-12 小时（180-720 分钟）
+                    # 如果值 > 24 且 > 100，认为是分钟
+                    if val > 24 and val > 100:
                         return round(val / 60.0, 2)
 
                 return round(val, 2)
@@ -1463,30 +1483,41 @@ def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
     """Infer duration unit (seconds or minutes).
     Returns: (duration_minutes, unit_inferred)
     """
+    # 首先检查明确的单位标记
     unit = str(workout.get('durationUnit') or workout.get('duration_unit') or '').lower()
     if unit in ('s', 'sec', 'second', 'seconds'):
         return duration_raw / 60.0, 'seconds'
     if unit in ('m', 'min', 'minute', 'minutes'):
         return float(duration_raw), 'minutes'
 
-    if duration_raw > 1440:
+    # 边界保护：duration_raw 必须为正数
+    if not isinstance(duration_raw, (int, float)) or duration_raw <= 0:
+        return 0.0, 'unknown'
+
+    # 启发式推断 1: 如果值 > 7200 (2小时的秒数)，很可能是秒
+    if duration_raw > 7200:
         return duration_raw / 60.0, 'seconds'
 
+    # 启发式推断 2: 基于能量消耗
     energy_raw = workout.get('energy', 0) or workout.get('activeEnergyBurned', 0) or workout.get('totalEnergyBurned', 0)
     if isinstance(energy_raw, dict):
         energy = energy_raw.get('qty', 0)
     else:
         energy = energy_raw
+    
     if energy > 0 and duration_raw > 0:
         kcal = energy / 4.184
         kcal_per_min_if_minutes = kcal / duration_raw
-        if kcal_per_min_if_minutes < 1.0:
+        # 如果按分钟算的能耗 < 0.5 kcal/min，不合理，应该是秒
+        if kcal_per_min_if_minutes < 0.5:
             return duration_raw / 60.0, 'seconds'
-        if kcal_per_min_if_minutes > 30.0:
+        # 如果按分钟算的能耗 > 50 kcal/min，不合理，应该是秒
+        if kcal_per_min_if_minutes > 50.0:
             return duration_raw / 60.0, 'seconds'
 
+    # 启发式推断 3: 基于心率数据点数量
     hr_data = workout.get('heartRateData', []) or workout.get('hrData', [])
-    if len(hr_data) > 0:
+    if len(hr_data) > 1:
         expected_mins_from_hr = len(hr_data)
         diff_if_minutes = abs(expected_mins_from_hr - duration_raw)
         diff_if_seconds = abs(expected_mins_from_hr - (duration_raw / 60.0))
@@ -1494,8 +1525,10 @@ def infer_duration_unit(duration_raw: float, workout: dict) -> tuple:
             return duration_raw / 60.0, 'seconds'
         return float(duration_raw), 'minutes'
 
-    if duration_raw > 300:
+    # 默认: 如果值 > 180 (3小时分钟数或180秒=3分钟)，认为是秒
+    if duration_raw > 180:
         return duration_raw / 60.0, 'seconds'
+    
     return float(duration_raw), 'minutes'
 
 
@@ -1503,16 +1536,33 @@ def get_workout_field(workout: dict, field_names: list, default=None):
     """
     兼容多种字段名获取workout数据
     按优先级尝试多个字段名
+    返回统一的标量值或 default
     """
+    if not isinstance(workout, dict):
+        return default
+    
     for name in field_names:
         if name in workout and workout[name] is not None:
             value = workout[name]
             # 处理字典格式（如 {"qty": 100, "units": "kJ"}）
             if isinstance(value, dict):
-                # 如果是 heartRate 这种嵌套结构，提取 avg/max
-                if 'avg' in value and isinstance(value['avg'], dict) and 'qty' in value['avg']:
-                    return value['avg']['qty']
+                # 首先尝试直接获取 qty
                 if 'qty' in value:
-                    return value.get('qty', default)
-            return value
+                    qty_value = value.get('qty')
+                    if qty_value is not None:
+                        return qty_value
+                # 如果是 heartRate 这种嵌套结构，提取 avg
+                if 'avg' in value:
+                    avg_value = value['avg']
+                    if isinstance(avg_value, dict) and 'qty' in avg_value:
+                        return avg_value['qty']
+                    return avg_value
+                # 尝试获取 max
+                if 'max' in value:
+                    max_value = value['max']
+                    if isinstance(max_value, dict) and 'qty' in max_value:
+                        return max_value['qty']
+                    return max_value
+            else:
+                return value
     return default

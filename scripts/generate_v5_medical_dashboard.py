@@ -1897,6 +1897,7 @@ if __name__ == '__main__':
             # 生成PDF
             max_retries = 3
             for attempt in range(max_retries):
+                browser = None
                 try:
                     with sync_playwright() as p:
                         browser = p.chromium.launch()
@@ -1907,8 +1908,14 @@ if __name__ == '__main__':
                                  margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
                                  display_header_footer=False)
                         browser.close()
+                        browser = None
                     break
                 except Exception as e:
+                    if browser:
+                        try:
+                            browser.close()
+                        except:
+                            pass
                     if attempt < max_retries - 1:
                         print(f'   ⚠️ PDF生成失败，第{attempt + 1}次重试...')
                         import time
