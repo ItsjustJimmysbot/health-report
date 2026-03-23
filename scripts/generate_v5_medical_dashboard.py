@@ -1419,9 +1419,13 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     
     # V6.0.3 调试: 检查 pace_of_aging 范围
     pace = health_scores['pace_of_aging']
-    if pace < -1.5 or pace > 1.5:
+    # 处理 pace 为 None 的情况（数据不足时）
+    if pace is None:
+        pace = 0.0
+        print(f"   ℹ️ 提示: pace_of_aging 数据不足，使用默认值 0.0")
+    elif pace < -1.5 or pace > 1.5:
         print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [-1.5, 1.5]")
-    if abs(pace) < 0.01:
+    elif abs(pace) < 0.01:
         print(f"   ℹ️ 提示: pace_of_aging 接近 0，表示近期数据无变化或历史数据不足")
     
     # V6.0.1: 新的健康评分替换
@@ -1438,6 +1442,8 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     
     # Pace描述
     pace = health_scores['pace_of_aging']
+    if pace is None:
+        pace = 0.0
     if pace < -0.3:
         pace_desc = "逆龄中 🟢" if LANGUAGE == 'CN' else "Reverse Aging 🟢"
         pace_class = "reverse-aging"

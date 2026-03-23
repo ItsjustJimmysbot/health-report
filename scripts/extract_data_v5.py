@@ -10,7 +10,7 @@ from typing import List, Dict
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL, ConfigError, handle_error
+from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL, ConfigError, handle_error, infer_duration_unit, get_workout_field
 
 def get_member_config(member_idx=0):
     """获取指定成员的配置，优先从config.json读取"""
@@ -193,13 +193,11 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             # 计算 duration_min（使用智能单位推断）
             dur_raw = workout.get('duration', 0) or 0
             if dur_raw:
-                from utils import infer_duration_unit
                 duration_min, _ = infer_duration_unit(dur_raw, workout)
             else:
                 duration_min = 0
             
             # 获取能量（兼容多种字段名）
-            from utils import get_workout_field
             energy_kj = get_workout_field(workout, ['energy', 'activeEnergyBurned', 'totalEnergyBurned', 'activeEnergy'], 0)
             energy_kcal = energy_kj / 4.184 if energy_kj else 0
             

@@ -407,6 +407,13 @@ def _stand_hours(day_obj: dict):
 
 def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px_per_chart=160):
     """V6.0.3: 构建三个上下排列的图表 - HRV、步数、睡眠各一个"""
+    from html import escape as html_escape
+    
+    # 转义标签防止 XSS
+    hrv_label = html_escape(lang_labels["hrv"])
+    steps_label = html_escape(lang_labels["steps"])
+    sleep_label = html_escape(lang_labels["sleep"])
+    
     def calc_range(values, min_default, max_default, padding=0.1):
         valid = [v for v in values if isinstance(v, (int, float))]
         if not valid:
@@ -437,10 +444,6 @@ def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, 
     hrv_js = js_array(hrv_values)
     steps_js = js_array(steps_values, transform=lambda x: x / 1000)
     sleep_js = js_array(sleep_values)
-    
-    hrv_label = lang_labels["hrv"]
-    steps_label = lang_labels["steps"]
-    sleep_label = lang_labels["sleep"]
     
     total_height = height_px_per_chart * 3 + 40
     
