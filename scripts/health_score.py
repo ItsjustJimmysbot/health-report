@@ -36,16 +36,25 @@ def calculate_max_hr(age: int, gender: str = 'male') -> int:
     return int(208 - 0.7 * age)
 
 def get_hr_zone(hr: int, max_hr: int) -> int:
-    """心率区间 1-5（基于 WHOOP 标准）"""
+    """心率区间 1-5（基于 WHOOP 标准）
+    
+    WHOOP 区间定义:
+    - Zone 0: < 50% (恢复区)
+    - Zone 1: 50-60% (轻度活动)
+    - Zone 2: 60-70% (有氧基础)
+    - Zone 3: 70-80% (有氧强化)
+    - Zone 4: 80-90% (无氧阈值)
+    - Zone 5: >= 90% (最大强度)
+    """
     if max_hr <= 0:
         return 0
     pct = hr / max_hr
-    if pct < 0.5: return 0      # 恢复区
-    elif pct < 0.6: return 1    # Zone 1: 50-60%
-    elif pct < 0.7: return 2    # Zone 2: 60-70%
-    elif pct < 0.8: return 3    # Zone 3: 70-80%
-    elif pct < 0.9: return 4    # Zone 4: 80-90%
-    else: return 5              # Zone 5: 90-100%
+    if pct < 0.50: return 0     # 恢复区: < 50%
+    elif pct < 0.60: return 1   # Zone 1: 50-60%
+    elif pct < 0.70: return 2   # Zone 2: 60-70%
+    elif pct < 0.80: return 3   # Zone 3: 70-80%
+    elif pct < 0.90: return 4   # Zone 4: 80-90%
+    else: return 5              # Zone 5: >= 90%
 
 # ============ 1. Strain 评分 (0-21) ============
 
@@ -161,10 +170,12 @@ def _parse_timestamp_seconds(value) -> Optional[float]:
     except (TypeError, ValueError):
         pass
 
-    # 仅有 HH:MM 时，返回"分钟数"，调用方只用于相邻差值
+    # 仅有 HH:MM 时，假设是当前日期，转换为秒级时间戳
     if re.match(r'^\d{2}:\d{2}$', text):
+        from datetime import datetime
         hh, mm = text.split(':')
-        return float(int(hh) * 60 + int(mm))
+        # 返回当天该时间的秒数（仅用于相对差值计算）
+        return float(int(hh) * 3600 + int(mm) * 60)
 
     iso_text = text.replace('Z', '+00:00')
     m = re.match(r'(.+?)\s+([+-]\d{4})$', iso_text)
@@ -389,7 +400,9 @@ def calculate_recovery(
     # 呼吸率分数（与基线偏差越小越好）
     if resp_baseline > 0:
         resp_ratio = respiratory_rate / resp_baseline
-        resp_score = min(100, max(0, 100 * (2.0 - resp_ratio) * 0.8))
+        # 比值 1.0 时得 100 分，每偏离 10% 扣 10 分
+        deviation = abs(resp_ratio - 1.0)
+        resp_score = max(0, 100 - deviation * 100)
     else:
         resp_score = 50.0
     
@@ -782,14 +795,22 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
         if any(k in str(w.get('name', '')).lower() for k in ['strength', '力量', '举重', 'weight'])
     )
 
-    # 1) Strain：优先使用真实 zone_times
+    # 1) Strain：优先使用全天心率数据计算，其次用 workout 心率
     resolved_zone_times = zone_times or data.get('zone_times') or {}
+    
     if _sum_zone_minutes(resolved_zone_times) <= 0:
-        resolved_zone_times = calculate_zone_times_from_workouts(workouts, age)
-
+        # 首先尝试使用全天心率数据（更精确）
+        hr_data = data.get('heart_rate_data') or []
+        if hr_data and len(hr_data) >= 10:  # 需要足够的数据点
+            resolved_zone_times = calculate_zone_times_from_hr_data(hr_data, age)
+        else:
+            # 退而求其次，使用 workout 心率
+            resolved_zone_times = calculate_zone_times_from_workouts(workouts, age)
+    
     if _sum_zone_minutes(resolved_zone_times) > 0:
         strain = calculate_strain_from_zone_times(resolved_zone_times, strength_time)
     else:
+        # 最后退回到基于活动能量的估算
         strain, resolved_zone_times = calculate_strain_simple(
             active_energy,
             steps,
@@ -803,8 +824,28 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
     previous_day_scores = history.get_scores(yesterday, member_name) or {}
     prev_strain = float(previous_day_scores.get('strain', 10) or 10)
 
-    sleep_consistency = data.get('sleep_consistency')
-    if not isinstance(sleep_consistency, (int, float)):
+    # 计算睡眠规律性（基于睡眠记录的时间差异）
+    sleep_records = sleep.get('records', [])
+    if len(sleep_records) >= 2:
+        # 计算各阶段睡眠时长的标准差变异系数作为不规律性指标
+        stage_totals = []
+        for record in sleep_records:
+            total = record.get('total', 0)
+            if total > 0:
+                stage_totals.append(total)
+        if stage_totals and len(stage_totals) >= 2:
+            import statistics
+            try:
+                mean_total = statistics.mean(stage_totals)
+                stdev_total = statistics.stdev(stage_totals) if len(stage_totals) > 1 else 0
+                # 变异系数越小越规律，转化为 0-100 的 consistency 分数
+                cv = stdev_total / mean_total if mean_total > 0 else 0
+                sleep_consistency = max(0, min(100, 100 - cv * 100))
+            except:
+                sleep_consistency = 75
+        else:
+            sleep_consistency = 75
+    else:
         sleep_consistency = 75
 
     sleep_latency_min = data.get('sleep_latency_min')
@@ -891,16 +932,17 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
     pace = calculate_pace_of_aging(pace_history, age, gender)
     if pace is None:
         pace = 1.0  # 默认正常速度
-        current_7day = {
-            'recovery': float(recovery_result.recovery),
-            'sleep_performance': float(sleep_result.performance),
-        }
-
-    previous_7day = history.get_average_range(yesterday, member_name, days=7, skip_days=6)
-    if int(previous_7day.get('days_count', 0) or 0) > 0:
-        pace = calculate_pace_of_aging(current_7day, previous_7day)
-    else:
-        pace = 0.0
+        # 数据不足时，基于 Recovery 变化计算简化版 Pace
+        previous_7day = history.get_average_range(yesterday, member_name, days=7, skip_days=6)
+        if int(previous_7day.get('days_count', 0) or 0) > 0:
+            # 使用 Recovery 变化率估算 Pace
+            prev_recovery = float(previous_7day.get('recovery', 50) or 50)
+            curr_recovery = float(recovery_result.recovery)
+            recovery_change = (curr_recovery - prev_recovery) / max(prev_recovery, 1)
+            # Recovery 下降 10% → Pace 增加 0.1
+            pace = max(0.5, min(2.0, 1.0 - recovery_change))
+        else:
+            pace = 1.0
 
     return {
         'strain': strain,

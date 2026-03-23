@@ -1345,11 +1345,12 @@ def count_text_units(text: Any, language: str = "CN") -> int:
 
 def _get_language_ratio_thresholds() -> dict:
     """读取语言检测阈值（支持 analysis_limits 覆盖）。"""
+    # 放宽阈值，允许更多中英文混合（医学报告常有英文术语）
     defaults = {
-        'lang_en_max_chinese_ratio_strict': 0.15,
-        'lang_en_max_chinese_ratio_warn': 0.20,
-        'lang_cn_min_chinese_ratio_strict': 0.30,
-        'lang_cn_min_chinese_ratio_warn': 0.20,
+        'lang_en_max_chinese_ratio_strict': 0.25,  # 从 0.15 放宽到 0.25
+        'lang_en_max_chinese_ratio_warn': 0.35,    # 从 0.20 放宽到 0.35
+        'lang_cn_min_chinese_ratio_strict': 0.20,  # 从 0.30 降低到 0.20
+        'lang_cn_min_chinese_ratio_warn': 0.15,    # 从 0.20 降低到 0.15
     }
 
     try:

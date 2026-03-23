@@ -1285,104 +1285,6 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
 # =====================================================
 
 
-def calculate_scores(data, member_cfg=None):
-    """V5.8.1: 计算个性化评分（考虑年龄、性别、BMI）
-
-    Returns:
-        tuple: (recovery, sleep_score, exercise)
-    """
-    sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
-    hrv_v = data['hrv']['value'] or 0
-    rhr_v = data['resting_hr']['value'] or 999
-    steps_v = data['steps'] or 0
-    active_v = data.get('active_energy') or 0
-
-    # 获取成员档案信息（带缺省值保护）
-    if member_cfg:
-        raw_age = member_cfg.get("age")
-        raw_gender = member_cfg.get("gender")
-        raw_height = member_cfg.get("height_cm")
-        raw_weight = member_cfg.get("weight_kg")
-    else:
-        raw_age = raw_gender = raw_height = raw_weight = None
-
-    age = int(raw_age) if isinstance(raw_age, (int, float)) and raw_age > 0 else 30
-    gender = raw_gender if raw_gender in ("male", "female", "other") else "male"
-    height_cm = float(raw_height) if isinstance(raw_height, (int, float)) and raw_height > 0 else 175.0
-    weight_kg = float(raw_weight) if isinstance(raw_weight, (int, float)) and raw_weight > 0 else 70.0
-
-    # 计算BMI
-    bmi = weight_kg / ((height_cm / 100) ** 2) if height_cm > 0 else 22
-
-    # === 恢复度评分 (Recovery) ===
-    if age <= 25:
-        hrv_threshold, rhr_threshold = 55, 60
-    elif age <= 35:
-        hrv_threshold, rhr_threshold = 50, 65
-    elif age <= 45:
-        hrv_threshold, rhr_threshold = 45, 68
-    else:
-        hrv_threshold, rhr_threshold = 40, 70
-
-    recovery_base = 60
-    recovery_hrv = 15 if hrv_v > hrv_threshold + 10 else (10 if hrv_v > hrv_threshold else (5 if hrv_v > hrv_threshold - 10 else 0))
-    recovery_rhr = 15 if rhr_v < rhr_threshold - 5 else (10 if rhr_v < rhr_threshold else (5 if rhr_v < rhr_threshold + 5 else 0))
-    recovery_sleep = 10 if sleep_hours >= 7.5 else (7 if sleep_hours >= 7 else (4 if sleep_hours >= 6 else 0))
-    recovery = min(100, recovery_base + recovery_hrv + recovery_rhr + recovery_sleep)
-
-    # === 睡眠评分 (Sleep Score) ===
-    if age <= 25:
-        sleep_optimal, sleep_min = 8.0, 7.0
-    elif age <= 35:
-        sleep_optimal, sleep_min = 7.5, 6.5
-    else:
-        sleep_optimal, sleep_min = 7.0, 6.0
-
-    if sleep_hours >= sleep_optimal:
-        sleep_score = 90 + min(10, int((sleep_hours - sleep_optimal) * 5))
-    elif sleep_hours >= sleep_min:
-        sleep_score = 70 + int((sleep_hours - sleep_min) / (sleep_optimal - sleep_min) * 20)
-    elif sleep_hours >= sleep_min - 1:
-        sleep_score = 50 + int((sleep_hours - (sleep_min - 1)) * 20)
-    else:
-        sleep_score = max(30, int(sleep_hours * 15))
-    sleep_score = min(100, sleep_score)
-
-    # === 运动评分 (Exercise Score) ===
-    if bmi < 18.5:
-        steps_target, active_target = 7000, 350
-    elif bmi < 24:
-        steps_target, active_target = 8000, 450
-    elif bmi < 28:
-        steps_target, active_target = 10000, 550
-    else:
-        steps_target, active_target = 12000, 650
-
-    if gender == "female":
-        steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
-
-    if age > 40:
-        steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
-
-    exercise_steps = min(40, int((steps_v / steps_target) * 40))
-    exercise_active = min(30, int((active_v / active_target) * 30))
-    exercise_workout = 20 if data.get('has_workout') else 0
-    exercise_consistency = 10 if steps_v >= steps_target * 0.5 else 5
-    exercise = min(100, exercise_steps + exercise_active + exercise_workout + exercise_consistency)
-
-    return recovery, sleep_score, exercise
-
-
-def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None, member_cfg=None, preloaded_data=None):
-    data = preloaded_data if preloaded_data is not None else load_data(date_str, health_dir, workout_dir)
-    html = template
-
-    # 清理AI分析中的markdown粗体标记 **
-    def clean_markdown(text):
-        if isinstance(text, str):
-            return text.replace('**', '')
-        return text
-
     # 递归清理字典中的所有字符串
     def clean_dict(d):
         if isinstance(d, dict):
@@ -1413,7 +1315,6 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     if member_cfg is None:
         members = CONFIG.get("members", [])
         member_cfg = members[0] if members else None
-    recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
 
     # 获取年龄用于评分阈值适配
     member_age = member_cfg.get('age') if member_cfg else None
@@ -1712,13 +1613,13 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         sleep_total = sleep_data.get('total_hours', 0)
         sleep_need = health_scores['sleep_need']
         
-        # 计算当日睡眠债（睡眠充足可以减少债务）
+        # 计算当日睡眠债变化（睡眠充足可以还债）
         if sleep_total < sleep_need:
-            daily_debt = sleep_need - sleep_total
+            daily_debt_change = sleep_need - sleep_total  # 新增债务
         else:
-            # 睡眠充足时，每多睡1小时减少0.5小时债务，最多减到0
+            # 睡眠充足时，每多睡1小时减少0.5小时债务
             surplus = sleep_total - sleep_need
-            daily_debt = max(-0.5, -surplus * 0.5)
+            daily_debt_change = -surplus * 0.5  # 还债（负值）
         
         # 获取累积睡眠债（从昨天缓存）
         cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
@@ -1727,7 +1628,13 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         
         prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
         prev_debt = history.get_sleep_debt(prev_date, member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
-        accumulated_debt = max(0, prev_debt + daily_debt) if prev_debt else max(0, daily_debt)
+        if prev_debt is None:
+            prev_debt = 0.0
+        
+        # 累积债务 = 昨日债务 + 今日变化，然后限制在合理范围
+        accumulated_debt = prev_debt + daily_debt_change
+        # 债务不能为负（不奖励过度睡眠），最大累积 14 天
+        accumulated_debt = max(0.0, min(accumulated_debt, 14.0))
         
         bedtime = sleep_data.get('bedtime', '--') if isinstance(sleep_data, dict) else '--'
         waketime = sleep_data.get('waketime', '--') if isinstance(sleep_data, dict) else '--'
@@ -1747,7 +1654,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
             'bedtime': bedtime,
             'waketime': waketime,
             'sleep_latency_min': None,
-            'sleep_debt_daily': round(daily_debt, 2),
+            'sleep_debt_daily': round(daily_debt_change, 2),
             'sleep_debt_accumulated': round(accumulated_debt, 2),
             'health_scores': {
                 'strain': health_scores['strain'],
