@@ -127,7 +127,8 @@ def calculate_strain_simple(active_energy: float, steps: int,
                            workouts: List[Dict], age: int = 30,
                            hr_data: List[Dict] = None, 
                            weight_kg: float = 70.0,
-                           gender: str = 'male') -> Tuple[float, Dict]:
+                           gender: str = 'male',
+                           rhr: int = None) -> Tuple[float, Dict]:
     """
     简化版Strain计算 V6.0.5（没有全天HR数据时使用）
     基于活动能量、步数、运动记录和心率数据估算
@@ -136,6 +137,7 @@ def calculate_strain_simple(active_energy: float, steps: int,
     - 考虑体重和性别差异
     - 个性化能量阈值
     - 运动强度基于METs估算
+    - 支持HRR心率区间计算
     
     返回: (strain, zone_times_dict)
     """
@@ -193,16 +195,22 @@ def calculate_strain_simple(active_energy: float, steps: int,
     
     # V6.0.5: 如果有心率数据，从心率数据计算真实zone_times
     if hr_data and len(hr_data) > 0:
-        zone_times = calculate_zone_times_from_hr_data(hr_data, age)
+        zone_times = calculate_zone_times_from_hr_data(hr_data, age, rhr)
     else:
         # 没有心率数据时，基于运动估算zone分布
-        zone_times = estimate_zone_times_from_workouts(workouts, steps)
+        zone_times = estimate_zone_times_from_workouts(workouts, steps, rhr)
     
     return round(strain, 1), zone_times
 
 
-def estimate_zone_times_from_workouts(workouts: List[Dict], steps: int) -> Dict:
-    """V6.0.5: 基于运动记录和步数估算zone时间（更精确）"""
+def estimate_zone_times_from_workouts(workouts: List[Dict], steps: int, rhr: int = None) -> Dict:
+    """V6.0.5: 基于运动记录和步数估算zone时间（更精确）
+    
+    Args:
+        workouts: 运动记录列表
+        steps: 步数
+        rhr: 静息心率(可选)，用于HRR计算
+    """
     zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
     
     # 基于步数估算日常活动（主要在Zone 1-2）
@@ -224,7 +232,14 @@ def estimate_zone_times_from_workouts(workouts: List[Dict], steps: int) -> Dict:
         if isinstance(avg_hr, (int, float)) and avg_hr > 0:
             # 有平均心率，估算主要zone
             max_hr = 220 - 30  # 假设平均30岁
-            hr_pct = avg_hr / max_hr
+            
+            # 如果提供了RHR，使用HRR方法计算zone
+            if rhr is not None and rhr > 0 and max_hr > rhr:
+                hrr = max_hr - rhr
+                hr_reserve = avg_hr - rhr
+                hr_pct = hr_reserve / hrr if hrr > 0 else 0
+            else:
+                hr_pct = avg_hr / max_hr
             
             if hr_pct >= 0.90:
                 zone_times['zone_5'] += duration * 0.7
@@ -1064,7 +1079,8 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
             steps,
             workouts,
             age,
-            data.get('heart_rate_data') or []
+            data.get('heart_rate_data') or [],
+            rhr=rhr  # 传递静息心率用于HRR计算
         )
 
     # 2) Sleep Performance
