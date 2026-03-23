@@ -235,6 +235,16 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             print(f"⚠️  解析单个 workout 失败: {e}", file=sys.stderr)
             continue
     
+    # V6.0.3: 添加调试信息
+    workout_file_name = workout_file.name if workout_file else "未找到"
+    if workout_file and not workouts:
+        print(f"   ℹ️ 运动文件存在但无有效记录: {workout_file_name}", file=sys.stderr)
+        print(f"      提示: 检查文件是否包含 workouts 数组或 data.workouts 结构", file=sys.stderr)
+    elif workouts:
+        print(f"   ✓ 找到 {len(workouts)} 条运动记录", file=sys.stderr)
+    else:
+        print(f"   ℹ️ 未找到运动文件: 尝试路径包括 {date_str}.json 和 HealthAutoExport-{date_str}.json", file=sys.stderr)
+    
     return workouts
 
 def calculate_zone_times_from_workouts(workouts: List[Dict], age: int) -> Dict[str, float]:
@@ -496,12 +506,6 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     
     # 计算是否有运动
     has_workout = len(workouts) > 0 if workouts else False
-    
-    # V6.0.3: 添加调试信息
-    if workout_file and not has_workout:
-        print(f"   ℹ️ 运动文件存在但无有效记录: {workout_file.name}", file=sys.stderr)
-    elif has_workout:
-        print(f"   ✓ 找到 {len(workouts)} 条运动记录", file=sys.stderr)
     
     # V6.0.3: 从 workout 心率时间线计算真实的心率区间时间
     user_age = user_profile.get('age', 30) if user_profile else 30

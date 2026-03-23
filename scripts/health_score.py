@@ -352,7 +352,8 @@ class SleepPerformanceResult:
 def calculate_sleep_performance(actual_hours: float, previous_strain: float,
                                consistency: float, disturbances_min: float,
                                sleep_latency_min: float,
-                               baseline_need: float = 7.8) -> SleepPerformanceResult:
+                               baseline_need: float = 7.8,  # 基于成年人平均睡眠需求 (7-9小时中位数)
+                               age: int = 30) -> SleepPerformanceResult:
     """计算Sleep Performance (0-100%)"""
     # Sleep Need自适应
     load_adjustment = 0.08 * max(-5, previous_strain - 10)
@@ -383,7 +384,7 @@ class BodyAgeResult:
     risk_ratios: Dict[str, float] = None
 
 def calculate_body_age(metrics: Dict, chronological_age: int, gender: str = 'male') -> BodyAgeResult:
-    """计算Body Age - V6.0.2改进版（带数据有效性检查）"""
+    """计算Body Age - V6.0.3改进版（带数据有效性检查和可配置阈值）"""
     impacts = {}
     
     # 获取实际数据（带默认值保护）
@@ -402,61 +403,90 @@ def calculate_body_age(metrics: Dict, chronological_age: int, gender: str = 'mal
             risk_ratios={}
         )
     
-    # 睡眠影响（只有有数据时才计算）
+    # === 可配置阈值（基于年龄段的推荐值）===
+    # 步数目标：基于 WHO 推荐和年龄调整
+    if chronological_age <= 30:
+        steps_target = 8000
+    elif chronological_age <= 50:
+        steps_target = 7000
+    else:
+        steps_target = 5600
+    
+    # 静息心率目标：基于性别（运动员可能更低，但这里使用一般健康标准）
+    target_rhr = 60 if gender == 'male' else 64
+    
+    # === 睡眠影响计算 ===
+    # 逻辑：7-9小时为最佳，6-7小时轻微负面影响，<6小时明显负面影响
     if sleep_hours > 0:
         if 7 <= sleep_hours <= 9:
-            impacts['sleep'] = 0
+            impacts['sleep'] = 0  # 最佳范围，无影响
         elif sleep_hours >= 6:
-            impacts['sleep'] = 1.2
+            impacts['sleep'] = 1.2  # 轻微睡眠不足，+1.2岁
         else:
-            impacts['sleep'] = 2.5
+            impacts['sleep'] = 2.5  # 明显睡眠不足，+2.5岁
     
-    # 步数影响（使用对数缩放避免极端值）
+    # === 步数影响计算 ===
+    # 逻辑：达到目标减龄，未达标根据差距增加身体年龄（对数缩放避免极端值）
     if steps > 0:
-        target = 8000 if chronological_age <= 30 else 7000 if chronological_age <= 50 else 5600
-        if steps >= target:
-            impacts['steps'] = -1.0
+        if steps >= steps_target:
+            impacts['steps'] = -1.0  # 达标减龄1岁
         else:
-            # 使用对数缩放，避免steps=0时产生巨大影响
-            deficit_ratio = (target - steps) / target
-            impacts['steps'] = min(5.0, deficit_ratio * 5)  # 最大影响5岁
+            deficit_ratio = (steps_target - steps) / steps_target
+            # 使用对数缩放：差距越大，边际影响递减
+            impacts['steps'] = min(5.0, deficit_ratio * 5)
     
-    # RHR影响
+    # === RHR影响计算 ===
+    # 逻辑：低于目标减龄，高于目标根据程度增加身体年龄
     if rhr > 0:
-        target_rhr = 60 if gender == 'male' else 64
         if rhr < target_rhr:
-            impacts['cardio'] = -0.5
+            impacts['cardio'] = -0.5  # 心肺功能优秀，减龄0.5岁
         elif rhr < target_rhr + 10:
-            impacts['cardio'] = 0
+            impacts['cardio'] = 0  # 正常范围，无影响
         else:
+            # 偏高心率：每高10bpm，增加约0.9岁（上限3岁）
             impacts['cardio'] = min(3.0, (rhr - target_rhr) / 10 * 0.9)
     
     total_impact = sum(impacts.values())
     body_age = chronological_age + total_impact
     
+    # 添加调试信息到 breakdown（帮助理解计算过程）
+    breakdown_detail = {k: round(v, 2) for k, v in impacts.items()}
+    breakdown_detail['_config'] = {
+        'steps_target': steps_target,
+        'target_rhr': target_rhr,
+        'gender': gender
+    }
+    
     return BodyAgeResult(
         body_age=round(body_age, 1),
         chronological_age=chronological_age,
         age_impact=round(total_impact, 1),
-        breakdown={k: round(v, 2) for k, v in impacts.items()},
+        breakdown=breakdown_detail,
         risk_ratios={}
     )
 
 # ============ 5. Pace of Aging ============
 
-def calculate_pace_of_aging(current_scores: Dict, previous_scores: Dict, days_span: int = 7) -> float:
+def calculate_pace_of_aging(current_scores: Dict, previous_scores: Dict, days_span: int = 7, data_completeness: float = 1.0) -> float:
     """
     计算 Pace of Aging（保持当前模板兼容：负数=逆龄，0=稳定，正数=衰老加快）。
 
     这里不再做夸张的 30 天年化放大，避免结果经常被打满到 3.00 / 0.00。
+    
+    Args:
+        data_completeness: 数据完整度 (0.0-1.0)，低于 0.7 返回 None 表示数据不足
     """
+    # 数据完整性检查
+    if data_completeness < 0.7:
+        return None  # 返回 None 表示数据不足，而非计算为 0
+    
     current_recovery = current_scores.get('recovery')
     previous_recovery = previous_scores.get('recovery')
     current_sleep = current_scores.get('sleep_performance')
     previous_sleep = previous_scores.get('sleep_performance')
 
     if not all(isinstance(v, (int, float)) for v in [current_recovery, previous_recovery, current_sleep, previous_sleep]):
-        return 0.0
+        return None  # 数据缺失时返回 None，不是 0.0
 
     recovery_improvement = float(current_recovery) - float(previous_recovery)
     sleep_improvement = float(current_sleep) - float(previous_sleep)

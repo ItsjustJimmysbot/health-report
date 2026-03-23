@@ -22,9 +22,6 @@ from health_score import calculate_body_age, HealthScoreHistory
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
 
-# V6.0.0: 导入健康评分模块
-from health_score import calculate_body_age, HealthScoreHistory
-
 # ==================== 配置加载 ====================
 CONFIG = load_config()
 LANGUAGE = str(CONFIG.get("language", "CN")).strip().upper()
@@ -780,16 +777,13 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WEEKLY_TOTAL_ZONE_TIME}}', str(total_zone_hours))
     html = html.replace('{{WEEKLY_PRIMARY_ZONE}}', primary_zone)
 
-    # V6.0.3: 计算平均Pace of Aging和Body Age（带类型检查）
-    pace_values = []
+    # V6.0.3: 计算周度 Pace of Aging（基于周间比较，而非日度平均）
+    # 同时计算平均 Body Age 和 Age Impact
     body_ages = []
     age_impacts = []
 
     for day in weekly_data:
         hs = day.get('health_scores', {})
-        pace = hs.get('pace_of_aging')
-        if pace is not None and isinstance(pace, (int, float)):
-            pace_values.append(float(pace))
         body_age = hs.get('body_age')
         if body_age is not None and isinstance(body_age, (int, float)):
             body_ages.append(float(body_age))
@@ -797,8 +791,61 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         if age_impact is not None and isinstance(age_impact, (int, float)):
             age_impacts.append(float(age_impact))
 
+    # 计算本周平均恢复度和睡眠表现
+    current_recovery_values = []
+    current_sleep_values = []
+    for day in weekly_data:
+        hs = day.get('health_scores', {})
+        recovery = hs.get('recovery')
+        sleep_perf = hs.get('sleep_performance')
+        if recovery is not None and isinstance(recovery, (int, float)):
+            current_recovery_values.append(float(recovery))
+        if sleep_perf is not None and isinstance(sleep_perf, (int, float)):
+            current_sleep_values.append(float(sleep_perf))
+    
+    current_week_avg_recovery = sum(current_recovery_values) / len(current_recovery_values) if current_recovery_values else 50
+    current_week_avg_sleep = sum(current_sleep_values) / len(current_sleep_values) if current_sleep_values else 70
+    
+    # 计算数据完整度
+    data_completeness = len(weekly_data) / 7.0  # 假设一周7天
+    
+    # 加载上一周期数据用于趋势对比
+    print(f"📊 计算趋势变化...")
+    previous_data = load_previous_week_data(week_dates, member_name)
+    
+    # 如果有上周数据，计算周间 Pace of Aging
+    avg_pace = 0.0
+    if previous_data and len(previous_data) >= 4:  # 上周至少有4天数据
+        prev_recovery_values = []
+        prev_sleep_values = []
+        for day in previous_data:
+            hs = day.get('health_scores', {})
+            recovery = hs.get('recovery')
+            sleep_perf = hs.get('sleep_performance')
+            if recovery is not None and isinstance(recovery, (int, float)):
+                prev_recovery_values.append(float(recovery))
+            if sleep_perf is not None and isinstance(sleep_perf, (int, float)):
+                prev_sleep_values.append(float(sleep_perf))
+        
+        if prev_recovery_values and prev_sleep_values:
+            prev_week_avg_recovery = sum(prev_recovery_values) / len(prev_recovery_values)
+            prev_week_avg_sleep = sum(prev_sleep_values) / len(prev_sleep_values)
+            
+            # 使用 health_score 模块计算 pace
+            from health_score import calculate_pace_of_aging
+            avg_pace = calculate_pace_of_aging(
+                {'recovery': current_week_avg_recovery, 'sleep_performance': current_week_avg_sleep},
+                {'recovery': prev_week_avg_recovery, 'sleep_performance': prev_week_avg_sleep},
+                days_span=7,
+                data_completeness=data_completeness
+            )
+            if avg_pace is None:
+                avg_pace = 0.0  # 数据不足时显示 0 并添加提示
+                print(f"   ℹ️ Pace of Aging: 数据不足，需要至少70%完整度")
+    else:
+        print(f"   ℹ️ Pace of Aging: 无上周期数据对比")
+
     # 安全计算平均值
-    avg_pace = sum(pace_values) / len(pace_values) if pace_values else 0.0
     avg_body_age = sum(body_ages) / len(body_ages) if body_ages else (member_cfg.get('age', 30) if member_cfg else 30)
     avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0.0
 
@@ -822,7 +869,13 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         age_diff_color = "#dfe6e9"  # 灰色 - 持平
 
     # V6.0.3: 改进 pace 描述逻辑（使用限制后的 display_pace）
-    if display_pace < -0.3:
+    # 注意：avg_pace 可能是 None（数据不足），这里已经处理为 0.0
+    
+    if data_completeness < 0.7:
+        pace_desc = "数据不足 ⚪ - 需要更多天数计算趋势" if LANGUAGE == "CN" else "Insufficient Data ⚪ - More days needed"
+        pace_class = "stable"
+        pace_color = "#b2bec3"
+    elif display_pace < -0.3:
         pace_desc = "逆龄中 🟢 - 你的身体正在变年轻" if LANGUAGE == "CN" else "Reverse Aging 🟢 - Getting younger"
         pace_class = "reverse"
         pace_color = "#55efc4"
@@ -860,11 +913,8 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     else:
         print(f"   ✅ 长度验证通过")
 
-    # 加载上一周期数据用于趋势对比
+    # 计算趋势变化 (previous_data 已在 pace 计算时加载)
     print(f"📊 计算趋势变化...")
-    previous_data = load_previous_week_data(week_dates, member_name)
-
-    # 计算趋势变化
     if previous_data:
         prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
         prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
