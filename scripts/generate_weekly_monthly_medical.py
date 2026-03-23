@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V6.0.0 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V6.0.3 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < ai_analysis.json
@@ -780,7 +780,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WEEKLY_TOTAL_ZONE_TIME}}', str(total_zone_hours))
     html = html.replace('{{WEEKLY_PRIMARY_ZONE}}', primary_zone)
 
-    # V6.0.2: 计算平均Pace of Aging和Body Age
+    # V6.0.3: 计算平均Pace of Aging和Body Age（带类型检查）
     pace_values = []
     body_ages = []
     age_impacts = []
@@ -788,20 +788,24 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     for day in weekly_data:
         hs = day.get('health_scores', {})
         pace = hs.get('pace_of_aging')
-        if pace is not None:
-            pace_values.append(pace)
+        if pace is not None and isinstance(pace, (int, float)):
+            pace_values.append(float(pace))
         body_age = hs.get('body_age')
-        if body_age:
-            body_ages.append(body_age)
+        if body_age is not None and isinstance(body_age, (int, float)):
+            body_ages.append(float(body_age))
         age_impact = hs.get('age_impact')
-        if age_impact is not None:
-            age_impacts.append(age_impact)
+        if age_impact is not None and isinstance(age_impact, (int, float)):
+            age_impacts.append(float(age_impact))
 
-    avg_pace = sum(pace_values) / len(pace_values) if pace_values else 0
+    # 安全计算平均值
+    avg_pace = sum(pace_values) / len(pace_values) if pace_values else 0.0
     avg_body_age = sum(body_ages) / len(body_ages) if body_ages else (member_cfg.get('age', 30) if member_cfg else 30)
-    avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0
+    avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0.0
 
-    html = html.replace('{{AVERAGE_PACE_OF_AGING}}', f'{avg_pace:.2f}')
+    # V6.0.3: 限制 pace 显示范围
+    display_pace = max(-1.5, min(1.5, avg_pace))
+    
+    html = html.replace('{{AVERAGE_PACE_OF_AGING}}', f'{display_pace:.2f}')
     html = html.replace('{{AVERAGE_BODY_AGE}}', f'{avg_body_age:.1f}')
     html = html.replace('{{AVERAGE_AGE_IMPACT}}', f'{avg_age_impact:+.1f}')
     html = html.replace('{{CHRONOLOGICAL_AGE}}', str(member_cfg.get('age', 30) if member_cfg else 30))
@@ -817,23 +821,23 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         age_box_class = ""
         age_diff_color = "#dfe6e9"  # 灰色 - 持平
 
-    # 根据pace调整描述、CSS类和颜色
-    if avg_pace < -0.3:
-        pace_desc = "逆龄中 🟢 - 你的身体正在变年轻"
+    # V6.0.3: 改进 pace 描述逻辑（使用限制后的 display_pace）
+    if display_pace < -0.3:
+        pace_desc = "逆龄中 🟢 - 你的身体正在变年轻" if LANGUAGE == "CN" else "Reverse Aging 🟢 - Getting younger"
         pace_class = "reverse"
-        pace_color = "#55efc4"  # 绿色
-    elif avg_pace < 0.3:
-        pace_desc = "停龄 ⚪ - 身体年龄保持稳定"
+        pace_color = "#55efc4"
+    elif display_pace < 0.3:
+        pace_desc = "停龄 ⚪ - 身体年龄保持稳定" if LANGUAGE == "CN" else "Stable ⚪ - Age holding steady"
         pace_class = "stable"
-        pace_color = "#74b9ff"  # 蓝色
-    elif avg_pace < 1.0:
-        pace_desc = "正常衰老 🟡 - 与实际年龄同步"
+        pace_color = "#74b9ff"
+    elif display_pace < 1.0:
+        pace_desc = "正常衰老 🟡 - 与实际年龄同步" if LANGUAGE == "CN" else "Normal Aging 🟡 - On track"
         pace_class = "normal"
-        pace_color = "#fdcb6e"  # 黄色
+        pace_color = "#fdcb6e"
     else:
-        pace_desc = "加速衰老 🔴 - 需要注意生活方式"
+        pace_desc = "加速衰老 🔴 - 需要注意生活方式" if LANGUAGE == "CN" else "Accelerated 🔴 - Attention needed"
         pace_class = "accelerated"
-        pace_color = "#ff7675"  # 红色
+        pace_color = "#ff7675"
 
     html = html.replace('{{AGE_BOX_CLASS}}', age_box_class)
     html = html.replace('{{AGE_DIFF_COLOR}}', age_diff_color)

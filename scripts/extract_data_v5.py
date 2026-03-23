@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V6.0.0报告生成 - 支持多成员"""
+"""提取Apple Health数据用于V6.0.3报告生成 - 支持多成员"""
 
 import json
 import sys
@@ -102,12 +102,12 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     
     # 使用传入的路径或全局默认路径
     if workout_dir is None:
-        workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
+        workout_dir = Path('~/Health Auto Export/Workout Data').expanduser()
     else:
         workout_dir = Path(workout_dir).expanduser()
     
     if health_dir is None:
-        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
+        health_dir = Path('~/Health Auto Export/Health Data').expanduser()
     else:
         health_dir = Path(health_dir).expanduser()
     
@@ -325,14 +325,14 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     """提取完整的一天数据 - V5.8.1: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.8.1: 使用传入的路径或全局默认路径
+    # V6.0.3: 使用传入的路径或全局默认路径
     if health_dir is None:
-        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
+        health_dir = Path('~/Health Auto Export/Health Data').expanduser()
     else:
         health_dir = Path(health_dir).expanduser()
     
     if workout_dir is None:
-        workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
+        workout_dir = Path('~/Health Auto Export/Workout Data').expanduser()
     else:
         workout_dir = Path(workout_dir).expanduser()
     
@@ -496,6 +496,12 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     
     # 计算是否有运动
     has_workout = len(workouts) > 0 if workouts else False
+    
+    # V6.0.3: 添加调试信息
+    if workout_file and not has_workout:
+        print(f"   ℹ️ 运动文件存在但无有效记录: {workout_file.name}", file=sys.stderr)
+    elif has_workout:
+        print(f"   ✓ 找到 {len(workouts)} 条运动记录", file=sys.stderr)
     
     # V6.0.3: 从 workout 心率时间线计算真实的心率区间时间
     user_age = user_profile.get('age', 30) if user_profile else 30

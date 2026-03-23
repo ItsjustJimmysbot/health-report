@@ -129,6 +129,23 @@ description: 基于 Apple Health 数据生成日报/周报/月报，支持多成
 - `hrv_analysis`, `sleep_analysis`, `activity_analysis`, `trend_assessment`（各≥150字）
 - `recommendations` 数组
 
+### 字段命名对照表
+
+日报指标字段映射（关键指标）:
+
+| 数据字段 | AI JSON 字段 | 说明 |
+|---------|-------------|------|
+| `hrv` | `hrv` | 心率变异性（ms）|
+| `resting_hr` | `resting_hr` | 静息心率（bpm）|
+| `steps` | `steps` | 步数 |
+| `distance` | `distance` | 行走距离（km）|
+| `active_energy` | `active_energy` | 活动能量（kcal）|
+| `spo2` | `spo2` | 血氧饱和度（%）|
+| `sleep_total_hours` | `sleep` | 睡眠总时长 |
+| `workouts` | `workout` | 运动分析 |
+
+> 完整 32 项指标定义请参考代码中 `scripts/generate_v5_medical_dashboard.py` 的 `METRIC_DEFS`
+
 ## 4) 标准命令
 ### 日报
 ```bash

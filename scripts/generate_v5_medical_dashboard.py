@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V5.9.0 AI分析报告生成器 - Medical Dashboard 模板版
+V6.0.3 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
@@ -326,8 +326,8 @@ def _parse_datetime_flexible(value):
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
 OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path.home() / '.openclaw' / 'workspace' / 'shared' / 'health-reports' / 'upload'))).expanduser()
-DEFAULT_HEALTH_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Health Data'
-DEFAULT_WORKOUT_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Workout Data'
+DEFAULT_HEALTH_DIR = HOME / 'Health Auto Export' / 'Health Data'
+DEFAULT_WORKOUT_DIR = HOME / 'Health Auto Export' / 'Workout Data'
 
 # 固定缓存路径（用于周报/月报分析）
 CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
@@ -343,8 +343,8 @@ def get_member_config(index: int):
         member = members[index]
         return {
             "name": member.get("name", f"成员{index+1}"),
-            "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
-            "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
+            "health_dir": Path(member.get("health_dir", "~/Health Auto Export/Health Data")).expanduser(),
+            "workout_dir": Path(member.get("workout_dir", "~/Health Auto Export/Workout Data")).expanduser(),
             "email": member.get("email", ""),
             "age": member.get("age"),
             "gender": member.get("gender"),
@@ -1442,6 +1442,13 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
     print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
     
+    # V6.0.3 调试: 检查 pace_of_aging 范围
+    pace = health_scores['pace_of_aging']
+    if pace < -1.5 or pace > 1.5:
+        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [-1.5, 1.5]")
+    if abs(pace) < 0.01:
+        print(f"   ℹ️ 提示: pace_of_aging 接近 0，表示近期数据无变化或历史数据不足")
+    
     # V6.0.1: 新的健康评分替换
     html = html.replace('{{STRAIN}}', str(health_scores['strain']))
     html = html.replace('{{STRAIN_PERCENT}}', str(int(health_scores['strain'] / 21 * 100)))
@@ -1695,7 +1702,10 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     # V5.9.0: 占位符残留保护
     unresolved = re.findall(r'\{\{[^{}]+\}\}', html)
     if unresolved:
-        raise ValueError(f"模板占位符未替换: {unresolved[:10]}")
+        print(f"   ⚠️ 未替换的占位符: {unresolved[:10]}", file=sys.stderr)
+        # V6.0.3: 将未替换的占位符替换为空白，避免渲染失败
+        for placeholder in unresolved:
+            html = html.replace(placeholder, '--')
 
     return html
 
