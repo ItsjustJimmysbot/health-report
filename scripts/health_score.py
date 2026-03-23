@@ -54,8 +54,15 @@ def get_hr_zone(hr: int, max_hr: int, rhr: int = None) -> int:
     if max_hr <= 0:
         return 0
     
+    # 添加 hr 有效性检查
+    if hr <= 0 or not isinstance(hr, (int, float)):
+        return 0
+    
     # 如果提供了静息心率，使用 HRR 方法
     if rhr is not None and rhr > 0 and max_hr > rhr:
+        # 确保 hr >= rhr，否则设为恢复区
+        if hr <= rhr:
+            return 0
         hrr = max_hr - rhr
         hr_reserve = hr - rhr
         pct = hr_reserve / hrr if hrr > 0 else 0
@@ -79,49 +86,6 @@ def get_hr_zone(hr: int, max_hr: int, rhr: int = None) -> int:
 # ============ 1. Strain 评分 (0-21) ============
 
 @dataclass
-class StrainResult:
-    strain: float
-    cardio_load: float
-    muscle_load: float
-    total_load: float
-    zone_times: Dict[int, float]
-
-def calculate_strain(hr_data: List[Tuple[datetime, int]], 
-                     strength_minutes: int = 0,
-                     age: int = 30, 
-                     gender: str = 'male') -> StrainResult:
-    """计算Strain (0-21)"""
-    max_hr = calculate_max_hr(age, gender)
-    zone_weights = {1: 0.3, 2: 1.0, 3: 2.5, 4: 5.0, 5: 10.0}
-    zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-    
-    if hr_data and len(hr_data) > 1:
-        for i in range(len(hr_data) - 1):
-            ts1, hr1 = hr_data[i]
-            ts2, hr2 = hr_data[i + 1]
-            duration = (ts2 - ts1).total_seconds() / 60
-            zone = get_hr_zone(hr1, max_hr)
-            if zone >= 1:
-                zone_times[zone] += duration
-    
-    cardio_load = sum(zone_times[z] * zone_weights[z] for z in zone_times)
-    muscle_load = strength_minutes * 0.2
-    total_load = cardio_load + muscle_load
-    strain = 21 * (1 - math.exp(-total_load / 180))
-    
-    return StrainResult(
-        strain=round(min(21, strain), 1),
-        cardio_load=round(cardio_load, 1),
-        muscle_load=round(muscle_load, 1),
-        total_load=round(total_load, 1),
-        zone_times={
-            'zone_1': round(zone_times[1], 1),
-            'zone_2': round(zone_times[2], 1),
-            'zone_3': round(zone_times[3], 1),
-            'zone_4': round(zone_times[4], 1),
-            'zone_5': round(zone_times[5], 1)
-        }
-    )
 
 def calculate_strain_simple(active_energy: float, steps: int, 
                            workouts: List[Dict], age: int = 30,
@@ -866,6 +830,14 @@ def calculate_pace_of_aging(
     # 检查是否有足够的数据
     if len(hrv_values) < 5 or len(recovery_values) < 5:
         return None
+    
+    # 添加数据质量检查 - 至少需要3个数据点计算趋势
+    if len(hrv_values) < 3:
+        return None
+    
+    # 检查数据方差（避免所有值都一样导致趋势为0）
+    if len(set(hrv_values)) == 1:  # 所有值相同
+        return 1.0  # 返回稳定状态
     
     # 计算趋势（使用简单线性回归的斜率）
     def calculate_trend(values):
