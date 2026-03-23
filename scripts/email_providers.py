@@ -252,9 +252,19 @@ class MailAppProvider(EmailProvider):
     def send(self, receiver: str, attachments: List[str], subject: str, body: str) -> bool:
         try:
             def _esc_applescript(s: str) -> str:
-                s = '' if s is None else str(s)
-                # AppleScript 字符串转义：反斜杠、双引号、换行
-                return s.replace('\\', '\\\\').replace('"', '\\"').replace('\r\n', '\\n').replace('\n', '\\n')
+                if s is None:
+                    return ''
+                s = str(s)
+                # AppleScript 字符串转义
+                # 顺序很重要：先处理反斜杠，再处理引号
+                s = s.replace('\\', '\\\\')      # 反斜杠
+                s = s.replace('"', '\\"')          # 双引号
+                s = s.replace("'", "\\'")          # 单引号（新增）
+                s = s.replace('\r\n', '\\n')       # Windows换行
+                s = s.replace('\n', '\\n')         # Unix换行
+                s = s.replace('\r', '\\n')         # 旧Mac换行（新增）
+                s = s.replace('\t', '\\t')         # 制表符（新增）
+                return s
 
             esc_subject = _esc_applescript(subject)
             esc_body = _esc_applescript(body)

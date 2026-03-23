@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V6.0.0报告生成 - 支持多成员"""
+"""提取Apple Health数据用于V6.0.3报告生成 - 支持多成员"""
 
 import json
 import sys
@@ -10,8 +10,58 @@ from typing import List, Dict
 
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL, ConfigError, handle_error
+from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL, ConfigError, handle_error, infer_duration_unit, get_workout_field
 from health_score import calculate_zone_times_from_workouts
+
+def _sanitize_path(path_str, default_path):
+    """路径安全验证：防止路径遍历攻击"""
+    from pathlib import Path
+    
+    if not path_str:
+        return Path(default_path).expanduser()
+    
+    # 展开用户目录
+    path = Path(path_str).expanduser()
+    
+    # 解析绝对路径
+    try:
+        path = path.resolve()
+    except (OSError, RuntimeError):
+        # 如果解析失败，使用默认路径
+        print(f"⚠️ 警告: 路径解析失败，使用默认路径: {default_path}", file=sys.stderr)
+        return Path(default_path).expanduser()
+    
+    # 检查是否为绝对路径
+    if not path.is_absolute():
+        print(f"⚠️ 警告: 路径必须是绝对路径，使用默认路径: {default_path}", file=sys.stderr)
+        return Path(default_path).expanduser()
+    
+    # 检查路径是否包含 .. (路径遍历)
+    # resolve() 已经处理了 ..，但如果展开后仍在系统根目录外则有问题
+    # 检查路径是否在合理的根目录下 ( home 目录或 /opt /var 等)
+    home = Path.home().resolve()
+    
+    # 允许的根目录列表
+    allowed_roots = [
+        home,
+        Path('/opt'),
+        Path('/var'),
+        Path('/tmp'),
+        Path('/Users'),  # macOS
+        Path('/home'),   # Linux
+    ]
+    
+    # 检查是否在允许的根目录下
+    is_allowed = any(
+        str(path).startswith(str(root)) for root in allowed_roots if root.exists()
+    )
+    
+    if not is_allowed:
+        print(f"⚠️ 警告: 路径 {path} 不在允许的目录范围内，使用默认路径", file=sys.stderr)
+        return Path(default_path).expanduser()
+    
+    return path
+
 
 def get_member_config(member_idx=0):
     """获取指定成员的配置，优先从config.json读取"""
@@ -39,9 +89,19 @@ def get_member_config(member_idx=0):
     
     member = members[member_idx]
     
+    # 安全处理路径
+    health_dir = _sanitize_path(
+        member.get('health_dir'), 
+        '~/Health Auto Export/Health Data'
+    )
+    workout_dir = _sanitize_path(
+        member.get('workout_dir'),
+        '~/Health Auto Export/Workout Data'
+    )
+    
     return {
-        'health_dir': member.get('health_dir', '~/Health Auto Export/Health Data'),
-        'workout_dir': member.get('workout_dir', '~/Health Auto Export/Workout Data'),
+        'health_dir': health_dir,
+        'workout_dir': workout_dir,
         'profile': {
             'name': member.get('name', ''),
             'age': member.get('age'),
@@ -103,12 +163,12 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
     
     # 使用传入的路径或全局默认路径
     if workout_dir is None:
-        workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
+        workout_dir = Path('~/Health Auto Export/Workout Data').expanduser()
     else:
         workout_dir = Path(workout_dir).expanduser()
     
     if health_dir is None:
-        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
+        health_dir = Path('~/Health Auto Export/Health Data').expanduser()
     else:
         health_dir = Path(health_dir).expanduser()
     
@@ -194,13 +254,11 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             # 计算 duration_min（使用智能单位推断）
             dur_raw = workout.get('duration', 0) or 0
             if dur_raw:
-                from utils import infer_duration_unit
                 duration_min, _ = infer_duration_unit(dur_raw, workout)
             else:
                 duration_min = 0
             
             # 获取能量（兼容多种字段名）
-            from utils import get_workout_field
             energy_kj = get_workout_field(workout, ['energy', 'activeEnergyBurned', 'totalEnergyBurned', 'activeEnergy'], 0)
             energy_kcal = energy_kj / 4.184 if energy_kj else 0
             
@@ -236,20 +294,30 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             print(f"⚠️  解析单个 workout 失败: {e}", file=sys.stderr)
             continue
     
+    # V6.0.3: 添加调试信息
+    workout_file_name = workout_file.name if workout_file else "未找到"
+    if workout_file and not workouts:
+        print(f"   ℹ️ 运动文件存在但无有效记录: {workout_file_name}", file=sys.stderr)
+        print(f"      提示: 检查文件是否包含 workouts 数组或 data.workouts 结构", file=sys.stderr)
+    elif workouts:
+        print(f"   ✓ 找到 {len(workouts)} 条运动记录", file=sys.stderr)
+    else:
+        print(f"   ℹ️ 未找到运动文件: 尝试路径包括 {date_str}.json 和 HealthAutoExport-{date_str}.json", file=sys.stderr)
+    
     return workouts
 
 def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None, sleep_config=None):
     """提取完整的一天数据 - V5.8.1: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
     
-    # V5.8.1: 使用传入的路径或全局默认路径
+    # V6.0.3: 使用传入的路径或全局默认路径
     if health_dir is None:
-        health_dir = Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser()
+        health_dir = Path('~/Health Auto Export/Health Data').expanduser()
     else:
         health_dir = Path(health_dir).expanduser()
     
     if workout_dir is None:
-        workout_dir = Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser()
+        workout_dir = Path('~/Health Auto Export/Workout Data').expanduser()
     else:
         workout_dir = Path(workout_dir).expanduser()
     
@@ -360,19 +428,6 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     heart_rate_avg, _ = extract_metric_avg(metrics, 'heart_rate')
     running_vert_osc, _ = extract_metric_avg(metrics, 'running_vertical_oscillation')
     
-    # 新增：步行相关指标
-    walking_speed_val, _ = extract_metric_avg(metrics, 'walking_speed')
-    walking_step_len, _ = extract_metric_avg(metrics, 'walking_step_length')
-    walking_asymmetry, _ = extract_metric_avg(metrics, 'walking_asymmetry_percentage')
-    walking_double_support, _ = extract_metric_avg(metrics, 'walking_double_support_percentage')
-    
-    # 新增：爬楼梯速度
-    stair_speed_up_val, _ = extract_metric_avg(metrics, 'stair_speed_up')
-    
-    # 新增：音频暴露指标
-    headphone_exposure, _ = extract_metric_avg(metrics, 'headphone_audio_exposure')
-    environmental_exposure, _ = extract_metric_avg(metrics, 'environmental_audio_exposure')
-    
     # V5.8.1: 睡眠数据使用统一解析函数
     from utils import parse_sleep_data_unified
     if sleep_config is None:
@@ -466,7 +521,9 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
             'core_hours': round(sleep_core, 2) if sleep_core else 0,
             'rem_hours': round(sleep_rem, 2) if sleep_rem else 0,
             'awake_hours': round(sleep_awake, 2) if sleep_awake else 0,
-            'records': len(sleep_records) if sleep_records else 0
+            'records': sleep_records if sleep_records else [],
+            'bedtime': sleep_result.get('bedtime', '--'),
+            'waketime': sleep_result.get('waketime', '--'),
         },
         'workouts': workouts,
         'has_workout': has_workout,

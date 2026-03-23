@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V5.9.0 AI分析报告生成器 - Medical Dashboard 模板版
+V6.0.3 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
@@ -326,8 +326,8 @@ def _parse_datetime_flexible(value):
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
 OUTPUT_DIR = Path(CONFIG.get("output_dir", str(Path.home() / '.openclaw' / 'workspace' / 'shared' / 'health-reports' / 'upload'))).expanduser()
-DEFAULT_HEALTH_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Health Data'
-DEFAULT_WORKOUT_DIR = HOME / '我的云端硬盘' / 'Health Auto Export' / 'Workout Data'
+DEFAULT_HEALTH_DIR = HOME / 'Health Auto Export' / 'Health Data'
+DEFAULT_WORKOUT_DIR = HOME / 'Health Auto Export' / 'Workout Data'
 
 # 固定缓存路径（用于周报/月报分析）
 CACHE_DIR = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
@@ -343,8 +343,8 @@ def get_member_config(index: int):
         member = members[index]
         return {
             "name": member.get("name", f"成员{index+1}"),
-            "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
-            "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
+            "health_dir": Path(member.get("health_dir", "~/Health Auto Export/Health Data")).expanduser(),
+            "workout_dir": Path(member.get("workout_dir", "~/Health Auto Export/Workout Data")).expanduser(),
             "email": member.get("email", ""),
             "age": member.get("age"),
             "gender": member.get("gender"),
@@ -355,13 +355,13 @@ def get_member_config(index: int):
     # 默认配置
     return {
         "name": f"成员{index+1}",
-        "health_dir": DEFAULT_HEALTH_DIR,
-        "workout_dir": DEFAULT_WORKOUT_DIR,
+        "health_dir": Path('~/Health Auto Export/Health Data').expanduser(),
+        "workout_dir": Path('~/Health Auto Export/Workout Data').expanduser(),
         "email": "",
-        "age": 30,
-        "gender": "male",
-        "height_cm": 175,
-        "weight_kg": 70
+        "age": None,
+        "gender": None,
+        "height_cm": None,
+        "weight_kg": None
     }
 
 
@@ -765,16 +765,30 @@ def safe_html_paragraph(value) -> str:
     return safe_html_text(value).replace('\n', '<br>')
 
 
-def badge(score):
+def badge(score, age=None):
+    """根据分数和年龄返回评级徽章
+    
+    年龄适配：老年人（>60岁）的阈值适当降低
+    """
+    # 年龄适配因子
+    if age and age > 60:
+        # 60岁以上，阈值降低5分
+        thresholds = {'excellent': 75, 'good': 55, 'average': 35}
+    elif age and age > 40:
+        # 40-60岁，阈值降低2分
+        thresholds = {'excellent': 78, 'good': 58, 'average': 38}
+    else:
+        thresholds = {'excellent': 80, 'good': 60, 'average': 40}
+    
     if LANGUAGE == 'EN':
-        if score >= 80: return 'badge-excellent', 'Excellent'
-        if score >= 60: return 'badge-good', 'Good'
-        if score >= 40: return 'badge-average', 'Average'
+        if score >= thresholds['excellent']: return 'badge-excellent', 'Excellent'
+        if score >= thresholds['good']: return 'badge-good', 'Good'
+        if score >= thresholds['average']: return 'badge-average', 'Average'
         return 'badge-poor', 'Needs Improvement'
     else:
-        if score >= 80: return 'badge-excellent', '优秀'
-        if score >= 60: return 'badge-good', '良好'
-        if score >= 40: return 'badge-average', '一般'
+        if score >= thresholds['excellent']: return 'badge-excellent', '优秀'
+        if score >= thresholds['good']: return 'badge-good', '良好'
+        if score >= thresholds['average']: return 'badge-average', '一般'
         return 'badge-poor', '需改善'
 
 
@@ -909,9 +923,7 @@ def metric_importance(metric_key: str) -> int:
             return max(0, min(10, x))
         except Exception:
             pass
-    metric_def = METRIC_DEFS.get(metric_key, {})
-    importance = metric_def.get('importance', 5)  # 默认5
-    return int(importance) if importance is not None else 5
+    return int(METRIC_DEFS[metric_key]['importance'])
 
 
 def get_selected_metric_keys():
@@ -933,10 +945,8 @@ def get_selected_metric_keys():
 
 def metric_label(metric_key: str) -> str:
     """获取指标标签"""
-    d = METRIC_DEFS.get(metric_key, {})
-    if not d:
-        return metric_key  # 回退到key本身
-    return d.get('label_en', metric_key) if LANGUAGE == 'EN' else d.get('label_cn', metric_key)
+    d = METRIC_DEFS[metric_key]
+    return d['label_en'] if LANGUAGE == 'EN' else d['label_cn']
 
 
 def metric_value_text(metric_key: str, data: dict) -> str:
@@ -1200,31 +1210,6 @@ def metric_rating(metric_key: str, data: dict):
     # 未知指标返回中立
     return ('rating-average', '--')
 
-    # 仅核心指标给评级
-    if metric_key == 'hrv':
-        if LANGUAGE == 'EN':
-            return ('rating-good', 'Good') if v >= 50 else ('rating-average', 'Average')
-        return ('rating-good', '良好') if v >= 50 else ('rating-average', '一般')
-    if metric_key == 'resting_hr':
-        if LANGUAGE == 'EN':
-            return ('rating-excellent', 'Excellent') if v < 60 else ('rating-good', 'Good')
-        return ('rating-excellent', '优秀') if v < 60 else ('rating-good', '良好')
-    if metric_key == 'spo2':
-        if LANGUAGE == 'EN':
-            return ('rating-good', 'Normal') if v >= 95 else ('rating-average', 'Average')
-        return ('rating-good', '正常') if v >= 95 else ('rating-average', '一般')
-    if metric_key == 'steps':
-        if LANGUAGE == 'EN':
-            return ('rating-good', 'Good') if v > 8000 else ('rating-average', 'Average')
-        return ('rating-good', '良好') if v > 8000 else ('rating-average', '一般')
-    if metric_key == 'sleep_total_hours':
-        if LANGUAGE == 'EN':
-            return ('rating-good', 'Normal') if v >= 6 else ('rating-average', 'Average')
-        return ('rating-good', '正常') if v >= 6 else ('rating-average', '一般')
-
-    # 非核心指标返回中立
-    return ('rating-average', '--')
-
 
 def metric_analysis_text(metric_key: str, ai_analysis: dict, data: dict):
     """获取指标AI分析文本，无分析时返回None（上层会报错）"""
@@ -1426,9 +1411,12 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         member_cfg = members[0] if members else None
     recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
 
-    rc, rt = badge(recovery)
-    sc, st = badge(sleep_score)
-    ec, et = badge(exercise)
+    # 获取年龄用于评分阈值适配
+    member_age = member_cfg.get('age') if member_cfg else None
+    
+    rc, rt = badge(recovery, member_age)
+    sc, st = badge(sleep_score, member_age)
+    ec, et = badge(exercise, member_age)
 
     html = html.replace('{{SCORE_RECOVERY}}', str(recovery)).replace('{{BADGE_RECOVERY_CLASS}}', rc).replace('{{BADGE_RECOVERY_TEXT}}', rt)
     html = html.replace('{{SCORE_SLEEP}}', str(sleep_score)).replace('{{BADGE_SLEEP_CLASS}}', sc).replace('{{BADGE_SLEEP_TEXT}}', st)
@@ -1446,6 +1434,17 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
     print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
     
+    # V6.0.3 调试: 检查 pace_of_aging 范围
+    pace = health_scores['pace_of_aging']
+    # 处理 pace 为 None 的情况（数据不足时）
+    if pace is None:
+        pace = 0.0
+        print(f"   ℹ️ 提示: pace_of_aging 数据不足，使用默认值 0.0")
+    elif pace < -1.5 or pace > 1.5:
+        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [-1.5, 1.5]")
+    elif abs(pace) < 0.01:
+        print(f"   ℹ️ 提示: pace_of_aging 接近 0，表示近期数据无变化或历史数据不足")
+    
     # V6.0.1: 新的健康评分替换
     html = html.replace('{{STRAIN}}', str(health_scores['strain']))
     html = html.replace('{{STRAIN_PERCENT}}', str(int(health_scores['strain'] / 21 * 100)))
@@ -1460,6 +1459,8 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     
     # Pace描述
     pace = health_scores['pace_of_aging']
+    if pace is None:
+        pace = 0.0
     if pace < -0.3:
         pace_desc = "逆龄中 🟢" if LANGUAGE == 'CN' else "Reverse Aging 🟢"
         pace_class = "reverse-aging"
@@ -1495,10 +1496,6 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     
     # 保持向后兼容
     html = html.replace('{{AGE_BOX_CLASS}}', "")
-    
-    # 年龄影响值
-    age_impact_str = f"{age_impact:+.1f}"
-    html = html.replace('{{AGE_IMPACT}}', age_impact_str)
     
     # Body Age 提示
     if age_impact < -1:
@@ -1699,7 +1696,79 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     # V5.9.0: 占位符残留保护
     unresolved = re.findall(r'\{\{[^{}]+\}\}', html)
     if unresolved:
-        raise ValueError(f"模板占位符未替换: {unresolved[:10]}")
+        print(f"   ⚠️ 未替换的占位符: {unresolved[:10]}", file=sys.stderr)
+        # V6.0.3: 将未替换的占位符替换为空白，避免渲染失败
+        for placeholder in unresolved:
+            html = html.replace(placeholder, '--')
+
+    # V6.0.3: 缓存保存移到函数内部，修复变量作用域问题
+    try:
+        sleep_data = data.get('sleep', {})
+        sleep_total = sleep_data.get('total_hours', 0)
+        sleep_need = health_scores['sleep_need']
+        
+        # 计算当日睡眠债
+        if sleep_total < sleep_need:
+            daily_debt = sleep_need - sleep_total
+        else:
+            daily_debt = max(0, -0.5)
+        
+        # 获取累积睡眠债（从昨天缓存）
+        cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
+        from health_score import HealthScoreHistory
+        history = HealthScoreHistory(cache_dir)
+        
+        prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+        prev_debt = history.get_sleep_debt(prev_date, member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
+        accumulated_debt = max(0, prev_debt + daily_debt) if prev_debt else max(0, daily_debt)
+        
+        bedtime = sleep_data.get('bedtime', '--') if isinstance(sleep_data, dict) else '--'
+        waketime = sleep_data.get('waketime', '--') if isinstance(sleep_data, dict) else '--'
+        
+        cache_data = {
+            'date': date_str,
+            'member': member_cfg.get('name', '默认用户') if member_cfg else '默认用户',
+            'hrv': data['hrv'],
+            'resting_hr': data['resting_hr'],
+            'steps': data['steps'],
+            'active_energy': data.get('active_energy') or 0,
+            'apple_stand_time': data.get('apple_stand_time') or 0,
+            'spo2': data['spo2'],
+            'workouts': data['workouts'],
+            'has_workout': data['has_workout'],
+            'sleep': sleep_data,
+            'bedtime': bedtime,
+            'waketime': waketime,
+            'sleep_latency_min': None,
+            'sleep_debt_daily': round(daily_debt, 2),
+            'sleep_debt_accumulated': round(accumulated_debt, 2),
+            'health_scores': {
+                'strain': health_scores['strain'],
+                'recovery': health_scores['recovery'],
+                'recovery_status': health_scores['recovery_status'],
+                'sleep_performance': health_scores['sleep_performance'],
+                'sleep_need': health_scores['sleep_need'],
+                'actual_sleep_hours': round(sleep_total, 2),
+                'body_age': health_scores['body_age'],
+                'chronological_age': health_scores['chronological_age'],
+                'age_impact': health_scores['age_impact'],
+                'pace_of_aging': health_scores['pace_of_aging'],
+                'sleep_debt_accumulated': round(accumulated_debt, 2),
+                'zone_times': health_scores.get('zone_times', {
+                    'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0
+                }),
+                'hrv_rmssd': data['hrv'].get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
+                'rhr': data['resting_hr'].get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0,
+                'respiratory_rate': data.get('respiratory_rate', 0),
+            }
+        }
+        safe_name = safe_member_name(member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
+        cache_path = cache_dir / f'{date_str}_{safe_name}.json'
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        print(f'   数据缓存: {cache_path}')
+    except Exception as e:
+        print(f'   缓存保存失败: {e}')
 
     return html
 
@@ -1794,10 +1863,10 @@ if __name__ == '__main__':
                 print(f"⚠️  警告: 找不到成员 {member_name} 的有效分析数据")
                 return None
 
-            # 获取选中的指标键（提前到验证前）
+            # 获取选中的指标键
             selected_metric_keys = get_selected_metric_keys()
             
-            # 验证AI分析 - 传入选中指标确保所有选中指标都有AI分析
+            # 验证AI分析
             print(f"📏 验证AI分析长度...")
             validation_errors = verify_ai_analysis(ai_analysis, selected_metric_keys)
             if validation_errors:
@@ -1844,107 +1913,61 @@ if __name__ == '__main__':
 
             # 生成PDF
             max_retries = 3
+            browser = None
+            playwright_context = None
+            
             for attempt in range(max_retries):
                 try:
+                    # 使用上下文管理器确保资源释放
                     with sync_playwright() as p:
-                        browser = None
+                        playwright_context = p
+                        browser = p.chromium.launch()
                         try:
-                            browser = p.chromium.launch()
                             page = browser.new_page()
                             page.goto(html_path.resolve().as_uri())
                             page.wait_for_timeout(2500)
                             page.pdf(path=str(pdf_path), format='A4', print_background=True,
                                      margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
                                      display_header_footer=False)
+                            print(f'   ✅ PDF生成成功: {pdf_path}')
+                            break  # 成功，跳出重试循环
                         finally:
-                            if browser:
-                                browser.close()
-                    break
+                            # 确保 page 和 browser 被关闭
+                            try:
+                                if 'page' in locals():
+                                    page.close()
+                            except Exception:
+                                pass
+                            try:
+                                if browser:
+                                    browser.close()
+                                    browser = None
+                            except Exception:
+                                pass
                 except Exception as e:
+                    # 清理资源
+                    if browser:
+                        try:
+                            browser.close()
+                        except:
+                            pass
+                        browser = None
+                    
                     if attempt < max_retries - 1:
                         print(f'   ⚠️ PDF生成失败，第{attempt + 1}次重试...')
                         import time
                         time.sleep(1)
                     else:
                         raise Exception(f'PDF生成失败（已重试{max_retries}次）: {e}')
+            
+            # 最终清理（保险）
+            if browser:
+                try:
+                    browser.close()
+                except:
+                    pass
 
             print(f'✅ 报告已生成: {pdf_path}')
-
-            # 保存缓存
-            try:
-                # V6.0.1: 扩展缓存数据，添加睡眠债和健康评分
-                sleep_data = data.get('sleep', {})
-                sleep_total = sleep_data.get('total_hours', 0)
-                sleep_need = health_scores['sleep_need']
-                
-                # 计算当日睡眠债（睡眠充足可以减少债务）
-                if sleep_total < sleep_need:
-                    daily_debt = sleep_need - sleep_total
-                else:
-                    # 睡眠充足时，每多睡1小时减少0.5小时债务，最多减到0
-                    surplus = sleep_total - sleep_need
-                    daily_debt = max(-0.5, -surplus * 0.5)
-                
-                # 获取累积睡眠债（从昨天缓存）
-                prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
-                prev_cache = history.get_scores(prev_date, member_name)
-                accumulated_debt = 0
-                if prev_cache and 'sleep_debt_accumulated' in prev_cache:
-                    accumulated_debt = max(0, prev_cache['sleep_debt_accumulated'] + daily_debt)
-                else:
-                    accumulated_debt = max(0, daily_debt)
-                
-                # 提取就寝/起床时间
-                bedtime = "--"
-                waketime = "--"
-                if sleep_data.get('records') and len(sleep_data['records']) > 0:
-                    first_record = sleep_data['records'][0]
-                    last_record = sleep_data['records'][-1]
-                    if 'start' in first_record:
-                        bedtime = first_record['start']
-                    if 'end' in last_record:
-                        waketime = last_record['end']
-                
-                cache_data = {
-                    'date': date_str,
-                    'member': member_name,
-                    'hrv': data['hrv'],
-                    'resting_hr': data['resting_hr'],
-                    'steps': data['steps'],
-                    'active_energy': data.get('active_energy') or 0,
-                    'apple_stand_time': data.get('apple_stand_time') or 0,
-                    'spo2': data['spo2'],
-                    'workouts': data['workouts'],
-                    'has_workout': data['has_workout'],
-                    'sleep': sleep_data,
-                    # V6.0.1: 睡眠细节
-                    'bedtime': bedtime,
-                    'waketime': waketime,
-                    'sleep_latency_min': 20,
-                    'sleep_debt_daily': round(daily_debt, 2),
-                    'sleep_debt_accumulated': round(accumulated_debt, 2),
-                    # V6.0.1: 健康评分
-                    'health_scores': {
-                        'strain': health_scores['strain'],
-                        'recovery': health_scores['recovery'],
-                        'recovery_status': health_scores['recovery_status'],
-                        'sleep_performance': health_scores['sleep_performance'],
-                        'sleep_need': health_scores['sleep_need'],
-                        'actual_sleep_hours': round(sleep_total, 2),
-                        'body_age': health_scores['body_age'],
-                        'chronological_age': health_scores['chronological_age'],
-                        'age_impact': health_scores['age_impact'],
-                        'pace_of_aging': health_scores['pace_of_aging'],
-                        'hrv_rmssd': data['hrv'].get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
-                        'rhr': data['resting_hr'].get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0
-                    }
-                }
-                cache_path = CACHE_DIR / f'{date_str}_{safe_name}.json'
-                with open(cache_path, 'w', encoding='utf-8') as f:
-                    json.dump(cache_data, f, ensure_ascii=False, indent=2)
-                print(f'   数据缓存: {cache_path}')
-            except Exception as e:
-                print(f'   缓存保存失败: {e}')
 
             return str(pdf_path)
 

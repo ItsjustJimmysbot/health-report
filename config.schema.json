@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Health Report Config",
-  "description": "Configuration schema for Health Report V6.0.0",
+  "description": "Configuration schema for Health Report V6.0.3",
   "type": "object",
   "required": [
     "version",
@@ -63,8 +63,18 @@
             "minLength": 1
           },
           "email": {
-            "type": "string",
-            "format": "email"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  ""
+                ]
+              }
+            ]
           }
         },
         "additionalProperties": true
@@ -167,8 +177,18 @@
               "type": "string"
             },
             "sender_email": {
-              "type": "string",
-              "format": "email"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "email"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    ""
+                  ]
+                }
+              ]
             }
           },
           "additionalProperties": true
@@ -186,8 +206,18 @@
               "type": "integer"
             },
             "sender_email": {
-              "type": "string",
-              "format": "email"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "email"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    ""
+                  ]
+                }
+              ]
             },
             "password": {
               "type": "string"
@@ -231,8 +261,18 @@
       "additionalProperties": true
     },
     "receiver_email": {
-      "type": "string",
-      "format": "email"
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "email"
+        },
+        {
+          "type": "string",
+          "enum": [
+            ""
+          ]
+        }
+      ]
     },
     "language": {
       "type": "string",
@@ -292,31 +332,78 @@
           "items": {
             "type": "string",
             "enum": [
-              "hrv","resting_hr","heart_rate_avg","steps","distance","active_energy","spo2","respiratory_rate","apple_stand_time","basal_energy_burned",
-              "vo2_max","physical_effort","sleep_total_hours","sleep_deep_hours","sleep_rem_hours","breathing_disturbances",
-              "apple_exercise_time","flights_climbed","apple_stand_hour","stair_speed_up",
-              "running_speed","running_power","running_stride_length","running_ground_contact_time","running_vertical_oscillation",
-              "walking_speed","walking_step_length","walking_heart_rate_average","walking_asymmetry_percentage","walking_double_support_percentage",
-              "headphone_audio_exposure","environmental_audio_exposure"
+              "hrv",
+              "resting_hr",
+              "heart_rate_avg",
+              "steps",
+              "distance",
+              "active_energy",
+              "spo2",
+              "respiratory_rate",
+              "apple_stand_time",
+              "basal_energy_burned",
+              "vo2_max",
+              "physical_effort",
+              "sleep_total_hours",
+              "sleep_deep_hours",
+              "sleep_rem_hours",
+              "breathing_disturbances",
+              "apple_exercise_time",
+              "flights_climbed",
+              "apple_stand_hour",
+              "stair_speed_up",
+              "running_speed",
+              "running_power",
+              "running_stride_length",
+              "running_ground_contact_time",
+              "running_vertical_oscillation",
+              "walking_speed",
+              "walking_step_length",
+              "walking_heart_rate_average",
+              "walking_asymmetry_percentage",
+              "walking_double_support_percentage",
+              "headphone_audio_exposure",
+              "environmental_audio_exposure"
             ]
           }
         },
-        "sort_by_importance": { "type": "boolean", "default": true },
-        "show_empty_categories": { "type": "boolean", "default": true },
-        "show_sleep_in_metrics_table": { "type": "boolean", "default": false },
+        "sort_by_importance": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_empty_categories": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_sleep_in_metrics_table": {
+          "type": "boolean",
+          "default": false
+        },
         "include_sleep_metrics_in_table": {
           "type": "boolean",
           "description": "兼容旧字段，已废弃，请改用 show_sleep_in_metrics_table"
         },
-        "hide_no_data_metrics": { "type": "boolean", "default": true },
-        "require_ai_for_selected": { "type": "boolean", "default": false },
+        "hide_no_data_metrics": {
+          "type": "boolean",
+          "default": true
+        },
+        "require_ai_for_selected": {
+          "type": "boolean",
+          "default": false
+        },
         "category_order": {
           "type": "array",
           "items": {
             "type": "string",
             "enum": [
-              "core_health","cardio_fitness","sleep_recovery","activity_mobility",
-              "running_advanced","walking_gait","stairs_strength","environment_audio"
+              "core_health",
+              "cardio_fitness",
+              "sleep_recovery",
+              "activity_mobility",
+              "running_advanced",
+              "walking_gait",
+              "stairs_strength",
+              "environment_audio"
             ]
           }
         },

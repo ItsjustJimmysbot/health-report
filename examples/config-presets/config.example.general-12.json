@@ -1,14 +1,14 @@
 {
-  "version": "5.9.1",
+  "version": "6.0.3",
   "members": [
     {
-      "name": "Jimmy",
+      "name": "Member1",
       "age": 30,
       "gender": "male",
       "height_cm": 175,
       "weight_kg": 70,
-      "health_dir": "~/我的云端硬盘/Health Auto Export/Health Data",
-      "workout_dir": "~/我的云端硬盘/Health Auto Export/Workout Data",
+      "health_dir": "~/Health Auto Export/Health Data",
+      "workout_dir": "~/Health Auto Export/Workout Data",
       "email": "you@example.com"
     }
   ],

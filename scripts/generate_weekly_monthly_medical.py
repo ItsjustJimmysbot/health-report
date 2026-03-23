@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V6.0.0 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V6.0.3 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < ai_analysis.json
   python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < ai_analysis.json
 """
 import json
+import math
 import re
 import sys
 from datetime import datetime, timedelta
@@ -32,6 +33,18 @@ ANALYSIS_LIMITS = CONFIG.get("analysis_limits", {})
 WEEKLY_MIN_WORDS = ANALYSIS_LIMITS.get("weekly_min_words", 800)
 MONTHLY_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_min_words", 1000)
 MONTHLY_TREND_MIN_WORDS = ANALYSIS_LIMITS.get("monthly_trend_min_words", 150)
+
+# 安全获取嵌套字典值的辅助函数
+def safe_get(obj: dict, *keys, default=None):
+    """安全获取嵌套字典值"""
+    current = obj
+    for key in keys:
+        if not isinstance(current, dict):
+            return default
+        current = current.get(key)
+        if current is None:
+            return default
+    return current
 
 OUTPUT_DIR = Path(
     CONFIG.get(
@@ -266,16 +279,34 @@ def load_previous_week_data(current_dates, member_name="默认用户"):
 
 def calculate_trend(current_values, previous_values):
     """计算趋势变化（环比）"""
+    # 过滤掉 None 和非数字值
+    current_values = [v for v in current_values if isinstance(v, (int, float)) and v is not None]
+    previous_values = [v for v in previous_values if isinstance(v, (int, float)) and v is not None]
+    
+    # 确保列表不为空且长度足够
     if not current_values or not previous_values:
+        return 0, 'stable'
+    
+    # 确保有足够的数据点（至少各1个）
+    if len(current_values) < 1 or len(previous_values) < 1:
         return 0, 'stable'
 
     current_avg = sum(current_values) / len(current_values)
     previous_avg = sum(previous_values) / len(previous_values)
 
-    if previous_avg == 0:
+    # 增强的除零检查：previous_avg 为 0 或接近 0 都视为无效
+    if previous_avg == 0 or abs(previous_avg) < 0.0001 or current_avg == 0:
         return 0, 'stable'
-
+    
+    # 检查数值是否有效（非 NaN, Inf）
+    if not (math.isfinite(current_avg) and math.isfinite(previous_avg)):
+        return 0, 'stable'
+    
     change_pct = ((current_avg - previous_avg) / previous_avg) * 100
+    
+    # 检查结果有效性
+    if not math.isfinite(change_pct):
+        return 0, 'stable'
 
     if change_pct > 5:
         return change_pct, 'increase'
@@ -369,26 +400,32 @@ def _sleep_total(sleep_obj: dict) -> float:
     """兼容新旧睡眠字段：total_hours / total"""
     if not isinstance(sleep_obj, dict):
         return 0.0
-    return float(sleep_obj.get('total_hours', sleep_obj.get('total', 0)) or 0)
+    value = sleep_obj.get('total_hours', sleep_obj.get('total', 0))
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
 
 
 def _active_energy_kcal(day_obj: dict):
     """兼容活动能量字段：active_energy（新）/ active_energy_kcal（旧）"""
     if not isinstance(day_obj, dict):
-        return None
+        return 0.0
     v = day_obj.get('active_energy')
     if isinstance(v, (int, float)):
         return float(v)
     v = day_obj.get('active_energy_kcal')
     if isinstance(v, (int, float)):
         return float(v)
-    return None
+    return 0.0
 
 
 def _stand_hours(day_obj: dict):
     """兼容站立时长字段：apple_stand_hour（小时）/ apple_stand_time（分钟）/ stand_time_min（分钟）"""
     if not isinstance(day_obj, dict):
-        return None
+        return 0.0
 
     stand_hour_raw = day_obj.get('apple_stand_hour')
     if isinstance(stand_hour_raw, (int, float)):
@@ -402,11 +439,18 @@ def _stand_hours(day_obj: dict):
     if isinstance(stand_min_legacy, (int, float)):
         return float(stand_min_legacy) / 60.0
 
-    return None
+    return 0.0
 
 
 def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px_per_chart=160):
     """V6.0.3: 构建三个上下排列的图表 - HRV、步数、睡眠各一个"""
+    from html import escape as html_escape
+    
+    # 转义标签防止 XSS
+    hrv_label = html_escape(lang_labels["hrv"])
+    steps_label = html_escape(lang_labels["steps"])
+    sleep_label = html_escape(lang_labels["sleep"])
+    
     def calc_range(values, min_default, max_default, padding=0.1):
         valid = [v for v in values if isinstance(v, (int, float))]
         if not valid:
@@ -437,10 +481,6 @@ def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, 
     hrv_js = js_array(hrv_values)
     steps_js = js_array(steps_values, transform=lambda x: x / 1000)
     sleep_js = js_array(sleep_values)
-    
-    hrv_label = lang_labels["hrv"]
-    steps_label = lang_labels["steps"]
-    sleep_label = lang_labels["sleep"]
     
     total_height = height_px_per_chart * 3 + 40
     
@@ -687,7 +727,6 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{END_DATE}}', end_date)
 
     # V5.8.1: 使用统一的周范围格式化
-    from utils import format_week_range
     week_range_text = format_week_range(start_date, end_date, LANGUAGE)
     html = html.replace('{{WEEK_RANGE}}', week_range_text)
 
@@ -701,10 +740,15 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
 
     # V6.0.0: 计算周报 Body Age
+    weekly_rhr_values = [
+        float(d.get('resting_hr', {}).get('value'))
+        for d in weekly_data
+        if isinstance(d.get('resting_hr', {}).get('value'), (int, float))
+    ]
     avg_metrics = {
         'sleep_hours': avg_sleep,
         'steps': avg_steps,
-        'rhr': sum(d.get('resting_hr', {}).get('value', 70) for d in weekly_data if d.get('resting_hr', {}).get('value')) / max(1, sum(1 for d in weekly_data if d.get('resting_hr', {}).get('value')))
+        'rhr': (sum(weekly_rhr_values) / len(weekly_rhr_values)) if weekly_rhr_values else 0,
     }
     
     # 获取成员配置
@@ -772,28 +816,82 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WEEKLY_TOTAL_ZONE_TIME}}', str(total_zone_hours))
     html = html.replace('{{WEEKLY_PRIMARY_ZONE}}', primary_zone)
 
-    # V6.0.2: 计算平均Pace of Aging和Body Age
-    pace_values = []
+    # V6.0.3: 计算周度 Pace of Aging（基于周间比较，而非日度平均）
+    # 同时计算平均 Body Age 和 Age Impact
     body_ages = []
     age_impacts = []
 
     for day in weekly_data:
         hs = day.get('health_scores', {})
-        pace = hs.get('pace_of_aging')
-        if pace is not None:
-            pace_values.append(pace)
         body_age = hs.get('body_age')
-        if body_age:
-            body_ages.append(body_age)
+        if body_age is not None and isinstance(body_age, (int, float)):
+            body_ages.append(float(body_age))
         age_impact = hs.get('age_impact')
-        if age_impact is not None:
-            age_impacts.append(age_impact)
+        if age_impact is not None and isinstance(age_impact, (int, float)):
+            age_impacts.append(float(age_impact))
 
-    avg_pace = sum(pace_values) / len(pace_values) if pace_values else 0
+    # 计算本周平均恢复度和睡眠表现
+    current_recovery_values = []
+    current_sleep_values = []
+    for day in weekly_data:
+        hs = day.get('health_scores', {})
+        recovery = hs.get('recovery')
+        sleep_perf = hs.get('sleep_performance')
+        if recovery is not None and isinstance(recovery, (int, float)):
+            current_recovery_values.append(float(recovery))
+        if sleep_perf is not None and isinstance(sleep_perf, (int, float)):
+            current_sleep_values.append(float(sleep_perf))
+    
+    current_week_avg_recovery = sum(current_recovery_values) / len(current_recovery_values) if current_recovery_values else 50
+    current_week_avg_sleep = sum(current_sleep_values) / len(current_sleep_values) if current_sleep_values else 70
+    
+    # 计算数据完整度
+    data_completeness = len(weekly_data) / 7.0  # 假设一周7天
+    
+    # 加载上一周期数据用于趋势对比
+    print(f"📊 计算趋势变化...")
+    previous_data = load_previous_week_data(week_dates, member_name)
+    
+    # 如果有上周数据，计算周间 Pace of Aging
+    avg_pace = 0.0
+    if previous_data and len(previous_data) >= 4:  # 上周至少有4天数据
+        prev_recovery_values = []
+        prev_sleep_values = []
+        for day in previous_data:
+            hs = day.get('health_scores', {})
+            recovery = hs.get('recovery')
+            sleep_perf = hs.get('sleep_performance')
+            if recovery is not None and isinstance(recovery, (int, float)):
+                prev_recovery_values.append(float(recovery))
+            if sleep_perf is not None and isinstance(sleep_perf, (int, float)):
+                prev_sleep_values.append(float(sleep_perf))
+        
+        if prev_recovery_values and prev_sleep_values:
+            prev_week_avg_recovery = sum(prev_recovery_values) / len(prev_recovery_values)
+            prev_week_avg_sleep = sum(prev_sleep_values) / len(prev_sleep_values)
+            
+            # 使用 health_score 模块计算 pace
+            from health_score import calculate_pace_of_aging
+            avg_pace = calculate_pace_of_aging(
+                {'recovery': current_week_avg_recovery, 'sleep_performance': current_week_avg_sleep},
+                {'recovery': prev_week_avg_recovery, 'sleep_performance': prev_week_avg_sleep},
+                days_span=7,
+                data_completeness=data_completeness
+            )
+            if avg_pace is None:
+                avg_pace = 0.0  # 数据不足时显示 0 并添加提示
+                print(f"   ℹ️ Pace of Aging: 数据不足，需要至少70%完整度")
+    else:
+        print(f"   ℹ️ Pace of Aging: 无上周期数据对比")
+
+    # 安全计算平均值
     avg_body_age = sum(body_ages) / len(body_ages) if body_ages else (member_cfg.get('age', 30) if member_cfg else 30)
-    avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0
+    avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0.0
 
-    html = html.replace('{{AVERAGE_PACE_OF_AGING}}', f'{avg_pace:.2f}')
+    # V6.0.3: 限制 pace 显示范围
+    display_pace = max(-1.5, min(1.5, avg_pace))
+    
+    html = html.replace('{{AVERAGE_PACE_OF_AGING}}', f'{display_pace:.2f}')
     html = html.replace('{{AVERAGE_BODY_AGE}}', f'{avg_body_age:.1f}')
     html = html.replace('{{AVERAGE_AGE_IMPACT}}', f'{avg_age_impact:+.1f}')
     html = html.replace('{{CHRONOLOGICAL_AGE}}', str(member_cfg.get('age', 30) if member_cfg else 30))
@@ -809,23 +907,29 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         age_box_class = ""
         age_diff_color = "#dfe6e9"  # 灰色 - 持平
 
-    # 根据pace调整描述、CSS类和颜色
-    if avg_pace < -0.3:
-        pace_desc = "逆龄中 🟢 - 你的身体正在变年轻"
-        pace_class = "reverse"
-        pace_color = "#55efc4"  # 绿色
-    elif avg_pace < 0.3:
-        pace_desc = "停龄 ⚪ - 身体年龄保持稳定"
+    # V6.0.3: 改进 pace 描述逻辑（使用限制后的 display_pace）
+    # 注意：avg_pace 可能是 None（数据不足），这里已经处理为 0.0
+    
+    if data_completeness < 0.7:
+        pace_desc = "数据不足 ⚪ - 需要更多天数计算趋势" if LANGUAGE == "CN" else "Insufficient Data ⚪ - More days needed"
         pace_class = "stable"
-        pace_color = "#74b9ff"  # 蓝色
-    elif avg_pace < 1.0:
-        pace_desc = "正常衰老 🟡 - 与实际年龄同步"
+        pace_color = "#b2bec3"
+    elif display_pace < -0.3:
+        pace_desc = "逆龄中 🟢 - 你的身体正在变年轻" if LANGUAGE == "CN" else "Reverse Aging 🟢 - Getting younger"
+        pace_class = "reverse"
+        pace_color = "#55efc4"
+    elif display_pace < 0.3:
+        pace_desc = "停龄 ⚪ - 身体年龄保持稳定" if LANGUAGE == "CN" else "Stable ⚪ - Age holding steady"
+        pace_class = "stable"
+        pace_color = "#74b9ff"
+    elif display_pace < 1.0:
+        pace_desc = "正常衰老 🟡 - 与实际年龄同步" if LANGUAGE == "CN" else "Normal Aging 🟡 - On track"
         pace_class = "normal"
-        pace_color = "#fdcb6e"  # 黄色
+        pace_color = "#fdcb6e"
     else:
-        pace_desc = "加速衰老 🔴 - 需要注意生活方式"
+        pace_desc = "加速衰老 🔴 - 需要注意生活方式" if LANGUAGE == "CN" else "Accelerated 🔴 - Attention needed"
         pace_class = "accelerated"
-        pace_color = "#ff7675"  # 红色
+        pace_color = "#ff7675"
 
     html = html.replace('{{AGE_BOX_CLASS}}', age_box_class)
     html = html.replace('{{AGE_DIFF_COLOR}}', age_diff_color)
@@ -848,11 +952,8 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     else:
         print(f"   ✅ 长度验证通过")
 
-    # 加载上一周期数据用于趋势对比
+    # 计算趋势变化 (previous_data 已在 pace 计算时加载)
     print(f"📊 计算趋势变化...")
-    previous_data = load_previous_week_data(week_dates, member_name)
-
-    # 计算趋势变化
     if previous_data:
         prev_hrv = [d['hrv']['value'] for d in previous_data if d.get('hrv', {}).get('value')]
         prev_steps = [d['steps'] for d in previous_data if d.get('steps')]
@@ -1033,10 +1134,15 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
     
     # V6.0.0: 计算月报Body Age
+    monthly_rhr_values = [
+        float(d.get('resting_hr', {}).get('value'))
+        for d in monthly_data
+        if isinstance(d.get('resting_hr', {}).get('value'), (int, float))
+    ]
     avg_metrics = {
         'sleep_hours': avg_sleep,
         'steps': avg_steps,
-        'rhr': avg_hrv  # 使用平均HRV作为参考
+        'rhr': (sum(monthly_rhr_values) / len(monthly_rhr_values)) if monthly_rhr_values else 0,
     }
     
     # 获取成员配置
@@ -1252,14 +1358,14 @@ def get_member_config(index: int):
         member = MEMBERS[index]
         return {
             "name": member.get("name", f"成员{index+1}"),
-            "health_dir": Path(member.get("health_dir", "~/我的云端硬盘/Health Auto Export/Health Data")).expanduser(),
-            "workout_dir": Path(member.get("workout_dir", "~/我的云端硬盘/Health Auto Export/Workout Data")).expanduser(),
+            "health_dir": Path(member.get("health_dir", "~/Health Auto Export/Health Data")).expanduser(),
+            "workout_dir": Path(member.get("workout_dir", "~/Health Auto Export/Workout Data")).expanduser(),
             "email": member.get("email", "")
         }
     return {
         "name": f"成员{index+1}",
-        "health_dir": Path('~/我的云端硬盘/Health Auto Export/Health Data').expanduser(),
-        "workout_dir": Path('~/我的云端硬盘/Health Auto Export/Workout Data').expanduser(),
+        "health_dir": Path('~/Health Auto Export/Health Data').expanduser(),
+        "workout_dir": Path('~/Health Auto Export/Workout Data').expanduser(),
         "email": ""
     }
 
@@ -1352,18 +1458,24 @@ def main():
 
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{start_date}_to_{end_date}-weekly-medical-{safe_name}.pdf'
-                with sync_playwright() as p:
-                    browser = None
-                    try:
+                browser = None
+                try:
+                    with sync_playwright() as p:
                         browser = p.chromium.launch()
                         page = browser.new_page()
                         page.goto(html_path.resolve().as_uri())
                         page.wait_for_timeout(2500)
                         page.pdf(path=str(pdf_path), format='A4', print_background=True,
                                  margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                    finally:
-                        if browser:
+                        browser.close()
+                        browser = None
+                except Exception as e:
+                    if browser:
+                        try:
                             browser.close()
+                        except:
+                            pass
+                    raise
 
                 if LANGUAGE == "EN":
                     print(f'✅ Weekly report generated: {pdf_path}')
@@ -1440,18 +1552,24 @@ def main():
 
                 # 生成PDF
                 pdf_path = OUTPUT_DIR / f'{year}-{month:02d}-monthly-medical-{safe_name}.pdf'
-                with sync_playwright() as p:
-                    browser = None
-                    try:
+                browser = None
+                try:
+                    with sync_playwright() as p:
                         browser = p.chromium.launch()
                         page = browser.new_page()
                         page.goto(html_path.resolve().as_uri())
                         page.wait_for_timeout(2500)
                         page.pdf(path=str(pdf_path), format='A4', print_background=True,
                                  margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'})
-                    finally:
-                        if browser:
+                        browser.close()
+                        browser = None
+                except Exception as e:
+                    if browser:
+                        try:
                             browser.close()
+                        except:
+                            pass
+                    raise
 
                 success_count += 1
 
