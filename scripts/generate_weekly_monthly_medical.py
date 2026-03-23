@@ -7,6 +7,7 @@
   python3 scripts/generate_weekly_monthly_medical.py monthly YEAR MONTH < ai_analysis.json
 """
 import json
+import math
 import re
 import sys
 from datetime import datetime, timedelta
@@ -282,17 +283,30 @@ def calculate_trend(current_values, previous_values):
     current_values = [v for v in current_values if isinstance(v, (int, float)) and v is not None]
     previous_values = [v for v in previous_values if isinstance(v, (int, float)) and v is not None]
     
-    # 确保列表不为空
+    # 确保列表不为空且长度足够
     if not current_values or not previous_values:
+        return 0, 'stable'
+    
+    # 确保有足够的数据点（至少各1个）
+    if len(current_values) < 1 or len(previous_values) < 1:
         return 0, 'stable'
 
     current_avg = sum(current_values) / len(current_values)
     previous_avg = sum(previous_values) / len(previous_values)
 
-    if previous_avg == 0 or current_avg == 0:
+    # 增强的除零检查：previous_avg 为 0 或接近 0 都视为无效
+    if previous_avg == 0 or abs(previous_avg) < 0.0001 or current_avg == 0:
+        return 0, 'stable'
+    
+    # 检查数值是否有效（非 NaN, Inf）
+    if not (math.isfinite(current_avg) and math.isfinite(previous_avg)):
         return 0, 'stable'
     
     change_pct = ((current_avg - previous_avg) / previous_avg) * 100
+    
+    # 检查结果有效性
+    if not math.isfinite(change_pct):
+        return 0, 'stable'
 
     if change_pct > 5:
         return change_pct, 'increase'

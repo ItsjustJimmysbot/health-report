@@ -765,16 +765,30 @@ def safe_html_paragraph(value) -> str:
     return safe_html_text(value).replace('\n', '<br>')
 
 
-def badge(score):
+def badge(score, age=None):
+    """根据分数和年龄返回评级徽章
+    
+    年龄适配：老年人（>60岁）的阈值适当降低
+    """
+    # 年龄适配因子
+    if age and age > 60:
+        # 60岁以上，阈值降低5分
+        thresholds = {'excellent': 75, 'good': 55, 'average': 35}
+    elif age and age > 40:
+        # 40-60岁，阈值降低2分
+        thresholds = {'excellent': 78, 'good': 58, 'average': 38}
+    else:
+        thresholds = {'excellent': 80, 'good': 60, 'average': 40}
+    
     if LANGUAGE == 'EN':
-        if score >= 80: return 'badge-excellent', 'Excellent'
-        if score >= 60: return 'badge-good', 'Good'
-        if score >= 40: return 'badge-average', 'Average'
+        if score >= thresholds['excellent']: return 'badge-excellent', 'Excellent'
+        if score >= thresholds['good']: return 'badge-good', 'Good'
+        if score >= thresholds['average']: return 'badge-average', 'Average'
         return 'badge-poor', 'Needs Improvement'
     else:
-        if score >= 80: return 'badge-excellent', '优秀'
-        if score >= 60: return 'badge-good', '良好'
-        if score >= 40: return 'badge-average', '一般'
+        if score >= thresholds['excellent']: return 'badge-excellent', '优秀'
+        if score >= thresholds['good']: return 'badge-good', '良好'
+        if score >= thresholds['average']: return 'badge-average', '一般'
         return 'badge-poor', '需改善'
 
 
@@ -1397,9 +1411,12 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         member_cfg = members[0] if members else None
     recovery, sleep_score, exercise = calculate_scores(data, member_cfg)
 
-    rc, rt = badge(recovery)
-    sc, st = badge(sleep_score)
-    ec, et = badge(exercise)
+    # 获取年龄用于评分阈值适配
+    member_age = member_cfg.get('age') if member_cfg else None
+    
+    rc, rt = badge(recovery, member_age)
+    sc, st = badge(sleep_score, member_age)
+    ec, et = badge(exercise, member_age)
 
     html = html.replace('{{SCORE_RECOVERY}}', str(recovery)).replace('{{BADGE_RECOVERY_CLASS}}', rc).replace('{{BADGE_RECOVERY_TEXT}}', rt)
     html = html.replace('{{SCORE_SLEEP}}', str(sleep_score)).replace('{{BADGE_SLEEP_CLASS}}', sc).replace('{{BADGE_SLEEP_TEXT}}', st)
@@ -1896,32 +1913,59 @@ if __name__ == '__main__':
 
             # 生成PDF
             max_retries = 3
+            browser = None
+            playwright_context = None
+            
             for attempt in range(max_retries):
-                browser = None
                 try:
+                    # 使用上下文管理器确保资源释放
                     with sync_playwright() as p:
+                        playwright_context = p
                         browser = p.chromium.launch()
-                        page = browser.new_page()
-                        page.goto(html_path.resolve().as_uri())
-                        page.wait_for_timeout(2500)
-                        page.pdf(path=str(pdf_path), format='A4', print_background=True,
-                                 margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
-                                 display_header_footer=False)
-                        browser.close()
-                        browser = None
-                    break
+                        try:
+                            page = browser.new_page()
+                            page.goto(html_path.resolve().as_uri())
+                            page.wait_for_timeout(2500)
+                            page.pdf(path=str(pdf_path), format='A4', print_background=True,
+                                     margin={'top': '10mm', 'bottom': '10mm', 'left': '10mm', 'right': '10mm'},
+                                     display_header_footer=False)
+                            print(f'   ✅ PDF生成成功: {pdf_path}')
+                            break  # 成功，跳出重试循环
+                        finally:
+                            # 确保 page 和 browser 被关闭
+                            try:
+                                if 'page' in locals():
+                                    page.close()
+                            except Exception:
+                                pass
+                            try:
+                                if browser:
+                                    browser.close()
+                                    browser = None
+                            except Exception:
+                                pass
                 except Exception as e:
+                    # 清理资源
                     if browser:
                         try:
                             browser.close()
                         except:
                             pass
+                        browser = None
+                    
                     if attempt < max_retries - 1:
                         print(f'   ⚠️ PDF生成失败，第{attempt + 1}次重试...')
                         import time
                         time.sleep(1)
                     else:
                         raise Exception(f'PDF生成失败（已重试{max_retries}次）: {e}')
+            
+            # 最终清理（保险）
+            if browser:
+                try:
+                    browser.close()
+                except:
+                    pass
 
             print(f'✅ 报告已生成: {pdf_path}')
 

@@ -11,6 +11,57 @@ from typing import List, Dict
 # V5.8.1: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, MAX_MEMBERS, KJ_TO_KCAL, ConfigError, handle_error, infer_duration_unit, get_workout_field
+from health_score import calculate_zone_times_from_workouts
+
+def _sanitize_path(path_str, default_path):
+    """路径安全验证：防止路径遍历攻击"""
+    from pathlib import Path
+    
+    if not path_str:
+        return Path(default_path).expanduser()
+    
+    # 展开用户目录
+    path = Path(path_str).expanduser()
+    
+    # 解析绝对路径
+    try:
+        path = path.resolve()
+    except (OSError, RuntimeError):
+        # 如果解析失败，使用默认路径
+        print(f"⚠️ 警告: 路径解析失败，使用默认路径: {default_path}", file=sys.stderr)
+        return Path(default_path).expanduser()
+    
+    # 检查是否为绝对路径
+    if not path.is_absolute():
+        print(f"⚠️ 警告: 路径必须是绝对路径，使用默认路径: {default_path}", file=sys.stderr)
+        return Path(default_path).expanduser()
+    
+    # 检查路径是否包含 .. (路径遍历)
+    # resolve() 已经处理了 ..，但如果展开后仍在系统根目录外则有问题
+    # 检查路径是否在合理的根目录下 ( home 目录或 /opt /var 等)
+    home = Path.home().resolve()
+    
+    # 允许的根目录列表
+    allowed_roots = [
+        home,
+        Path('/opt'),
+        Path('/var'),
+        Path('/tmp'),
+        Path('/Users'),  # macOS
+        Path('/home'),   # Linux
+    ]
+    
+    # 检查是否在允许的根目录下
+    is_allowed = any(
+        str(path).startswith(str(root)) for root in allowed_roots if root.exists()
+    )
+    
+    if not is_allowed:
+        print(f"⚠️ 警告: 路径 {path} 不在允许的目录范围内，使用默认路径", file=sys.stderr)
+        return Path(default_path).expanduser()
+    
+    return path
+
 
 def get_member_config(member_idx=0):
     """获取指定成员的配置，优先从config.json读取"""
@@ -38,9 +89,19 @@ def get_member_config(member_idx=0):
     
     member = members[member_idx]
     
+    # 安全处理路径
+    health_dir = _sanitize_path(
+        member.get('health_dir'), 
+        '~/Health Auto Export/Health Data'
+    )
+    workout_dir = _sanitize_path(
+        member.get('workout_dir'),
+        '~/Health Auto Export/Workout Data'
+    )
+    
     return {
-        'health_dir': member.get('health_dir', '~/Health Auto Export/Health Data'),
-        'workout_dir': member.get('workout_dir', '~/Health Auto Export/Workout Data'),
+        'health_dir': health_dir,
+        'workout_dir': workout_dir,
         'profile': {
             'name': member.get('name', ''),
             'age': member.get('age'),
@@ -244,90 +305,6 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
         print(f"   ℹ️ 未找到运动文件: 尝试路径包括 {date_str}.json 和 HealthAutoExport-{date_str}.json", file=sys.stderr)
     
     return workouts
-
-def calculate_zone_times_from_workouts(workouts: List[Dict], age: int) -> Dict[str, float]:
-    """
-    V6.0.3: 从 workout 的心率时间线计算真实的心率区间时间
-    
-    参数:
-        workouts: workout 列表，每项包含 hr_timeline
-        age: 用户年龄，用于计算最大心率
-    
-    返回:
-        {'zone_1': 分钟数, 'zone_2': 分钟数, ...}
-    """
-    # 计算最大心率 (标准公式: 208 - 0.7 * age)
-    max_hr = int(208 - 0.7 * age) if age and age > 0 else 185
-    
-    # 初始化各区间的累计时间（分钟）
-    zone_times = {'zone_1': 0.0, 'zone_2': 0.0, 'zone_3': 0.0, 'zone_4': 0.0, 'zone_5': 0.0}
-    
-    def get_zone_from_hr(hr: int, max_hr: int) -> int:
-        """根据心率值确定所属区间 (1-5)"""
-        if hr <= 0 or max_hr <= 0:
-            return 0
-        pct = hr / max_hr
-        if pct < 0.5:
-            return 0
-        elif pct < 0.6:
-            return 1
-        elif pct < 0.7:
-            return 2
-        elif pct < 0.8:
-            return 3
-        elif pct < 0.9:
-            return 4
-        else:
-            return 5
-    
-    for workout in workouts:
-        # 获取心率时间线数据 (支持多种字段名)
-        hr_timeline = (workout.get('hr_timeline', []) or 
-                      workout.get('heartRateData', []) or 
-                      workout.get('hrData', []))
-        
-        if not hr_timeline or len(hr_timeline) < 2:
-            # 没有时间线数据，用平均心率估算整个运动时长
-            avg_hr = workout.get('avg_hr', 0)
-            duration_min = workout.get('duration_min', 0)
-            if avg_hr > 0 and duration_min > 0:
-                zone = get_zone_from_hr(avg_hr, max_hr)
-                if zone >= 1:
-                    zone_times[f'zone_{zone}'] += duration_min
-            continue
-        
-        # 处理心率时间线数据
-        for i in range(len(hr_timeline) - 1):
-            point = hr_timeline[i]
-            next_point = hr_timeline[i + 1]
-            
-            # 提取心率值 (兼容不同字段名)
-            hr = (point.get('hr') or point.get('qty') or 
-                  point.get('heartRate') or point.get('value') or
-                  point.get('Avg') or 0)
-            
-            # 提取时间戳
-            ts1 = point.get('timestamp') or point.get('date') or 0
-            ts2 = next_point.get('timestamp') or next_point.get('date') or 0
-            
-            # 计算时间差（分钟）
-            if isinstance(ts1, (int, float)) and isinstance(ts2, (int, float)) and ts2 > ts1:
-                # 判断时间戳单位 (秒或毫秒)
-                if ts1 > 1e12:  # 毫秒时间戳
-                    duration_sec = (ts2 - ts1) / 1000.0
-                else:  # 秒时间戳
-                    duration_sec = ts2 - ts1
-                duration_min = duration_sec / 60.0
-            else:
-                duration_min = 1.0  # 默认1分钟
-            
-            # 确定心率区间并累加时间
-            zone = get_zone_from_hr(hr, max_hr)
-            if zone >= 1:
-                zone_times[f'zone_{zone}'] += duration_min
-    
-    # 四舍五入到1位小数
-    return {k: round(v, 1) for k, v in zone_times.items()}
 
 def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile=None, sleep_config=None):
     """提取完整的一天数据 - V5.8.1: 支持多成员路径传入"""

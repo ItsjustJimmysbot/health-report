@@ -304,8 +304,16 @@ def calculate_recovery(hrv_rmssd: float, rhr: float,
                       baseline_hrv: float, baseline_rhr: float,
                       baseline_respiratory: float,
                       gender: str = 'male') -> RecoveryResult:
-    """计算Recovery (0-100%)"""
+    """计算Recovery (0-100%) - 增强空值处理"""
     target_rhr = 60 if gender == 'male' else 64
+    
+    # 输入验证
+    if not isinstance(hrv_rmssd, (int, float)) or not math.isfinite(hrv_rmssd) or hrv_rmssd <= 0:
+        hrv_rmssd = 50.0  # 使用默认值
+    if not isinstance(baseline_hrv, (int, float)) or not math.isfinite(baseline_hrv) or baseline_hrv <= 0:
+        baseline_hrv = hrv_rmssd  # 使用当前值作为基线
+    if not isinstance(rhr, (int, float)) or not math.isfinite(rhr) or rhr <= 0:
+        rhr = target_rhr  # 使用目标值
     
     # HRV分数 (70%权重)
     hrv_ratio = hrv_rmssd / max(1, baseline_hrv)

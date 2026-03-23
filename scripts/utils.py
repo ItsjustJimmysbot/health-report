@@ -2,6 +2,7 @@
 """Health Report 共用工具函数 - V6.0.0"""
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -124,15 +125,16 @@ def handle_error(error: Exception, context: str = "", exit_on_fatal: bool = True
 # 模块级缓存
 _config_cache = None
 _config_cache_path = None
+_config_cache_mtime = None
 
 def load_config() -> dict:
-    """从 config.json 加载配置（带验证和缓存）
+    """从 config.json 加载配置（带验证和缓存，支持文件修改检测）
 
     搜索路径（按优先级）：
     1. 脚本所在目录的父目录/config.json
     2. ~/.openclaw/workspace-health/config.json
     """
-    global _config_cache, _config_cache_path
+    global _config_cache, _config_cache_path, _config_cache_mtime
     
     config_paths = [
         Path(__file__).parent.parent / "config.json",
@@ -141,13 +143,22 @@ def load_config() -> dict:
 
     # 检查是否有配置文件被修改
     current_config_path = None
+    current_mtime = None
     for config_path in config_paths:
         if config_path.exists():
             current_config_path = config_path
+            try:
+                current_mtime = config_path.stat().st_mtime
+            except OSError:
+                current_mtime = None
             break
     
-    # 使用缓存（如果文件路径没变）
-    if _config_cache is not None and _config_cache_path == current_config_path:
+    # 使用缓存（如果文件路径和修改时间都没变）
+    if (_config_cache is not None and 
+        _config_cache_path == current_config_path and
+        _config_cache_mtime is not None and
+        current_mtime is not None and
+        _config_cache_mtime >= current_mtime):
         return _config_cache
 
     for config_path in config_paths:
@@ -163,9 +174,13 @@ def load_config() -> dict:
                     print(f"   - {error}", file=sys.stderr)
                 print(f"   配置文件位置: {config_path}\n", file=sys.stderr)
 
-            # 缓存配置
+            # 缓存配置（包含修改时间）
             _config_cache = config
             _config_cache_path = config_path
+            try:
+                _config_cache_mtime = config_path.stat().st_mtime
+            except OSError:
+                _config_cache_mtime = None
             return config
 
     return {}
@@ -589,18 +604,32 @@ def parse_sleep_data_unified(
 
         # 解析时间（兼容秒/毫秒时间戳，以及常见字符串格式）
         def _parse_sleep_ts(ts):
+            # 边界值定义
+            MIN_TIMESTAMP = 0  # 1970-01-01
+            MAX_TIMESTAMP = 2147483647  # 2038-01-19 (32位系统上限)
+            
             if isinstance(ts, (int, float)):
                 ts_num = float(ts)
+                # 检查是否溢出或无效
+                if not math.isfinite(ts_num) or ts_num < 0:
+                    raise ValueError(f"无效时间戳: {ts}")
                 if ts_num > 1e12:  # 毫秒
                     ts_num /= 1000.0
+                # 检查转换后是否在有效范围内
+                if ts_num > MAX_TIMESTAMP or ts_num < MIN_TIMESTAMP:
+                    raise ValueError(f"时间戳超出有效范围: {ts}")
                 return datetime.fromtimestamp(ts_num)
 
             ts_text = str(ts).strip()
             # 纯数字字符串（秒/毫秒）
             try:
                 ts_num = float(ts_text)
+                if not math.isfinite(ts_num) or ts_num < 0:
+                    raise ValueError(f"无效时间戳: {ts}")
                 if ts_num > 1e12:
                     ts_num /= 1000.0
+                if ts_num > MAX_TIMESTAMP or ts_num < MIN_TIMESTAMP:
+                    raise ValueError(f"时间戳超出有效范围: {ts}")
                 return datetime.fromtimestamp(ts_num)
             except (ValueError, TypeError, OSError, OverflowError):
                 pass
@@ -640,20 +669,32 @@ def parse_sleep_data_unified(
 
             # 统一转换为小时（假设原始值可能是分钟或小时）
             def normalize_hours(value, field_name=""):
-                """将睡眠时长值归一化为小时数
+                """将睡眠时长值归一化为小时数 - 增强版
                 
                 规则:
-                1. 值 < 3: 认为是小时，直接返回
-                2. 值 >= 3 且 < 100: 模糊区域，根据字段类型判断
-                3. 值 >= 100: 认为是分钟，转换为小时
+                1. 值 < 0: 无效，返回0
+                2. 值 < 3: 认为是小时，直接返回
+                3. 值 >= 3 且 < 100: 模糊区域，根据字段类型判断
+                4. 值 >= 100: 认为是分钟，转换为小时
+                5. 值 > 1440 (24小时): 视为无效数据
                 """
-                if not value or value <= 0:
+                # 空值检查
+                if value is None:
                     return 0.0
-
-                # 先转换为浮点数
+                
+                # 类型转换
                 try:
                     val = float(value)
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, OverflowError):
+                    return 0.0
+                
+                # 范围检查
+                if val < 0 or not math.isfinite(val):
+                    return 0.0
+                
+                # 超过24小时视为无效
+                if val > 1440:  # 1440分钟 = 24小时
+                    print(f"⚠️ 警告: {field_name} 值 {val} 超过24小时，视为无效数据", file=sys.stderr)
                     return 0.0
 
                 # 如果值很小(<3)，几乎肯定是小时（睡眠阶段不可能<3分钟）
@@ -661,7 +702,7 @@ def parse_sleep_data_unified(
                     return round(val, 2)
 
                 # 判断是否为睡眠阶段字段
-                is_stage = any(x in field_name.lower() for x in ['deep', 'core', 'rem', 'awake'])
+                is_stage = any(x in field_name.lower() for x in ['deep', 'core', 'rem', 'awake', 'light'])
 
                 if is_stage:
                     # 睡眠阶段：正常范围 0.1-5 小时（6-300 分钟）
@@ -669,13 +710,19 @@ def parse_sleep_data_unified(
                     if val > 30:
                         return round(val / 60.0, 2)
                     # 如果值在 3-30 之间，整数可能是分钟，小数可能是小时
-                    if val > 10 and val == int(val):
+                    # 检查整数特性更严格：与四舍五入后的值比较
+                    if val > 10 and abs(val - round(val)) < 0.01:
                         return round(val / 60.0, 2)
                 else:
                     # 总睡眠：正常范围 3-12 小时（180-720 分钟）
-                    # 如果值 > 24 且 > 100，认为是分钟
+                    # 如果值 > 24 (可能是分钟表示的24小时) 或 > 100 (明确是分钟)
                     if val > 24 and val > 100:
                         return round(val / 60.0, 2)
+                    # 如果值在 12-100 之间，可能是分钟的模糊区域
+                    if val > 12 and val > 60:
+                        # 如果看起来像分钟（整数值且较大）
+                        if abs(val - round(val)) < 0.01 and val > 60:
+                            return round(val / 60.0, 2)
 
                 return round(val, 2)
 
