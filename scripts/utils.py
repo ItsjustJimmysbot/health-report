@@ -654,16 +654,12 @@ def parse_sleep_data_unified(
         start_date = start_dt.strftime('%Y-%m-%d')
         record_start_hour = start_dt.hour
 
-        if read_mode == 'next_day':
-            belongs_to_date = (
-                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
-                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
-            )
-        else:  # same_day
-            belongs_to_date = (
-                (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
-                (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
-            )
+        # 统一筛选逻辑：筛选在指定时间窗口内的睡眠记录
+        # read_mode 已经在文件选择阶段处理了差异
+        belongs_to_date = (
+            (start_date == filter_start_date.strftime('%Y-%m-%d') and record_start_hour >= start_hour) or
+            (start_date == filter_end_date.strftime('%Y-%m-%d') and record_start_hour < end_hour)
+        )
 
         if belongs_to_date:
             duration_hours = (end_dt - start_dt).total_seconds() / 3600

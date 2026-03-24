@@ -85,8 +85,6 @@ def get_hr_zone(hr: int, max_hr: int, rhr: int = None) -> int:
 
 # ============ 1. Strain 评分 (0-21) ============
 
-@dataclass
-
 def calculate_strain_simple(active_energy: float, steps: int, 
                            workouts: List[Dict], age: int = 30,
                            hr_data: List[Dict] = None, 
@@ -544,8 +542,13 @@ def calculate_recovery(
     # RHR 分数（与基线比较，越低越好）
     if rhr_baseline > 0:
         rhr_ratio = rhr / rhr_baseline
-        # rhr_ratio = 1.0 时得 100 分，每增加 10% 扣 30 分
-        rhr_score = min(100, max(0, 100 * (2.0 - rhr_ratio) * 0.5))
+        # rhr_ratio = 1.0 时得 100 分
+        # RHR 低于基线：每低 10% 加 15 分（最高 100）
+        # RHR 高于基线：每高 10% 扣 30 分
+        if rhr_ratio <= 1.0:
+            rhr_score = min(100, 100 + (1.0 - rhr_ratio) * 150)
+        else:
+            rhr_score = max(0, 100 - (rhr_ratio - 1.0) * 300)
     else:
         rhr_score = 50.0
     

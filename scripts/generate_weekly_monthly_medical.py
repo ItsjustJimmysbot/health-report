@@ -870,17 +870,26 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
             prev_week_avg_recovery = sum(prev_recovery_values) / len(prev_recovery_values)
             prev_week_avg_sleep = sum(prev_sleep_values) / len(prev_sleep_values)
             
-            # 使用 health_score 模块计算 pace
-            from health_score import calculate_pace_of_aging
-            avg_pace = calculate_pace_of_aging(
-                {'recovery': current_week_avg_recovery, 'sleep_performance': current_week_avg_sleep},
-                {'recovery': prev_week_avg_recovery, 'sleep_performance': prev_week_avg_sleep},
-                days_span=7,
-                data_completeness=data_completeness
-            )
-            if avg_pace is None:
-                avg_pace = 0.0  # 数据不足时显示 0 并添加提示
-                print(f"   ℹ️ Pace of Aging: 数据不足，需要至少70%完整度")
+            # 计算周间 Pace of Aging（简化版）
+            # 基于 Recovery 和 Sleep Performance 的变化
+            recovery_change = (current_week_avg_recovery - prev_week_avg_recovery) / max(prev_week_avg_recovery, 1)
+            sleep_change = (current_week_avg_sleep - prev_week_avg_sleep) / max(prev_week_avg_sleep, 1)
+            
+            # 综合变化率，负值表示改善（逆龄），正值表示恶化（加速）
+            combined_change = (recovery_change + sleep_change) / 2
+            
+            # 转换为 Pace of Aging 范围 (0.5 - 2.0)
+            if data_completeness >= 0.7:
+                if combined_change < -0.1:
+                    avg_pace = 0.5 + abs(combined_change) * 2.5  # 逆龄
+                elif combined_change > 0.1:
+                    avg_pace = 1.0 + combined_change * 5.0  # 加速衰老
+                else:
+                    avg_pace = 1.0  # 正常
+                avg_pace = max(0.5, min(2.0, avg_pace))
+            else:
+                avg_pace = 1.0  # 数据不足时默认为正常
+                print(f"   ℹ️ Pace of Aging: 数据不足，使用默认值 1.0")
     else:
         print(f"   ℹ️ Pace of Aging: 无上周期数据对比")
 
