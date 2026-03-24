@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康报告邮件发送脚本 V6.0.0
+"""健康报告邮件发送脚本 V6.0.3
 
 功能:
     - 支持可配置的 Provider 优先级 (OAuth2/SMTP/Mail.app/Local)

@@ -179,7 +179,7 @@ def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: int = 0
     cardio_load = sum(clean_zone_times[z] * zone_weights[z] for z in clean_zone_times)
     muscle_load = max(0.0, float(strength_minutes)) * 0.2
     total_load = cardio_load + muscle_load
-    strain = 21 * (1 - math.exp(-total_load / 180))
+    strain = 21 * (1 - math.exp(-total_load / 80))
 
     return {
         'strain': round(min(21, strain), 1),
@@ -269,8 +269,8 @@ def calculate_strain_simple(active_energy: float, steps: int,
     total_load = energy_load + steps_load + workout_load
     
     # 使用对数压缩，避免高负荷日过于突出
-    # 参考：21 * (1 - exp(-load / 180))
-    strain = 21 * (1 - math.exp(-total_load / 180))
+    # 参考：21 * (1 - exp(-load / 80))
+    strain = 21 * (1 - math.exp(-total_load / 80))
     strain = min(21, max(0, strain))
     
     # V6.0.5: 如果有心率数据，从心率数据计算真实zone_times
@@ -524,7 +524,7 @@ def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: float =
 
     muscle_load = max(0.0, float(strength_minutes or 0)) * 0.2
     total_load = cardio_load + muscle_load
-    strain = 21 * (1 - math.exp(-total_load / 180.0))
+    strain = 21 * (1 - math.exp(-total_load / 80.0))
     return round(min(21, strain), 1)
 
 
@@ -675,11 +675,11 @@ def calculate_recovery(hrv_rmssd: float, rhr: float,
         respiratory_score = max(0.0, 100.0 - (resp_diff - 0.03) * 250.0)
 
     recovery = int(round(min(100.0, max(1.0,
-        0.40 * hrv_score +
-        0.25 * rhr_score +
-        0.20 * sleep_value +
-        0.10 * respiratory_score +
-        0.05 * consistency_value
+        RECOVERY_WEIGHTS['hrv'] * hrv_score +
+        RECOVERY_WEIGHTS['rhr'] * rhr_score +
+        RECOVERY_WEIGHTS['sleep'] * sleep_value +
+        RECOVERY_WEIGHTS['respiratory'] * respiratory_score +
+        RECOVERY_WEIGHTS['sleep_consistency'] * consistency_value
     ))))
 
     status = 'green' if recovery >= 67 else 'yellow' if recovery >= 34 else 'red'
@@ -1003,8 +1003,8 @@ def calculate_pace_of_aging(
         if isinstance(strain, (int, float)) and strain >= 0:
             strain_values.append(float(strain))
     
-    # 检查是否有足够的数据 (提高最低要求以匹配新的窗口)
-    if len(hrv_values) < 10 or len(recovery_values) < 10:
+    # 检查是否有足够的数据 (周报只有7天，降低到5天)
+    if len(hrv_values) < 5 or len(recovery_values) < 5:
         return None
     
     # 检查数据方差（避免所有值都一样导致趋势为0）
@@ -1362,14 +1362,30 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
     body_metrics = {
         'sleep_hours': sleep.get('total_hours', 7),
         'steps': data.get('steps', 8000),
-        'rhr': rhr
+        'rhr': rhr,
+        'hrv': hrv,
+        'respiratory_rate': respiratory
     }
     body_age_result = calculate_body_age(body_metrics, age, gender)
 
-    # 5) Pace of Aging：当前 7 天 vs 前 7 天
-    current_7day = history.get_period_average(date_str, member_name, days=7, offset_days=0)
-    previous_7day = history.get_period_average(date_str, member_name, days=7, offset_days=7)
-    pace = calculate_pace_of_aging_simple(current_7day, previous_7day)
+    # 5) Pace of Aging：优先使用完整版，数据不足时回退到 simple
+    # 获取最近14天的详细数据用于趋势计算
+    recent_daily_data = []
+    for i in range(14):
+        d = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
+        raw = history.get_raw_cache(d, member_name)
+        if raw:
+            recent_daily_data.append(raw)
+
+    # 尝试使用完整版（需要至少5天数据）
+    pace_full = calculate_pace_of_aging(recent_daily_data, age, gender)
+    if pace_full is not None:
+        pace = pace_full
+    else:
+        # 回退到 simple 版本
+        current_7day = history.get_period_average(date_str, member_name, days=7, offset_days=0)
+        previous_7day = history.get_period_average(date_str, member_name, days=7, offset_days=7)
+        pace = calculate_pace_of_aging_simple(current_7day, previous_7day)
 
     return {
         'strain': strain,

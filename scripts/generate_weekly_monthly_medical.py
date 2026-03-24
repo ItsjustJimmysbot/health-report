@@ -832,15 +832,22 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     print(f"📊 计算趋势变化...")
     previous_data = load_previous_week_data(week_dates, member_name)
 
-    # Pace 优先使用日报已缓存结果；不足时回退到统一算法
+    # Pace 优先使用日报已缓存结果；不足时使用 simple 版本（周报只有7天数据）
     if len(pace_values) >= 3:
         avg_pace = sum(pace_values) / len(pace_values)
     elif member_cfg:
-        avg_pace = calculate_pace_of_aging(
-            weekly_data,
-            member_cfg.get('age', 30),
-            member_cfg.get('gender', 'male')
-        )
+        # 周报只有7天数据，使用 simple 版本
+        from health_score import calculate_pace_of_aging_simple
+        current_7day = {'recovery': sum(d.get('health_scores', {}).get('recovery', 50) for d in weekly_data) / len(weekly_data)}
+        # 加载前一周数据
+        prev_week_dates = [(datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=7+i)).strftime('%Y-%m-%d') for i in range(7)]
+        prev_data = [load_cache(d, member_name) for d in prev_week_dates]
+        prev_data = [d for d in prev_data if d]
+        if prev_data:
+            prev_7day = {'recovery': sum(d.get('health_scores', {}).get('recovery', 50) for d in prev_data) / len(prev_data)}
+        else:
+            prev_7day = {'recovery': 50}
+        avg_pace = calculate_pace_of_aging_simple(current_7day, prev_7day)
     else:
         avg_pace = None
 

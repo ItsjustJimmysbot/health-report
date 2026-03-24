@@ -912,11 +912,11 @@ body {
   <div class="score-card recovery {{RECOVERY_STATUS}}">
     <div class="score-header">
       <span class="score-name">恢复度</span>
-      <span class="score-value" style="color: {% if RECOCOVERY >= 67 %}#51cf66{% elif RECOVERY >= 34 %}#ffd93d{% else %}#ff6b6b{% endif %};">{{RECOVERY}}%</span>
+      <span class="score-value" style="color: {{RECOVERY_COLOR}};">{{RECOVERY}}%</span>
     </div>
     <div class="score-status-badge {{RECOVERY_STATUS}}">{{RECOVERY_STATUS_CN}}</div>
     <div class="score-bar">
-      <div class="score-fill" style="width: {{RECOVERY}}%; background: {% if RECOVERY >= 67 %}#51cf66{% elif RECOVERY >= 34 %}#ffd93d{% else %}#ff6b6b{% endif %};"></div>
+      <div class="score-fill" style="width: {{RECOVERY}}%; background: {{RECOVERY_COLOR}};"></div>
     </div>
   </div>
   
@@ -942,10 +942,10 @@ body {
   </div>
   <div class="pace-desc">{{PACE_DESC}}</div>
   <div class="pace-legend">
-    <span class="{% if PACE_OF_AGING < -0.3 %}active{% endif %}">🟢 逆龄</span>
-    <span class="{% if PACE_OF_AGING >= -0.3 and PACE_OF_AGING < 0.3 %}active{% endif %}">⚪ 停龄</span>
-    <span class="{% if PACE_OF_AGING >= 0.3 and PACE_OF_AGING < 1.0 %}active{% endif %}">🟡 正常</span>
-    <span class="{% if PACE_OF_AGING >= 1.0 %}active{% endif %}">🔴 加速</span>
+    <span class="{{PACE_LEGEND_1_CLASS}}">🟢 逆龄</span>
+    <span class="{{PACE_LEGEND_2_CLASS}}">⚪ 停龄</span>
+    <span class="{{PACE_LEGEND_3_CLASS}}">🟡 正常</span>
+    <span class="{{PACE_LEGEND_4_CLASS}}">🔴 加速</span>
   </div>
 </div>
 

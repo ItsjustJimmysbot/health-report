@@ -1,6 +1,6 @@
 # Health Report 故障排查指南
 
-> 本文档汇总了 Health Report V5.9.x 的常见问题及解决方案。
+> 本文档汇总了 Health Report V6.0.x 的常见问题及解决方案。
 > 完整安装和使用说明请参见 [README.md](README.md)。
 
 ---
@@ -30,7 +30,7 @@ python3 scripts/validate_config.py
 python3 scripts/validate_config.py --config ./config.json --schema ./config.schema.json
 ```
 根据提示修复配置问题。常见错误：
-- `version` 字段格式不正确（应为 `5.8.x` 或 `5.9.x`）
+- `version` 字段格式不正确（应为 `5.8.x`、`5.9.x` 或 `6.0.x`）
 - `members` 数组为空或超过3人
 - `language` 不是 `CN` 或 `EN`
 - `email` 格式不正确
@@ -304,7 +304,18 @@ FileNotFoundError: 找不到模板文件。尝试了以下路径...
      "use_tls": true
    }
    ```
-3. 对于 Gmail，确保已在账户设置中开启"不够安全的应用访问"或使用应用专用密码
+3. **Gmail 发送失败**
+
+Gmail 已停止支持「不够安全的应用访问」，请使用以下两种方式之一：
+
+1. **应用专用密码（推荐）**：
+   - 开启 Google 账号的两步验证
+   - 生成应用专用密码
+   - 在 config.json 的 `email_config.smtp.password` 中使用该密码
+
+2. **OAuth2 认证（最安全）**：
+   - 运行 `python3 scripts/setup_oauth2.py` 进行配置
+   - 在 config.json 中启用 `email_config.oauth2`
 
 ---
 
