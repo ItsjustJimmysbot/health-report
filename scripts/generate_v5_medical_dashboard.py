@@ -1282,18 +1282,7 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
         raise ValueError(f"❌ 以下指标缺少AI分析: {', '.join(missing_metrics)}")
 
     return '\n'.join(rows)
-# =====================================================
 
-
-    # 递归清理字典中的所有字符串
-    def clean_dict(d):
-        if isinstance(d, dict):
-            return {k: clean_dict(v) for k, v in d.items()}
-        elif isinstance(d, str):
-            return clean_markdown(d)
-        return d
-
-    ai_analysis = clean_dict(ai_analysis)
 
     # 基础信息 - V5.8.1: 使用统一的日期格式化
     from utils import format_date
