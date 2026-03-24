@@ -713,7 +713,7 @@ def parse_sleep_data_unified(
                     if val > 90:  # 超过 90 才明确认为是分钟
                         return round(val / 60.0, 2)
                     # 30-90 的模糊区域：如果看起来像整数分钟
-                    if val > 30 and abs(val - round(val)) < 0.01:
+                    if val >= 30 and abs(val - round(val)) < 0.01:
                         return round(val / 60.0, 2)
                 else:
                     # 总睡眠：正常范围 3-12 小时（180-720 分钟）
