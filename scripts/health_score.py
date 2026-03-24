@@ -20,14 +20,24 @@ from pathlib import Path
 # ============ V6.0.4 配置常量 ============
 BASELINE_DAYS = 14              # HRV/RHR/呼吸率基线天数
 BODY_AGE_DAYS = 30              # Body Age 计算用天数
-PACE_SHORT_TERM_DAYS = 7        # Pace of Aging 短期窗口
-PACE_LONG_TERM_DAYS = 14        # Pace of Aging 长期窗口
+PACE_SHORT_TERM_DAYS = 14       # Pace of Aging 短期窗口 (从7天增加到14天)
+PACE_LONG_TERM_DAYS = 30        # Pace of Aging 长期窗口 (从14天增加到30天)
 RECOVERY_WEIGHTS = {
-    'hrv': 0.50,               # HRV 权重 50%
-    'rhr': 0.30,               # RHR 权重 30%
-    'sleep': 0.17,             # 睡眠权重 17%
-    'respiratory': 0.03        # 呼吸率权重 3%
+    'hrv': 0.45,               # HRV 权重 45% (略微降低)
+    'rhr': 0.28,               # RHR 权重 28% (略微降低)
+    'sleep': 0.17,             # 睡眠表现权重 17% (保持不变)
+    'sleep_consistency': 0.07, # 睡眠规律性权重 7% (新增，接近WHOOP)
+    'respiratory': 0.03        # 呼吸率权重 3% (保持不变)
 }
+
+# 数据合理性检查阈值
+HRV_MIN_VALID = 10.0      # ms, 低于此值视为异常
+HRV_MAX_VALID = 150.0     # ms, 高于此值视为异常
+RHR_MIN_VALID = 35.0      # bpm
+RHR_MAX_VALID = 120.0     # bpm
+RESP_MIN_VALID = 8.0      # breaths/min
+RESP_MAX_VALID = 30.0     # breaths/min
+SLEEP_MAX_HOURS = 16.0    # 超过16小时视为异常
 
 # ============ 工具函数 ============
 
@@ -112,7 +122,13 @@ def calculate_strain_simple(active_energy: float, steps: int,
     
     # 基于活动能量估算（考虑体重标准化）
     # 70kg男性，100kcal ≈ 1 load unit
+    # NOTE: 此公式是近似估算。体重越轻，相同运动消耗卡路里越少，
+    # 所以阈值降低，使得轻体重者相同运动获得相对更高的strain估算
     energy_threshold = 100 * (weight_kg / 70) * gender_factor
+    
+    # 保护：确保阈值不会过低或过高
+    energy_threshold = max(50, min(200, energy_threshold))
+    
     energy_load = min(10, active_energy / energy_threshold) if active_energy else 0
     
     # 基于步数估算（考虑体重和性别）
@@ -160,17 +176,19 @@ def calculate_strain_simple(active_energy: float, steps: int,
         zone_times = calculate_zone_times_from_hr_data(hr_data, age, rhr)
     else:
         # 没有心率数据时，基于运动估算zone分布
-        zone_times = estimate_zone_times_from_workouts(workouts, steps, rhr)
+        zone_times = estimate_zone_times_from_workouts(workouts, steps, age=age, rhr=rhr)
     
     return round(strain, 1), zone_times
 
 
-def estimate_zone_times_from_workouts(workouts: List[Dict], steps: int, rhr: int = None) -> Dict:
+def estimate_zone_times_from_workouts(workouts: List[Dict], steps: int,
+                                          age: int = 30, rhr: int = None) -> Dict:
     """V6.0.5: 基于运动记录和步数估算zone时间（更精确）
     
     Args:
         workouts: 运动记录列表
         steps: 步数
+        age: 年龄，用于估算最大心率
         rhr: 静息心率(可选)，用于HRR计算
     """
     zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
@@ -193,7 +211,7 @@ def estimate_zone_times_from_workouts(workouts: List[Dict], steps: int, rhr: int
         
         if isinstance(avg_hr, (int, float)) and avg_hr > 0:
             # 有平均心率，估算主要zone
-            max_hr = 220 - 30  # 假设平均30岁
+            max_hr = calculate_max_hr(age)
             
             # 如果提供了RHR，使用HRR方法计算zone
             if rhr is not None and rhr > 0 and max_hr > rhr:
@@ -388,6 +406,14 @@ def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: float =
         'zone_4': 5.0,
         'zone_5': 10.0,
     }
+    
+    # FIX: 添加总时间合理性检查
+    total_minutes = _sum_zone_minutes(zone_times)
+    if total_minutes > 1440:  # 超过24小时，数据有问题
+        # 按比例缩放
+        scale_factor = 1440.0 / total_minutes
+        zone_times = {k: v * scale_factor for k, v in zone_times.items()}
+    
     cardio_load = 0.0
     for zone, weight in zone_weights.items():
         minutes = zone_times.get(zone, 0)
@@ -460,6 +486,7 @@ class RecoveryResult:
     hrv_score: float
     rhr_score: float
     sleep_score: float
+    sleep_consistency_score: float  # 新增
     respiratory_score: float
     status: str  # 'green', 'yellow', 'red'
 
@@ -520,17 +547,24 @@ def calculate_recovery(
     hrv_history: list,            # HRV 历史数据
     rhr_history: list,            # RHR 历史数据
     respiratory_history: list,    # 呼吸率历史数据
-    gender: str = 'male'
+    gender: str = 'male',
+    sleep_consistency: float = 75.0  # 睡眠规律性分数 (0-100, 默认75)
 ) -> RecoveryResult:
     """
     计算 Recovery (0-100%)
     V6.0.4 更新：使用 14 天滚动基线，WHOOP 官方权重
     """
-    # 输入验证
+    # 输入验证 + 数据范围检查
     if not isinstance(hrv_rmssd, (int, float)) or not math.isfinite(hrv_rmssd) or hrv_rmssd <= 0:
         hrv_rmssd = 50.0
+    elif hrv_rmssd < HRV_MIN_VALID or hrv_rmssd > HRV_MAX_VALID:
+        # 使用历史平均值或默认值替换异常值
+        hrv_rmssd = get_baseline(hrv_history) if hrv_history else 50.0
+    
     if not isinstance(rhr, (int, float)) or not math.isfinite(rhr) or rhr <= 0:
         rhr = 65.0 if gender == 'male' else 68.0
+    elif rhr < RHR_MIN_VALID or rhr > RHR_MAX_VALID:
+        rhr = get_baseline(rhr_history) if rhr_history else (65.0 if gender == 'male' else 68.0)
     if not isinstance(sleep_performance, (int, float)) or not math.isfinite(sleep_performance):
         sleep_performance = 70.0
     if not isinstance(respiratory_rate, (int, float)) or not math.isfinite(respiratory_rate) or respiratory_rate <= 0:
@@ -572,11 +606,15 @@ def calculate_recovery(
     else:
         resp_score = 50.0
     
-    # WHOOP 官方近似权重计算
+    # 睡眠规律性分数 (0-100，直接使用)
+    sleep_consistency_score = min(100, max(0, float(sleep_consistency)))
+    
+    # WHOOP 官方近似权重计算 (添加睡眠规律性)
     recovery = int(round(
         RECOVERY_WEIGHTS['hrv'] * hrv_score +
         RECOVERY_WEIGHTS['rhr'] * rhr_score +
         RECOVERY_WEIGHTS['sleep'] * sleep_score +
+        RECOVERY_WEIGHTS['sleep_consistency'] * sleep_consistency_score +
         RECOVERY_WEIGHTS['respiratory'] * resp_score
     ))
     
@@ -588,6 +626,7 @@ def calculate_recovery(
         hrv_score=round(hrv_score, 1),
         rhr_score=round(rhr_score, 1),
         sleep_score=round(sleep_score, 1),
+        sleep_consistency_score=round(sleep_consistency_score, 1),
         respiratory_score=round(resp_score, 1),
         status=status
     )
@@ -703,6 +742,84 @@ class BodyAgeResult:
     breakdown: Dict[str, float]
     risk_ratios: Dict[str, float] = None
 
+def _extract_metric_value(day: Dict, metric: str):
+    """从 raw cache / health_scores / 标准化字典中统一提取指标值。"""
+    if not isinstance(day, dict):
+        return None
+
+    if metric == 'sleep_hours':
+        value = day.get('sleep_hours')
+        if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+            return float(value)
+        sleep = day.get('sleep')
+        if isinstance(sleep, dict):
+            value = sleep.get('total_hours', sleep.get('total'))
+            if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+                return float(value)
+        return None
+
+    if metric == 'steps':
+        value = day.get('steps')
+        if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+            return float(value)
+        return None
+
+    if metric == 'rhr':
+        value = day.get('rhr')
+        if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+            return float(value)
+        resting_hr = day.get('resting_hr')
+        if isinstance(resting_hr, dict):
+            value = resting_hr.get('value')
+            if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+                return float(value)
+        hs = day.get('health_scores')
+        if isinstance(hs, dict):
+            value = hs.get('rhr')
+            if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+                return float(value)
+        return None
+
+    if metric == 'hrv':
+        value = day.get('hrv')
+        if isinstance(value, dict):
+            value = value.get('value')
+        if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+            return float(value)
+        value = day.get('hrv_rmssd')
+        if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+            return float(value)
+        hs = day.get('health_scores')
+        if isinstance(hs, dict):
+            value = hs.get('hrv_rmssd')
+            if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+                return float(value)
+        return None
+
+    if metric == 'respiratory_rate':
+        value = day.get('respiratory_rate')
+        if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+            return float(value)
+        hs = day.get('health_scores')
+        if isinstance(hs, dict):
+            value = hs.get('respiratory_rate')
+            if isinstance(value, (int, float)) and value > 0 and math.isfinite(value):
+                return float(value)
+        return None
+
+    if metric in ('recovery', 'sleep_performance', 'strain'):
+        hs = day.get('health_scores')
+        if isinstance(hs, dict):
+            value = hs.get(metric)
+            if isinstance(value, (int, float)) and math.isfinite(value):
+                return float(value)
+        value = day.get(metric)
+        if isinstance(value, (int, float)) and math.isfinite(value):
+            return float(value)
+        return None
+
+    return None
+
 def calculate_body_age(
     daily_data: list,
     chronological_age: int,
@@ -738,16 +855,10 @@ def calculate_body_age(
     for metric in metric_names:
         values = []
         for d in recent_data:
-            if isinstance(d, dict):
-                # 处理嵌套结构（如 hrv.value）
-                if metric in ['hrv', 'rhr'] and isinstance(d.get(metric), dict):
-                    val = d[metric].get('value')
-                else:
-                    val = d.get(metric)
-                
-                if isinstance(val, (int, float)) and val > 0 and math.isfinite(val):
-                    values.append(float(val))
-        
+            val = _extract_metric_value(d, metric)
+            if isinstance(val, (int, float)) and val > 0 and math.isfinite(val):
+                values.append(float(val))
+
         if values:
             metrics[metric] = sum(values) / len(values)
     
@@ -811,35 +922,29 @@ def calculate_pace_of_aging(
     for day in daily_data:
         if not isinstance(day, dict):
             continue
-        
-        # HRV
-        hrv = day.get('hrv', {}).get('value') if isinstance(day.get('hrv'), dict) else day.get('hrv')
+
+        hrv = _extract_metric_value(day, 'hrv')
         if isinstance(hrv, (int, float)) and hrv > 0:
             hrv_values.append(float(hrv))
-        
-        # RHR
-        rhr = day.get('resting_hr', {}).get('value') if isinstance(day.get('resting_hr'), dict) else day.get('rhr')
+
+        rhr = _extract_metric_value(day, 'rhr')
         if isinstance(rhr, (int, float)) and rhr > 0:
             rhr_values.append(float(rhr))
-        
-        # Recovery (从 health_scores 或直接字段)
-        hs = day.get('health_scores', {})
-        recovery = hs.get('recovery') if isinstance(hs, dict) else day.get('recovery')
+
+        recovery = _extract_metric_value(day, 'recovery')
         if isinstance(recovery, (int, float)) and recovery > 0:
             recovery_values.append(float(recovery))
-        
-        # Sleep Performance
-        sleep_perf = hs.get('sleep_performance') if isinstance(hs, dict) else day.get('sleep_performance')
+
+        sleep_perf = _extract_metric_value(day, 'sleep_performance')
         if isinstance(sleep_perf, (int, float)) and sleep_perf > 0:
             sleep_perf_values.append(float(sleep_perf))
-        
-        # Strain
-        strain = hs.get('strain') if isinstance(hs, dict) else day.get('strain')
+
+        strain = _extract_metric_value(day, 'strain')
         if isinstance(strain, (int, float)) and strain >= 0:
             strain_values.append(float(strain))
     
-    # 检查是否有足够的数据
-    if len(hrv_values) < 5 or len(recovery_values) < 5:
+    # 检查是否有足够的数据 (提高最低要求以匹配新的窗口)
+    if len(hrv_values) < 10 or len(recovery_values) < 10:
         return None
     
     # 检查数据方差（避免所有值都一样导致趋势为0）
@@ -860,10 +965,16 @@ def calculate_pace_of_aging(
         numerator = sum((x[i] - x_mean) * (values[i] - y_mean) for i in range(n))
         denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
         
-        if denominator == 0:
+        # FIX: 使用阈值而不是精确零检查
+        if denominator < 1e-10:
             return 0
         
-        return numerator / denominator
+        # 额外保护：检查结果有效性
+        result = numerator / denominator
+        if not math.isfinite(result):
+            return 0
+        
+        return result
     
     # 计算各指标的趋势
     hrv_trend = calculate_trend(hrv_values)  # 正=改善，负=恶化
@@ -905,8 +1016,8 @@ def calculate_pace_of_aging(
         # 改善：0.5 到 1.0
         pace = 1.0 + health_trend * 0.5
     
-    # 限制在合理范围
-    pace = max(0.3, min(2.5, pace))
+    # 限制在统一范围（与日报/周报显示一致）
+    pace = max(0.5, min(2.0, pace))
     
     return round(pace, 2)
 
@@ -1003,6 +1114,10 @@ class HealthScoreHistory:
                 return json.load(f)
         return None
 
+    def get_raw_cache(self, date_str: str, member_name: str) -> Optional[Dict]:
+        """公开方法：获取完整缓存数据。"""
+        return self._get_raw_cache(date_str, member_name)
+
 
 # ============ 7. 一键计算 ============
 
@@ -1047,7 +1162,7 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
             resolved_zone_times = calculate_zone_times_from_hr_data(hr_data, age, rhr)
         else:
             # 退而求其次，使用 workout 心率
-            resolved_zone_times = calculate_zone_times_from_workouts(workouts, age, rhr)
+            resolved_zone_times = calculate_zone_times_from_workouts(workouts, steps, age=age, rhr=rhr)
     
     if _sum_zone_minutes(resolved_zone_times) > 0:
         strain = calculate_strain_from_zone_times(resolved_zone_times, strength_time)
@@ -1119,7 +1234,7 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
     hrv_history = []
     rhr_history = []
     resp_history = []
-    for i in range(14):
+    for i in range(1, 15):
         past_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
         day_scores = history.get_scores(past_date, member_name)
         if day_scores:
@@ -1139,23 +1254,36 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
         rhr_history=rhr_history,
         respiratory_history=resp_history,
         gender=gender,
+        sleep_consistency=sleep_consistency,  # 添加睡眠规律性参数
     )
 
     # 4) Body Age：V6.0.4 使用 30 天历史数据
     body_age_history = []
-    for i in range(30):
+    for i in range(1, 31):
         past_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
-        day_data = history.get_scores(past_date, member_name)
+        day_data = history.get_raw_cache(past_date, member_name)
         if day_data:
             body_age_history.append(day_data)
     
     # 添加当日数据到历史
     today_data = {
+        'date': date_str,
         'sleep_hours': sleep_total,
+        'sleep': {'total_hours': sleep_total},
         'steps': steps,
         'rhr': float(rhr),
-        'hrv': float(hrv) if hrv else 0,
+        'resting_hr': {'value': float(rhr)},
+        'hrv': {'value': float(hrv) if hrv else 0},
+        'hrv_rmssd': float(hrv) if hrv else 0,
         'respiratory_rate': float(respiratory) if respiratory else 0,
+        'health_scores': {
+            'recovery': recovery_result.recovery,
+            'sleep_performance': sleep_result.performance,
+            'strain': strain,
+            'rhr': float(rhr),
+            'hrv_rmssd': float(hrv) if hrv else 0,
+            'respiratory_rate': float(respiratory) if respiratory else 0,
+        }
     }
     body_age_history.insert(0, today_data)
     
@@ -1163,9 +1291,9 @@ def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
 
     # 5) Pace of Aging：V6.0.4 使用 30 天历史数据
     pace_history = []
-    for i in range(30):
+    for i in range(1, 31):
         past_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
-        day_data = history.get_scores(past_date, member_name)
+        day_data = history.get_raw_cache(past_date, member_name)
         if day_data:
             pace_history.append(day_data)
     

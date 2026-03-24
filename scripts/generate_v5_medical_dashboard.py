@@ -1613,16 +1613,34 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
         if prev_debt is None or not isinstance(prev_debt, (int, float)):
             prev_debt = 0.0
         
-        # 计算当日睡眠债变化
+        # FIX: 改进的睡眠债务计算逻辑
+        # 1. 欠债逻辑不变：睡不够就欠
         if sleep_total < sleep_need:
-            # 睡眠不足：新增债务 = 不足的部分
             daily_debt_change = sleep_need - sleep_total
         else:
-            # 睡眠充足：还债 = 最多还清现有债务，不超额
-            # 每多睡1小时可以还0.3小时债（避免一次还清所有债务）
+            # 2. 还债逻辑：只有在正常作息时间内（假设起床时间9点前）的额外睡眠才算还债
+            # 获取起床时间（如果可用）
+            wake_time_str = sleep_data.get('waketime', '--') if isinstance(sleep_data, dict) else '--'
             surplus = sleep_total - sleep_need
-            max_repayment = prev_debt  # 最多还清现有债务
-            daily_debt_change = -min(surplus * 0.3, max_repayment)
+            
+            # 解析起床时间的小时
+            is_morning_wake = True  # 默认假设早上起床
+            if wake_time_str and wake_time_str != '--':
+                try:
+                    wake_hour = int(wake_time_str.split(':')[0])
+                    # 如果起床时间晚于11点，认为是晚睡晚起，额外睡眠不算有效还债
+                    is_morning_wake = wake_hour < 11
+                except (ValueError, IndexError):
+                    is_morning_wake = True
+            
+            if is_morning_wake:
+                # 有效还债：每多睡1小时还0.5小时债（更合理的比例）
+                repayment_rate = 0.5
+                max_repayment = prev_debt
+                daily_debt_change = -min(surplus * repayment_rate, max_repayment)
+            else:
+                # 晚睡晚起的额外睡眠不算还债
+                daily_debt_change = 0.0
         
         # 累积债务 = 昨日债务 + 今日变化
         accumulated_debt = prev_debt + daily_debt_change

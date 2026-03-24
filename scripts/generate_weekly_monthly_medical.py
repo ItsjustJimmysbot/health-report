@@ -18,7 +18,7 @@ from playwright.sync_api import sync_playwright
 # V6.0.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS, count_text_units
-from health_score import calculate_body_age, HealthScoreHistory
+from health_score import calculate_body_age, calculate_pace_of_aging
 
 HOME = Path.home()
 TEMPLATE_DIR = Path(__file__).parent.parent / 'templates'
@@ -739,17 +739,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
 
-    # V6.0.0: 计算周报 Body Age
-    weekly_rhr_values = [
-        float(d.get('resting_hr', {}).get('value'))
-        for d in weekly_data
-        if isinstance(d.get('resting_hr', {}).get('value'), (int, float))
-    ]
-    avg_metrics = {
-        'sleep_hours': avg_sleep,
-        'steps': avg_steps,
-        'rhr': (sum(weekly_rhr_values) / len(weekly_rhr_values)) if weekly_rhr_values else 0,
-    }
+    # V6.0.0: 计算周报 Body Age (直接使用 weekly_data 列表)
     
     # 获取成员配置
     members = CONFIG.get('members', [])
@@ -760,7 +750,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
             break
     
     if member_cfg:
-        body_age_result = calculate_body_age(avg_metrics, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
+        body_age_result = calculate_body_age(weekly_data, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
         html = html.replace('{{WEEKLY_BODY_AGE}}', str(body_age_result.body_age))
         html = html.replace('{{WEEKLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
     else:
@@ -816,127 +806,86 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WEEKLY_TOTAL_ZONE_TIME}}', str(total_zone_hours))
     html = html.replace('{{WEEKLY_PRIMARY_ZONE}}', primary_zone)
 
-    # V6.0.3: 计算周度 Pace of Aging（基于周间比较，而非日度平均）
-    # 同时计算平均 Body Age 和 Age Impact
+    # V6.0.3: 统一使用 health_score.py 的 Body Age / Pace of Aging 语义
     body_ages = []
     age_impacts = []
+    pace_values = []
 
     for day in weekly_data:
         hs = day.get('health_scores', {})
         body_age = hs.get('body_age')
-        if body_age is not None and isinstance(body_age, (int, float)):
+        if isinstance(body_age, (int, float)):
             body_ages.append(float(body_age))
+
         age_impact = hs.get('age_impact')
-        if age_impact is not None and isinstance(age_impact, (int, float)):
+        if isinstance(age_impact, (int, float)):
             age_impacts.append(float(age_impact))
 
-    # 计算本周平均恢复度和睡眠表现
-    current_recovery_values = []
-    current_sleep_values = []
-    for day in weekly_data:
-        hs = day.get('health_scores', {})
-        recovery = hs.get('recovery')
-        sleep_perf = hs.get('sleep_performance')
-        if recovery is not None and isinstance(recovery, (int, float)):
-            current_recovery_values.append(float(recovery))
-        if sleep_perf is not None and isinstance(sleep_perf, (int, float)):
-            current_sleep_values.append(float(sleep_perf))
-    
-    current_week_avg_recovery = sum(current_recovery_values) / len(current_recovery_values) if current_recovery_values else 50
-    current_week_avg_sleep = sum(current_sleep_values) / len(current_sleep_values) if current_sleep_values else 70
-    
+        pace_value = hs.get('pace_of_aging')
+        if isinstance(pace_value, (int, float)) and math.isfinite(pace_value):
+            pace_values.append(float(pace_value))
+
     # 计算数据完整度
     data_completeness = len(weekly_data) / 7.0  # 假设一周7天
-    
+
     # 加载上一周期数据用于趋势对比
     print(f"📊 计算趋势变化...")
     previous_data = load_previous_week_data(week_dates, member_name)
-    
-    # 如果有上周数据，计算周间 Pace of Aging
-    avg_pace = 0.0
-    if previous_data and len(previous_data) >= 4:  # 上周至少有4天数据
-        prev_recovery_values = []
-        prev_sleep_values = []
-        for day in previous_data:
-            hs = day.get('health_scores', {})
-            recovery = hs.get('recovery')
-            sleep_perf = hs.get('sleep_performance')
-            if recovery is not None and isinstance(recovery, (int, float)):
-                prev_recovery_values.append(float(recovery))
-            if sleep_perf is not None and isinstance(sleep_perf, (int, float)):
-                prev_sleep_values.append(float(sleep_perf))
-        
-        if prev_recovery_values and prev_sleep_values:
-            prev_week_avg_recovery = sum(prev_recovery_values) / len(prev_recovery_values)
-            prev_week_avg_sleep = sum(prev_sleep_values) / len(prev_sleep_values)
-            
-            # 计算周间 Pace of Aging（简化版）
-            # 基于 Recovery 和 Sleep Performance 的变化
-            recovery_change = (current_week_avg_recovery - prev_week_avg_recovery) / max(prev_week_avg_recovery, 1)
-            sleep_change = (current_week_avg_sleep - prev_week_avg_sleep) / max(prev_week_avg_sleep, 1)
-            
-            # 综合变化率，负值表示改善（逆龄），正值表示恶化（加速）
-            combined_change = (recovery_change + sleep_change) / 2
-            
-            # 转换为 Pace of Aging 范围 (0.5 - 2.0)
-            if data_completeness >= 0.7:
-                if combined_change < -0.1:
-                    avg_pace = 0.5 + abs(combined_change) * 2.5  # 逆龄
-                elif combined_change > 0.1:
-                    avg_pace = 1.0 + combined_change * 5.0  # 加速衰老
-                else:
-                    avg_pace = 1.0  # 正常
-                avg_pace = max(0.5, min(2.0, avg_pace))
-            else:
-                avg_pace = 1.0  # 数据不足时默认为正常
-                print(f"   ℹ️ Pace of Aging: 数据不足，使用默认值 1.0")
+
+    # Pace 优先使用日报已缓存结果；不足时回退到统一算法
+    if len(pace_values) >= 3:
+        avg_pace = sum(pace_values) / len(pace_values)
+    elif member_cfg:
+        avg_pace = calculate_pace_of_aging(
+            weekly_data,
+            member_cfg.get('age', 30),
+            member_cfg.get('gender', 'male')
+        )
     else:
-        print(f"   ℹ️ Pace of Aging: 无上周期数据对比")
+        avg_pace = None
+
+    if avg_pace is None:
+        avg_pace = 1.0
 
     # 安全计算平均值
     avg_body_age = sum(body_ages) / len(body_ages) if body_ages else (member_cfg.get('age', 30) if member_cfg else 30)
     avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0.0
 
-    # V6.0.3: 限制 pace 显示范围
-    display_pace = max(-1.5, min(1.5, avg_pace))
-    
+    display_pace = max(0.5, min(2.0, float(avg_pace)))
+
     html = html.replace('{{AVERAGE_PACE_OF_AGING}}', f'{display_pace:.2f}')
     html = html.replace('{{AVERAGE_BODY_AGE}}', f'{avg_body_age:.1f}')
-    html = html.replace('{{AVERAGE_AGE_IMPACT}}', f'{avg_age_impact:+.1f}')
+    html = html.replace('{{AVERAGE_AGE_IMPACT}}', f"{avg_age_impact:+.1f}")
     html = html.replace('{{CHRONOLOGICAL_AGE}}', str(member_cfg.get('age', 30) if member_cfg else 30))
 
-    # V6.0.3: 计算年龄和pace的颜色（模板只支持简单字符串替换，不支持条件语法）
     if avg_age_impact < 0:
         age_box_class = "younger"
-        age_diff_color = "#55efc4"  # 绿色 - 年轻
+        age_diff_color = "#55efc4"
     elif avg_age_impact > 0:
         age_box_class = "older"
-        age_diff_color = "#ff7675"  # 红色 - 衰老
+        age_diff_color = "#ff7675"
     else:
         age_box_class = ""
-        age_diff_color = "#dfe6e9"  # 灰色 - 持平
+        age_diff_color = "#dfe6e9"
 
-    # V6.0.3: 改进 pace 描述逻辑（使用限制后的 display_pace）
-    # 注意：avg_pace 可能是 None（数据不足），这里已经处理为 0.0
-    
     if data_completeness < 0.7:
         pace_desc = "数据不足 ⚪ - 需要更多天数计算趋势" if LANGUAGE == "CN" else "Insufficient Data ⚪ - More days needed"
         pace_class = "stable"
         pace_color = "#b2bec3"
-    elif display_pace < -0.3:
-        pace_desc = "逆龄中 🟢 - 你的身体正在变年轻" if LANGUAGE == "CN" else "Reverse Aging 🟢 - Getting younger"
+    elif display_pace < 0.85:
+        pace_desc = "逆龄中 🟢 - 最近趋势优于实际年龄" if LANGUAGE == "CN" else "Reverse Aging 🟢 - Trending younger"
         pace_class = "reverse"
         pace_color = "#55efc4"
-    elif display_pace < 0.3:
-        pace_desc = "停龄 ⚪ - 身体年龄保持稳定" if LANGUAGE == "CN" else "Stable ⚪ - Age holding steady"
+    elif display_pace <= 1.15:
+        pace_desc = "正常速度 ⚪ - 与实际年龄基本同步" if LANGUAGE == "CN" else "Normal Pace ⚪ - Roughly age-matched"
         pace_class = "stable"
         pace_color = "#74b9ff"
-    elif display_pace < 1.0:
-        pace_desc = "正常衰老 🟡 - 与实际年龄同步" if LANGUAGE == "CN" else "Normal Aging 🟡 - On track"
+    elif display_pace <= 1.35:
+        pace_desc = "略快于正常 🟡 - 建议关注恢复与睡眠" if LANGUAGE == "CN" else "Slightly Fast 🟡 - Watch recovery and sleep"
         pace_class = "normal"
         pace_color = "#fdcb6e"
     else:
-        pace_desc = "加速衰老 🔴 - 需要注意生活方式" if LANGUAGE == "CN" else "Accelerated 🔴 - Attention needed"
+        pace_desc = "加速衰老 🔴 - 近期趋势偏差较明显" if LANGUAGE == "CN" else "Accelerated 🔴 - Clear recent deterioration"
         pace_class = "accelerated"
         pace_color = "#ff7675"
 
@@ -1142,17 +1091,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_CALORIES}}', f"{int(avg_calories):,}")
     html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
     
-    # V6.0.0: 计算月报Body Age
-    monthly_rhr_values = [
-        float(d.get('resting_hr', {}).get('value'))
-        for d in monthly_data
-        if isinstance(d.get('resting_hr', {}).get('value'), (int, float))
-    ]
-    avg_metrics = {
-        'sleep_hours': avg_sleep,
-        'steps': avg_steps,
-        'rhr': (sum(monthly_rhr_values) / len(monthly_rhr_values)) if monthly_rhr_values else 0,
-    }
+    # V6.0.0: 计算月报Body Age (直接使用 monthly_data 列表)
     
     # 获取成员配置
     members = CONFIG.get("members", [])
@@ -1163,7 +1102,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
             break
     
     if member_cfg:
-        body_age_result = calculate_body_age(avg_metrics, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
+        body_age_result = calculate_body_age(monthly_data, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
         html = html.replace('{{MONTHLY_BODY_AGE}}', str(body_age_result.body_age))
         html = html.replace('{{MONTHLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
     else:
