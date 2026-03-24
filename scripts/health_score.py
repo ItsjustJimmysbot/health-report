@@ -340,9 +340,11 @@ def calculate_zone_times_from_workouts(workouts: List[Dict], age: int, rhr: int 
                         # 处理跨天情况：如果时间差为负（比如23:59到00:01）
                         raw_gap = ts2 - ts1
                         
-                        # 检测跨天（时间差小于-20小时，说明是次日的同一时间）
-                        if raw_gap < -72000:  # -20小时
+                        # 检测跨天（时间差绝对值过大，说明跨天了）
+                        if raw_gap < -72000:  # 向后跨天（如 23:59 -> 00:01）
                             raw_gap += 86400  # 加上一天的秒数
+                        elif raw_gap > 72000:  # 向前跨天（如 00:01 -> 23:59，不太可能但统一处理）
+                            raw_gap -= 86400  # 减去一天的秒数
                         
                         # 检测异常大的时间差（可能是数据错误）
                         if raw_gap > 3600:  # 超过1小时的间隔，可能是缺失数据
@@ -363,6 +365,9 @@ def calculate_zone_times_from_workouts(workouts: List[Dict], age: int, rhr: int 
                 zone = get_hr_zone(int(hr), max_hr, rhr)  # 传入 rhr
                 if zone >= 1:
                     zone_times[f'zone_{zone}'] += duration
+                elif zone == 0:
+                    # Zone 0 是恢复区，计入 zone_1 但权重较低
+                    zone_times['zone_1'] += duration * 0.5
             continue
 
         avg_hr = workout.get('avg_hr')
@@ -435,6 +440,9 @@ def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int, rhr: int = 
         zone = get_hr_zone(int(hr), max_hr, rhr)  # 传入 rhr
         if zone >= 1:
             zone_times[zone] += duration_min
+        elif zone == 0:
+            # Zone 0 是恢复区，计入 zone_1 但权重较低
+            zone_times[1] += duration_min * 0.5
 
     return {
         'zone_1': round(zone_times[1], 1),
@@ -832,10 +840,6 @@ def calculate_pace_of_aging(
     
     # 检查是否有足够的数据
     if len(hrv_values) < 5 or len(recovery_values) < 5:
-        return None
-    
-    # 添加数据质量检查 - 至少需要3个数据点计算趋势
-    if len(hrv_values) < 3:
         return None
     
     # 检查数据方差（避免所有值都一样导致趋势为0）

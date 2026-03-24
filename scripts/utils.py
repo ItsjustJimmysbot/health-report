@@ -709,12 +709,11 @@ def parse_sleep_data_unified(
 
                 if is_stage:
                     # 睡眠阶段：正常范围 0.1-5 小时（6-300 分钟）
-                    # 如果值 > 30，认为是分钟
-                    if val > 30:
+                    # 深睡 1-2 小时很常见（60-120 分钟），提高阈值到 90
+                    if val > 90:  # 超过 90 才明确认为是分钟
                         return round(val / 60.0, 2)
-                    # 如果值在 3-30 之间，整数可能是分钟，小数可能是小时
-                    # 检查整数特性更严格：与四舍五入后的值比较
-                    if val > 10 and abs(val - round(val)) < 0.01:
+                    # 30-90 的模糊区域：如果看起来像整数分钟
+                    if val > 30 and abs(val - round(val)) < 0.01:
                         return round(val / 60.0, 2)
                 else:
                     # 总睡眠：正常范围 3-12 小时（180-720 分钟）
