@@ -55,13 +55,21 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
         
         # 获取睡眠配置
         sleep_config = config.get('sleep_config', {'read_mode': 'next_day', 'start_hour': 20, 'end_hour': 12})
-        
+
+        profile = {
+            'name': member_cfg.get('name', ''),
+            'age': member_cfg.get('age'),
+            'gender': member_cfg.get('gender'),
+            'height_cm': member_cfg.get('height_cm'),
+            'weight_kg': member_cfg.get('weight_kg'),
+        }
+
         data = extract_daily_data(
             date_str,
             health_dir=member_cfg.get('health_dir'),
             workout_dir=member_cfg.get('workout_dir'),
-            user_profile=member_cfg,
-            sleep_config=sleep_config,
+            user_profile=profile,
+            sleep_config=sleep_config
         )
         if not data:
             print(f"   ⚠️  {date_str} - 无数据")
@@ -95,41 +103,49 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
             'age_impact': 0.0, 'pace_of_aging': 0.0
         }
     
-    # 计算睡眠债
+    # 计算睡眠债：允许少量还债
     sleep_total = data.get('sleep', {}).get('total_hours', 0)
     sleep_need = health_scores['sleep_need']
-    daily_debt = sleep_need - sleep_total if sleep_total < sleep_need else max(0, -0.5)
-    
-    # 获取昨日累积债务
+    daily_debt = round(sleep_need - sleep_total, 2)
+    # 允许少量"还债"，但不要无限负向累积
+    if daily_debt < 0:
+        daily_debt = max(-1.0, daily_debt)
+
     prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
     try:
         prev_debt = history.get_sleep_debt(prev_date, member_name)
-        accumulated_debt = max(0, prev_debt + daily_debt) if prev_debt else max(0, daily_debt)
-    except:
+        accumulated_debt = max(0, prev_debt + daily_debt)
+    except Exception:
         accumulated_debt = max(0, daily_debt)
     
     # 准备缓存数据
     safe_name = safe_member_name(member_name)
-    apple_stand_min = data.get('apple_stand_time') or data.get('stand_time_min') or 0
+    apple_stand_min = data.get('apple_stand_time')
+    if apple_stand_min is None:
+        apple_stand_min = data.get('stand_time_min', 0)
     stand_hour_cache = float(apple_stand_min) / 60.0 if isinstance(apple_stand_min, (int, float)) else 0.0
-    
+
     cache_data = {
         'date': date_str,
         'member': member_name,
         'hrv': data.get('hrv'),
         'resting_hr': data.get('resting_hr'),
+        'respiratory_rate': data.get('respiratory_rate'),
         'steps': data.get('steps'),
-        'active_energy': data.get('active_energy_kcal') or data.get('active_energy') or 0,
-        'apple_stand_time': apple_stand_min,
+        'distance': data.get('distance') or data.get('distance_km') or 0,
+        'distance_km': data.get('distance_km') or data.get('distance') or 0,
+        'active_energy': data.get('active_energy') or data.get('active_energy_kcal') or 0,
+        'active_energy_kcal': data.get('active_energy_kcal') or data.get('active_energy') or 0,
+        'apple_stand_time': apple_stand_min or 0,
         'apple_stand_hour': round(stand_hour_cache, 2),
         'spo2': data.get('spo2'),
         'workouts': data.get('workouts', []),
         'has_workout': data.get('has_workout', False),
         'zone_times': data.get('zone_times', {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}),
         'sleep': data.get('sleep', {}),
-        'bedtime': data.get('sleep', {}).get('bedtime', '--'),
-        'waketime': data.get('sleep', {}).get('waketime', '--'),
-        'sleep_latency_min': None,
+        'bedtime': data.get('bedtime') or data.get('sleep', {}).get('bedtime', '--'),
+        'waketime': data.get('waketime') or data.get('sleep', {}).get('waketime', '--'),
+        'sleep_latency_min': data.get('sleep_latency_min', 20),
         'sleep_debt_daily': round(daily_debt, 2),
         'sleep_debt_accumulated': round(accumulated_debt, 2),
         'health_scores': {
@@ -143,13 +159,11 @@ def generate_cache_for_date(date_str, member_idx, member_name, config):
             'chronological_age': health_scores['chronological_age'],
             'age_impact': health_scores['age_impact'],
             'pace_of_aging': health_scores['pace_of_aging'],
-            'sleep_debt_accumulated': round(accumulated_debt, 2),
             'zone_times': health_scores.get('zone_times', {
                 'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0
             }),
             'hrv_rmssd': data.get('hrv', {}).get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
-            'rhr': data.get('resting_hr', {}).get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0,
-            'respiratory_rate': data.get('respiratory_rate', 0),
+            'rhr': data.get('resting_hr', {}).get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0
         }
     }
     

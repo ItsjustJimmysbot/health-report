@@ -663,6 +663,14 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         end_hour=sleep_config.get('end_hour', 12)
     )
 
+    bedtime = '--'
+    waketime = '--'
+    if isinstance(sleep_result, dict) and sleep_result.get('records'):
+        first_record = sleep_result['records'][0]
+        last_record = sleep_result['records'][-1]
+        bedtime = first_record.get('start', '--')
+        waketime = last_record.get('end', '--')
+
     # V5.9.0: 睡眠数据精确处理（B3 修正）
     sleep_total_raw = None
     sleep_deep_raw = None
@@ -734,6 +742,10 @@ def load_data(date_str: str, health_dir: Path = None, workout_dir: Path = None):
         'sleep_total_hours': round(sleep_total_raw, 2) if sleep_total_raw is not None else None,
         'sleep_deep_hours': round(sleep_deep_raw, 2) if sleep_deep_raw is not None else None,
         'sleep_rem_hours': round(sleep_rem_raw, 2) if sleep_rem_raw is not None else None,
+
+        'bedtime': bedtime,
+        'waketime': waketime,
+        'sleep_latency_min': 20,
 
         'sleep': sleep_result,
         'workouts': workouts,
@@ -1604,7 +1616,6 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
         
         # 获取累积睡眠债（从昨天缓存）- 先获取昨日债务，用于计算今日还债上限
         cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
-        from health_score import HealthScoreHistory
         history = HealthScoreHistory(cache_dir)
         
         prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -1685,6 +1696,504 @@ def build_metrics_table_rows(data: dict, ai_analysis: dict, selected_keys: list)
                 'hrv_rmssd': data['hrv'].get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
                 'rhr': data['resting_hr'].get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0,
                 'respiratory_rate': data.get('respiratory_rate', 0),
+            }
+        }
+        safe_name = safe_member_name(member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
+        cache_path = cache_dir / f'{date_str}_{safe_name}.json'
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        print(f'   数据缓存: {cache_path}')
+    except Exception as e:
+        print(f'   缓存保存失败: {e}')
+
+    return html
+
+
+def calculate_scores(data, member_cfg=None):
+    """V5.8.1: 计算个性化评分（考虑年龄、性别、BMI）
+
+    Returns:
+        tuple: (recovery, sleep_score, exercise)
+    """
+    sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
+    hrv_v = data['hrv']['value'] or 0
+    rhr_v = data['resting_hr']['value'] or 999
+    steps_v = data['steps'] or 0
+    active_v = data.get('active_energy') or 0
+
+    # 获取成员档案信息（带缺省值保护）
+    if member_cfg:
+        raw_age = member_cfg.get("age")
+        raw_gender = member_cfg.get("gender")
+        raw_height = member_cfg.get("height_cm")
+        raw_weight = member_cfg.get("weight_kg")
+    else:
+        raw_age = raw_gender = raw_height = raw_weight = None
+
+    age = int(raw_age) if isinstance(raw_age, (int, float)) and raw_age > 0 else 30
+    gender = raw_gender if raw_gender in ("male", "female", "other") else "male"
+    height_cm = float(raw_height) if isinstance(raw_height, (int, float)) and raw_height > 0 else 175.0
+    weight_kg = float(raw_weight) if isinstance(raw_weight, (int, float)) and raw_weight > 0 else 70.0
+
+    # 计算BMI
+    bmi = weight_kg / ((height_cm / 100) ** 2) if height_cm > 0 else 22
+
+    # === 恢复度评分 (Recovery) ===
+    if age <= 25:
+        hrv_threshold, rhr_threshold = 55, 60
+    elif age <= 35:
+        hrv_threshold, rhr_threshold = 50, 65
+    elif age <= 45:
+        hrv_threshold, rhr_threshold = 45, 68
+    else:
+        hrv_threshold, rhr_threshold = 40, 70
+
+    recovery_base = 60
+    recovery_hrv = 15 if hrv_v > hrv_threshold + 10 else (10 if hrv_v > hrv_threshold else (5 if hrv_v > hrv_threshold - 10 else 0))
+    recovery_rhr = 15 if rhr_v < rhr_threshold - 5 else (10 if rhr_v < rhr_threshold else (5 if rhr_v < rhr_threshold + 5 else 0))
+    recovery_sleep = 10 if sleep_hours >= 7.5 else (7 if sleep_hours >= 7 else (4 if sleep_hours >= 6 else 0))
+    recovery = min(100, recovery_base + recovery_hrv + recovery_rhr + recovery_sleep)
+
+    # === 睡眠评分 (Sleep Score) ===
+    if age <= 25:
+        sleep_optimal, sleep_min = 8.0, 7.0
+    elif age <= 35:
+        sleep_optimal, sleep_min = 7.5, 6.5
+    else:
+        sleep_optimal, sleep_min = 7.0, 6.0
+
+    if sleep_hours >= sleep_optimal:
+        sleep_score = 90 + min(10, int((sleep_hours - sleep_optimal) * 5))
+    elif sleep_hours >= sleep_min:
+        sleep_score = 70 + int((sleep_hours - sleep_min) / (sleep_optimal - sleep_min) * 20)
+    elif sleep_hours >= sleep_min - 1:
+        sleep_score = 50 + int((sleep_hours - (sleep_min - 1)) * 20)
+    else:
+        sleep_score = max(30, int(sleep_hours * 15))
+    sleep_score = min(100, sleep_score)
+
+    # === 运动评分 (Exercise Score) ===
+    if bmi < 18.5:
+        steps_target, active_target = 7000, 350
+    elif bmi < 24:
+        steps_target, active_target = 8000, 450
+    elif bmi < 28:
+        steps_target, active_target = 10000, 550
+    else:
+        steps_target, active_target = 12000, 650
+
+    if gender == "female":
+        steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
+
+    if age > 40:
+        steps_target, active_target = int(steps_target * 0.9), int(active_target * 0.9)
+
+    exercise_steps = min(40, int((steps_v / steps_target) * 40))
+    exercise_active = min(30, int((active_v / active_target) * 30))
+    exercise_workout = 20 if data.get('has_workout') else 0
+    exercise_consistency = 10 if steps_v >= steps_target * 0.5 else 5
+    exercise = min(100, exercise_steps + exercise_active + exercise_workout + exercise_consistency)
+
+    return recovery, sleep_score, exercise
+
+
+def generate_report(date_str, ai_analysis, template, health_dir=None, workout_dir=None, member_cfg=None, preloaded_data=None):
+    data = preloaded_data if preloaded_data is not None else load_data(date_str, health_dir, workout_dir)
+    html = template
+
+    # 清理AI分析中的markdown粗体标记 **
+    def clean_markdown(text):
+        if isinstance(text, str):
+            return text.replace('**', '')
+        return text
+
+    # 递归清理字典中的所有字符串
+    def clean_dict(d):
+        if isinstance(d, dict):
+            return {k: clean_dict(v) for k, v in d.items()}
+        elif isinstance(d, str):
+            return clean_markdown(d)
+        return d
+
+    ai_analysis = clean_dict(ai_analysis)
+
+    # 基础信息 - V5.8.1: 使用统一的日期格式化
+    from utils import format_date
+
+    html = html.replace('{{DATE}}', date_str)
+    html = html.replace('{{DAY}}', date_str.split('-')[2])
+
+    month_year = format_date(date_str, "month_year", LANGUAGE)
+
+    if LANGUAGE == 'EN':
+        header_subtitle = f'{date_str} · Apple Health · AI Analysis Edition'
+    else:
+        header_subtitle = f'{date_str} · Apple Health · AI分析版'
+    html = html.replace('{{MONTH_YEAR}}', month_year)
+    html = html.replace('{{HEADER_SUBTITLE}}', header_subtitle)
+    html = html.replace('{{DATA_SOURCE}}', 'Apple Health')
+
+    # 评分卡占位符向后兼容：优先使用新的 health_scores
+    if member_cfg is None:
+        members = CONFIG.get("members", [])
+        member_cfg = members[0] if members else None
+
+    # V6.0.1: 计算新的健康评分系统
+    cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
+    history = HealthScoreHistory(cache_dir)
+
+    health_scores = calculate_all_scores(data, member_cfg, history)
+
+    # 旧模板占位符兼容：统一映射到 V6 指标，避免中英文模板显示两套体系
+    legacy_recovery = int(health_scores['recovery'])
+    legacy_sleep = int(health_scores['sleep_performance'])
+    legacy_exercise = int(round(health_scores['strain'] / 21 * 100))
+
+    rc, rt = badge(legacy_recovery, member_cfg.get('age') if member_cfg else None)
+    sc, st = badge(legacy_sleep, member_cfg.get('age') if member_cfg else None)
+    ec, et = badge(legacy_exercise, member_cfg.get('age') if member_cfg else None)
+
+    html = html.replace('{{SCORE_RECOVERY}}', str(legacy_recovery)).replace('{{BADGE_RECOVERY_CLASS}}', rc).replace('{{BADGE_RECOVERY_TEXT}}', rt)
+    html = html.replace('{{SCORE_SLEEP}}', str(legacy_sleep)).replace('{{BADGE_SLEEP_CLASS}}', sc).replace('{{BADGE_SLEEP_TEXT}}', st)
+    html = html.replace('{{SCORE_EXERCISE}}', str(legacy_exercise)).replace('{{BADGE_EXERCISE_CLASS}}', ec).replace('{{BADGE_EXERCISE_TEXT}}', et)
+
+    print(f"   Strain: {health_scores['strain']}/21")
+    print(f"   Recovery: {health_scores['recovery']}% ({health_scores['recovery_status']})")
+    print(f"   Sleep Performance: {health_scores['sleep_performance']}%")
+    print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
+    print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
+
+    # V6.0.4 调试: 检查 pace_of_aging 范围 (新范围 0.0-3.0)
+    pace = health_scores['pace_of_aging']
+    # 处理 pace 为 None 的情况（数据不足时）
+    if pace is None:
+        pace = 1.0
+        print(f"   ℹ️ 提示: pace_of_aging 数据不足，使用默认值 1.0")
+    elif pace < 0.0 or pace > 3.0:
+        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [0.0, 3.0]")
+    elif 0.9 <= pace <= 1.1:
+        print(f"   ℹ️ 提示: pace_of_aging 接近 1.0，表示衰老速度与实际年龄同步")
+    
+    # V6.0.1: 新的健康评分替换
+    html = html.replace('{{STRAIN}}', str(health_scores['strain']))
+    html = html.replace('{{STRAIN_PERCENT}}', str(int(health_scores['strain'] / 21 * 100)))
+    html = html.replace('{{RECOVERY}}', str(health_scores['recovery']))
+    html = html.replace('{{RECOVERY_STATUS}}', health_scores['recovery_status'])
+    html = html.replace('{{SLEEP_PERFORMANCE}}', str(health_scores['sleep_performance']))
+    html = html.replace('{{SLEEP_NEED}}', str(health_scores['sleep_need']))
+    html = html.replace('{{BODY_AGE}}', str(health_scores['body_age']))
+    html = html.replace('{{CHRONOLOGICAL_AGE}}', str(health_scores['chronological_age']))
+    html = html.replace('{{AGE_IMPACT}}', f"{health_scores['age_impact']:+.1f}")
+    html = html.replace('{{PACE_OF_AGING}}', str(health_scores['pace_of_aging']))
+    
+    # Pace描述（V6.0.4：新范围 0.0-3.0，1.0为正常）
+    pace = health_scores['pace_of_aging']
+    if pace is None:
+        pace = 1.0
+    
+    if pace < 0.7:
+        pace_desc = "逆龄中 🟢" if LANGUAGE == 'CN' else "Reverse Aging 🟢"
+        pace_class = "reverse-aging"
+    elif pace < 1.3:
+        pace_desc = "正常速度 ⚪" if LANGUAGE == 'CN' else "Normal Pace ⚪"
+        pace_class = "stable"
+    elif pace < 2.0:
+        pace_desc = "略快于正常 🟡" if LANGUAGE == 'CN' else "Slightly Fast 🟡"
+        pace_class = "normal"
+    else:
+        pace_desc = "加速衰老 🔴" if LANGUAGE == 'CN' else "Accelerated 🔴"
+        pace_class = "accelerated"
+    
+    html = html.replace('{{PACE_DESC}}', pace_desc)
+    html = html.replace('{{PACE_CLASS}}', pace_class)
+    
+    # Recovery状态中文
+    recovery_status_cn = '优秀' if health_scores['recovery'] >= 67 else '良好' if health_scores['recovery'] >= 34 else '需恢复'
+    html = html.replace('{{RECOVERY_STATUS_CN}}', recovery_status_cn)
+    
+    # V6.0.3: Body Age 简化版模板替换
+    age_impact = health_scores['age_impact']
+    
+    # 简化版颜色：绿色(年轻) / 红色(老化) / 蓝色(持平)
+    if age_impact < 0:
+        body_age_color = "#55efc4"  # 绿色
+    elif age_impact > 0:
+        body_age_color = "#ff7675"  # 红色
+    else:
+        body_age_color = "#74b9ff"  # 蓝色
+    
+    html = html.replace('{{BODY_AGE_COLOR}}', body_age_color)
+    
+    # 保持向后兼容
+    html = html.replace('{{AGE_BOX_CLASS}}', "")
+    
+    # Body Age 提示
+    if age_impact < -1:
+        age_hint = f"🎉 你的身体比实际年龄年轻{abs(age_impact):.1f}岁，继续保持！" if LANGUAGE == 'CN' else f"🎉 Your body is {abs(age_impact):.1f} years younger than your actual age!"
+    elif age_impact < 0:
+        age_hint = "✅ 你的身体状态略优于实际年龄" if LANGUAGE == 'CN' else "✅ Your body condition is slightly better than your actual age"
+    elif age_impact < 2:
+        age_hint = "⚠️ 身体年龄与实际年龄接近，注意调整作息" if LANGUAGE == 'CN' else "⚠️ Body age is close to actual age, adjust your routine"
+    else:
+        age_hint = f"🔴 身体年龄比实际年龄老{age_impact:.1f}岁，建议改善生活习惯" if LANGUAGE == 'CN' else f"🔴 Your body age is {age_impact:.1f} years older than actual age"
+    html = html.replace('{{AGE_HINT}}', age_hint)
+
+    # V5.9.0: 动态指标表渲染
+    selected_metric_keys = get_selected_metric_keys()
+    rows_html = build_metrics_table_rows(data, ai_analysis, selected_metric_keys)
+    metric_min = ANALYSIS_LIMITS.get("metric_min_words", 150)
+    metric_max = ANALYSIS_LIMITS.get("metric_max_words", 200)
+
+    # A6: 英文单复数处理
+    n_metrics = len(selected_metric_keys)
+    if LANGUAGE == 'EN':
+        unit_word = 'metric' if n_metrics == 1 else 'metrics'
+        section_title = f"Detailed Metric Analysis ({n_metrics} {unit_word} selected)"
+        col_header = f"AI Analysis ({metric_min}-{metric_max} words)"
+    else:
+        section_title = f"详细指标分析（已选{n_metrics}项）"
+        col_header = f"AI分析（{metric_min}-{metric_max}字）"
+
+    html = html.replace('{{METRICS_SECTION_TITLE}}', section_title)
+    html = html.replace('{{METRIC_ANALYSIS_COL_HEADER}}', col_header)
+    html = html.replace('{{METRICS_TABLE_ROWS}}', rows_html)
+
+    # 睡眠 - 必须有真实AI内容
+    sleep_analysis = ai_analysis.get('sleep')
+    if not sleep_analysis:
+        raise ValueError(get_error_msg("missing_sleep"))
+
+    # 获取睡眠总时长
+    sleep_hours = data.get('sleep', {}).get('total_hours', data.get('sleep', {}).get('total', 0)) or 0
+
+    sleep_status_text = 'Severely Insufficient' if LANGUAGE == 'EN' else '严重不足'
+    sleep_status_normal = 'Normal' if LANGUAGE == 'EN' else '正常'
+    html = html.replace('{{SLEEP_STATUS}}', sleep_status_text if sleep_hours < 6 else sleep_status_normal)
+
+    if LANGUAGE == 'EN':
+        alert = f'<div class="sleep-alert warning"><div class="alert-icon">⚠️</div><div class="alert-content"><h4>Severe Sleep Deficiency</h4><p>Total sleep duration {sleep_hours:.1f} hours, far below the 7-9 hour recommended standard.</p></div></div>' if sleep_hours < 6 else ''
+    else:
+        alert = f'<div class="sleep-alert warning"><div class="alert-icon">⚠️</div><div class="alert-content"><h4>睡眠严重不足</h4><p>总睡眠时长{sleep_hours:.1f}小时，远低于7-9小时推荐标准。</p></div></div>' if sleep_hours < 6 else ''
+    html = html.replace('{{SLEEP_ALERT}}', alert)
+    html = html.replace('{{SLEEP_TOTAL}}', f"{sleep_hours:.1f}")
+    html = html.replace('{{SLEEP_HOURS}}', f"{sleep_hours:.1f}")
+
+    s = data.get('sleep', {})
+    s_total = s.get('total_hours', s.get('total', 0))
+    s_deep = s.get('deep_hours', s.get('deep', 0))
+    s_core = s.get('core_hours', s.get('core', 0))
+    s_rem = s.get('rem_hours', s.get('rem', 0))
+    s_awake = s.get('awake_hours', s.get('awake', 0))
+
+    t = max(s_total, 0.1)
+    html = html.replace('{{SLEEP_DEEP}}', f"{s_deep:.1f}")
+    html = html.replace('{{SLEEP_CORE}}', f"{s_core:.1f}")
+    html = html.replace('{{SLEEP_REM}}', f"{s_rem:.1f}")
+    html = html.replace('{{SLEEP_AWAKE}}', f"{s_awake:.1f}")
+    html = html.replace('{{SLEEP_DEEP_PCT}}', str(int((s_deep / t) * 100)))
+    html = html.replace('{{SLEEP_CORE_PCT}}', str(int((s_core / t) * 100)))
+    html = html.replace('{{SLEEP_REM_PCT}}', str(int((s_rem / t) * 100)))
+    html = html.replace('{{SLEEP_AWAKE_PCT}}', str(int((s_awake / t) * 100)))
+    html = html.replace('{{SLEEP_ANALYSIS_TEXT}}', safe_html_paragraph(sleep_analysis))
+
+    # V5.8.1: 添加入睡时间和起床时间
+    html = html.replace('{{SLEEP_BEDTIME}}', s.get('bedtime', '--'))
+    html = html.replace('{{SLEEP_WAKETIME}}', s.get('waketime', '--'))
+
+    # 运动 section（有运动才画图）- 显示所有运动记录
+    if data.get('has_workout') and data.get('workouts'):
+        workouts = data['workouts']
+        workout_analysis = ai_analysis.get('workout')
+        if not workout_analysis:
+            raise ValueError(get_error_msg("missing_workout"))
+
+        # 构建所有运动记录的HTML
+        workout_entries = []
+        for idx, w in enumerate(workouts, 1):
+            # 格式化时间显示
+            start_time = w.get('start', '')
+            end_time = w.get('end', '')
+            if start_time and len(start_time) >= 16:
+                start_display = start_time[11:16]
+            else:
+                start_display = start_time or '--:--'
+
+            if end_time and len(end_time) >= 16:
+                end_display = end_time[11:16]
+            else:
+                end_display = end_time or '--:--'
+
+            time_display = f"{start_display} - {end_display}" if start_display != '--:--' or end_display != '--:--' else ("Time not recorded" if LANGUAGE == 'EN' else "时间未记录")
+
+            # 为每个运动生成心率图（如果有数据）
+            hr_timeline = w.get('hr_timeline', [])
+            hr_chart = generate_hr_svg(hr_timeline) if hr_timeline else ""
+
+            completed_text = 'Completed' if LANGUAGE == 'EN' else '已完成'
+            min_text = 'min' if LANGUAGE == 'EN' else '分钟'
+            kcal_text = 'kcal' if LANGUAGE == 'EN' else '千卡'
+            avg_hr_text = 'Avg HR' if LANGUAGE == 'EN' else '平均心率'
+            max_hr_text = 'Max HR' if LANGUAGE == 'EN' else '最高心率'
+
+            entry = f'''<div class="workout-entry" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.5); border-radius: 8px;">
+  <div class="workout-header" style="margin-bottom: 10px;">
+    <div class="workout-type">
+      <div class="workout-icon">💪</div>
+      <div>
+        <div class="workout-name">{idx}. {safe_html_text(w['name'])}</div>
+        <div class="workout-time">{safe_html_text(time_display)}</div>
+      </div>
+    </div>
+    <span class="badge badge-good">{completed_text}</span>
+  </div>
+  <div class="workout-stats">
+    <div class="stat-box"><div class="stat-value">{int(w['duration_min']) if w['duration_min'] else '--'}</div><div class="stat-label">{min_text}</div></div>
+    <div class="stat-box"><div class="stat-value">{int(w['energy_kcal']) if w['energy_kcal'] else '--'}</div><div class="stat-label">{kcal_text}</div></div>
+    <div class="stat-box"><div class="stat-value">{w['avg_hr'] if w['avg_hr'] is not None else '--'}</div><div class="stat-label">{avg_hr_text}</div></div>
+    <div class="stat-box"><div class="stat-value">{w['max_hr'] if w['max_hr'] is not None else '--'}</div><div class="stat-label">{max_hr_text}</div></div>
+  </div>
+  {hr_chart}
+</div>'''
+            workout_entries.append(entry)
+
+        workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
+        ai_analysis_title = 'Workout AI Analysis' if LANGUAGE == 'EN' else '运动AI综合分析'
+        count_text = f"{len(workouts)} workouts" if LANGUAGE == 'EN' else f"{len(workouts)} 次运动"
+        workout_section = f'''<div class="workout-section no-break">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-icon">🏃</span>{workout_title} - {count_text}
+    </div>
+  </div>
+  {''.join(workout_entries)}
+  <div class="workout-analysis">
+    <div class="workout-analysis-title">{ai_analysis_title}</div>
+    <div class="workout-analysis-text">{safe_html_paragraph(workout_analysis)}</div>
+  </div>
+</div>'''
+    else:
+        # 无运动时也必须有workout分析字段（说明无运动的情况）
+        workout_analysis = ai_analysis.get('workout')
+        if not workout_analysis:
+            raise ValueError(get_error_msg("missing_workout"))
+        workout_title = 'Workout Records' if LANGUAGE == 'EN' else '运动记录'
+        no_workout_title = 'No Structured Exercise Today' if LANGUAGE == 'EN' else '今日无结构化运动'
+        workout_section = f'''<div class="workout-section no-break"><div class="section-header"><div class="section-title"><span class="section-icon">🏃</span>{workout_title}</div></div><div class="workout-analysis"><div class="workout-analysis-title">{no_workout_title}</div><div class="workout-analysis-text">{safe_html_paragraph(workout_analysis)}</div></div></div>'''
+    html = html.replace('{{WORKOUT_SECTION}}', workout_section)
+
+    # AI建议 - 必须有真实内容，禁止模板填充
+    required_ai_fields = [
+        'priority', 'ai2_title', 'ai2_problem', 'ai2_action', 'ai2_expectation',
+        'ai3_title', 'ai3_problem', 'ai3_action', 'ai3_expectation',
+        'breakfast', 'lunch', 'dinner', 'snack'
+    ]
+
+    # 严格检查所有必填字段
+    missing_fields = []
+    for f in required_ai_fields:
+        if f == 'priority':
+            p = ai_analysis.get('priority', {})
+            if not p or not p.get('title') or not p.get('problem') or not p.get('action') or not p.get('expectation'):
+                missing_fields.append('priority (title/problem/action/expectation)')
+        elif not ai_analysis.get(f):
+            missing_fields.append(f)
+
+    if missing_fields:
+        raise ValueError(f"{get_error_msg('missing_fields')}: {missing_fields}")
+
+    # 最高优先级建议
+    p = ai_analysis.get('priority', {})
+    html = html.replace('{{AI1_TITLE}}', safe_html_text(p.get('title', '')))
+    html = html.replace('{{AI1_PROBLEM}}', safe_html_paragraph(p.get('problem', '')))
+    html = html.replace('{{AI1_ACTION}}', safe_html_paragraph(p.get('action', '')))
+    html = html.replace('{{AI1_EXPECTATION}}', safe_html_paragraph(p.get('expectation', '')))
+
+    html = html.replace('{{AI2_TITLE}}', safe_html_text(ai_analysis.get('ai2_title', '')))
+    html = html.replace('{{AI2_PROBLEM}}', safe_html_paragraph(ai_analysis.get('ai2_problem', '')))
+    html = html.replace('{{AI2_ACTION}}', safe_html_paragraph(ai_analysis.get('ai2_action', '')))
+    html = html.replace('{{AI2_EXPECTATION}}', safe_html_paragraph(ai_analysis.get('ai2_expectation', '')))
+
+    html = html.replace('{{AI3_TITLE}}', safe_html_text(ai_analysis.get('ai3_title', '')))
+    html = html.replace('{{AI3_PROBLEM}}', safe_html_paragraph(ai_analysis.get('ai3_problem', '')))
+    html = html.replace('{{AI3_ACTION}}', safe_html_paragraph(ai_analysis.get('ai3_action', '')))
+    html = html.replace('{{AI3_EXPECTATION}}', safe_html_paragraph(ai_analysis.get('ai3_expectation', '')))
+
+    html = html.replace('{{AI4_BREAKFAST}}', safe_html_paragraph(ai_analysis.get('breakfast', '')))
+    html = html.replace('{{AI4_LUNCH}}', safe_html_paragraph(ai_analysis.get('lunch', '')))
+    html = html.replace('{{AI4_DINNER}}', safe_html_paragraph(ai_analysis.get('dinner', '')))
+    html = html.replace('{{AI4_SNACK}}', safe_html_paragraph(ai_analysis.get('snack', '')))
+
+    # V5.9.0: 占位符残留保护
+    unresolved = re.findall(r'\{\{[^{}]+\}\}', html)
+    if unresolved:
+        print(f"   ⚠️ 未替换的占位符: {unresolved[:10]}", file=sys.stderr)
+        # V6.0.3: 将未替换的占位符替换为空白，避免渲染失败
+        for placeholder in unresolved:
+            html = html.replace(placeholder, '--')
+
+    # V6.0.3: 缓存保存移到函数内部，修复变量作用域问题
+    try:
+        sleep_data = data.get('sleep', {})
+        sleep_total = sleep_data.get('total_hours', 0)
+        sleep_need = health_scores['sleep_need']
+
+        # 计算当日睡眠债：允许少量还债
+        daily_debt = round(sleep_need - sleep_total, 2)
+        if daily_debt < 0:
+            daily_debt = max(-1.0, daily_debt)
+
+        # 获取累积睡眠债（从昨天缓存）
+        cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
+        history = HealthScoreHistory(cache_dir)
+
+        prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+        prev_debt = history.get_sleep_debt(prev_date, member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
+        accumulated_debt = max(0, prev_debt + daily_debt) if prev_debt else max(0, daily_debt)
+
+        bedtime = sleep_data.get('bedtime', '--') if isinstance(sleep_data, dict) else '--'
+        waketime = sleep_data.get('waketime', '--') if isinstance(sleep_data, dict) else '--'
+
+        cache_data = {
+            'date': date_str,
+            'member': member_cfg.get('name', '默认用户') if member_cfg else '默认用户',
+            'hrv': data['hrv'],
+            'resting_hr': data['resting_hr'],
+            'respiratory_rate': data.get('respiratory_rate'),
+            'steps': data['steps'],
+            'distance': data.get('distance') or data.get('distance_km') or 0,
+            'distance_km': data.get('distance_km') or data.get('distance') or 0,
+            'active_energy': data.get('active_energy') or 0,
+            'active_energy_kcal': data.get('active_energy') or 0,
+            'apple_stand_time': data.get('apple_stand_time') or 0,
+            'apple_stand_hour': data.get('apple_stand_hour') or 0,
+            'spo2': data['spo2'],
+            'workouts': data['workouts'],
+            'has_workout': data['has_workout'],
+            'zone_times': health_scores.get('zone_times', {
+                'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0
+            }),
+            'sleep': sleep_data,
+            'bedtime': bedtime,
+            'waketime': waketime,
+            'sleep_latency_min': data.get('sleep_latency_min', 20),
+            'sleep_debt_daily': round(daily_debt, 2),
+            'sleep_debt_accumulated': round(accumulated_debt, 2),
+            'health_scores': {
+                'strain': health_scores['strain'],
+                'recovery': health_scores['recovery'],
+                'recovery_status': health_scores['recovery_status'],
+                'sleep_performance': health_scores['sleep_performance'],
+                'sleep_need': health_scores['sleep_need'],
+                'actual_sleep_hours': round(sleep_total, 2),
+                'body_age': health_scores['body_age'],
+                'chronological_age': health_scores['chronological_age'],
+                'age_impact': health_scores['age_impact'],
+                'pace_of_aging': health_scores['pace_of_aging'],
+                'zone_times': health_scores.get('zone_times', {
+                    'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0
+                }),
+                'hrv_rmssd': data['hrv'].get('value', 0) if isinstance(data.get('hrv'), dict) else 0,
+                'rhr': data['resting_hr'].get('value', 0) if isinstance(data.get('resting_hr'), dict) else 0
             }
         }
         safe_name = safe_member_name(member_cfg.get('name', '默认用户') if member_cfg else '默认用户')

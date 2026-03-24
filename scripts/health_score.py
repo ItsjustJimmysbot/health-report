@@ -93,6 +93,108 @@ def get_hr_zone(hr: int, max_hr: int, rhr: int = None) -> int:
         elif pct < 0.90: return 4   # Zone 4: 80-90%
         else: return 5              # Zone 5: >= 90%
 
+
+def _parse_timestamp(value):
+    if value in (None, '', '--'):
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, (int, float)):
+        ts = float(value)
+        if ts > 1e12:
+            ts /= 1000.0
+        return datetime.fromtimestamp(ts)
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        ts = float(text)
+        if ts > 1e12:
+            ts /= 1000.0
+        return datetime.fromtimestamp(ts)
+    except Exception:
+        pass
+
+    text = text.replace('Z', '+00:00')
+    match = re.match(r'(.+?)\s+([+-]\d{4})$', text)
+    if match:
+        dt_str, tz_str = match.groups()
+        text = f"{dt_str}{tz_str[:3]}:{tz_str[3:]}"
+
+    for candidate in (text, text[:19], text[:16]):
+        if not candidate:
+            continue
+        try:
+            return datetime.fromisoformat(candidate)
+        except Exception:
+            pass
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+            try:
+                return datetime.strptime(candidate, fmt)
+            except Exception:
+                pass
+    return None
+
+
+def _time_to_minutes(value: str, assume_bedtime: bool = False):
+    if value in (None, '', '--'):
+        return None
+
+    dt = _parse_timestamp(value)
+    if dt is not None:
+        minutes = dt.hour * 60 + dt.minute
+    else:
+        text = str(value).strip()
+        if ':' not in text:
+            return None
+        parts = text.split(':')
+        try:
+            hour = int(parts[0])
+            minute = int(parts[1])
+        except Exception:
+            return None
+        minutes = hour * 60 + minute
+
+    # bedtime 过午夜时，把 00:30 视为 24:30，避免和 23:30 相差 23 小时
+    if assume_bedtime and minutes < 12 * 60:
+        minutes += 24 * 60
+    return minutes
+
+
+def _safe_mean(values, default):
+    vals = [float(v) for v in values if isinstance(v, (int, float))]
+    return sum(vals) / len(vals) if vals else default
+
+
+def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: int = 0):
+    """根据 zone_times 直接计算 strain，不再模拟全天 HR。"""
+    zone_weights = {1: 0.3, 2: 1.0, 3: 2.5, 4: 5.0, 5: 10.0}
+    clean_zone_times = {}
+    for z in range(1, 6):
+        raw = zone_times.get(f'zone_{z}', zone_times.get(z, 0)) if isinstance(zone_times, dict) else 0
+        clean_zone_times[z] = float(raw) if isinstance(raw, (int, float)) else 0.0
+
+    cardio_load = sum(clean_zone_times[z] * zone_weights[z] for z in clean_zone_times)
+    muscle_load = max(0.0, float(strength_minutes)) * 0.2
+    total_load = cardio_load + muscle_load
+    strain = 21 * (1 - math.exp(-total_load / 180))
+
+    return {
+        'strain': round(min(21, strain), 1),
+        'cardio_load': round(cardio_load, 1),
+        'muscle_load': round(muscle_load, 1),
+        'total_load': round(total_load, 1),
+        'zone_times': {
+            'zone_1': round(clean_zone_times[1], 1),
+            'zone_2': round(clean_zone_times[2], 1),
+            'zone_3': round(clean_zone_times[3], 1),
+            'zone_4': round(clean_zone_times[4], 1),
+            'zone_5': round(clean_zone_times[5], 1),
+        }
+    }
+
 # ============ 1. Strain 评分 (0-21) ============
 
 def calculate_strain_simple(active_energy: float, steps: int, 
@@ -427,55 +529,42 @@ def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: float =
 
 
 def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int, rhr: int = None) -> Dict:
-    """从全天心率数据计算真实心率区间时间，支持数字/字符串时间戳。
-    
-    Args:
-        hr_data: 心率数据列表
-        age: 年龄
-        rhr: 静息心率(可选)，用于HRR计算
-    """
+    """从心率数据计算心率区间分布时间，兼容字符串/秒/毫秒时间戳。"""
     max_hr = calculate_max_hr(age)
-    zone_times = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0}
+    zone_times = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 
     if not hr_data or len(hr_data) < 2:
         return {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
 
-    sortable = []
-    for item in hr_data:
-        ts_raw = item.get('timestamp')
-        ts = _parse_timestamp_seconds(ts_raw)
-        hr = item.get('hr')
-        if ts is None or not isinstance(hr, (int, float)):
-            continue
-        sortable.append((ts, float(hr)))
+    parsed = []
+    for point in hr_data:
+        dt = _parse_timestamp(point.get('timestamp'))
+        hr = point.get('hr', 60)
+        if dt is not None and isinstance(hr, (int, float)) and hr > 0:
+            parsed.append((dt, float(hr)))
 
-    if len(sortable) < 2:
+    parsed.sort(key=lambda x: x[0])
+    if len(parsed) < 2:
         return {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
 
-    sortable.sort(key=lambda x: x[0])
-
-    for i in range(len(sortable) - 1):
-        ts1, hr = sortable[i]
-        ts2, _ = sortable[i + 1]
-        if ts2 <= ts1:
+    for i in range(len(parsed) - 1):
+        dt1, hr = parsed[i]
+        dt2, _ = parsed[i + 1]
+        duration_min = (dt2 - dt1).total_seconds() / 60.0
+        if duration_min <= 0:
             continue
-
-        duration_min = (ts2 - ts1) / 60.0
-        duration_min = max(0.5, min(duration_min, 10.0))
-
-        zone = get_hr_zone(int(hr), max_hr, rhr)  # 传入 rhr
+        # 防止导出粒度稀疏时，单点心率被放大成超长区间
+        duration_min = min(duration_min, 5.0)
+        zone = get_hr_zone(int(hr), max_hr, rhr)
         if zone >= 1:
             zone_times[zone] += duration_min
-        elif zone == 0:
-            # Zone 0 是恢复区，计入 zone_1 但权重较低
-            zone_times[1] += duration_min * 0.5
 
     return {
         'zone_1': round(zone_times[1], 1),
         'zone_2': round(zone_times[2], 1),
         'zone_3': round(zone_times[3], 1),
         'zone_4': round(zone_times[4], 1),
-        'zone_5': round(zone_times[5], 1),
+        'zone_5': round(zone_times[5], 1)
     }
 
 # ============ 2. Recovery 评分 (0-100%) ============
@@ -539,97 +628,68 @@ def get_baseline(values: list, days: int = BASELINE_DAYS) -> float:
     
     return baseline
 
-def calculate_recovery(
-    hrv_rmssd: float,
-    rhr: float,
-    sleep_performance: float,
-    respiratory_rate: float,
-    hrv_history: list,            # HRV 历史数据
-    rhr_history: list,            # RHR 历史数据
-    respiratory_history: list,    # 呼吸率历史数据
-    gender: str = 'male',
-    sleep_consistency: float = 75.0  # 睡眠规律性分数 (0-100, 默认75)
-) -> RecoveryResult:
+def calculate_recovery(hrv_rmssd: float, rhr: float,
+                      sleep_performance: float, respiratory_rate: float,
+                      sleep_consistency: float,
+                      baseline_hrv: float, baseline_rhr: float,
+                      baseline_respiratory: float,
+                      gender: str = 'male'):
     """
-    计算 Recovery (0-100%)
-    V6.0.4 更新：使用 14 天滚动基线，WHOOP 官方权重
+    Recovery 改为真正基于个人 baseline：
+    - HRV 相对自身 baseline
+    - RHR 相对自身 baseline
+    - 睡眠表现
+    - 呼吸率偏离
+    - 睡眠规律性
     """
-    # 输入验证 + 数据范围检查
-    if not isinstance(hrv_rmssd, (int, float)) or not math.isfinite(hrv_rmssd) or hrv_rmssd <= 0:
-        hrv_rmssd = 50.0
-    elif hrv_rmssd < HRV_MIN_VALID or hrv_rmssd > HRV_MAX_VALID:
-        # 使用历史平均值或默认值替换异常值
-        hrv_rmssd = get_baseline(hrv_history) if hrv_history else 50.0
-    
-    if not isinstance(rhr, (int, float)) or not math.isfinite(rhr) or rhr <= 0:
-        rhr = 65.0 if gender == 'male' else 68.0
-    elif rhr < RHR_MIN_VALID or rhr > RHR_MAX_VALID:
-        rhr = get_baseline(rhr_history) if rhr_history else (65.0 if gender == 'male' else 68.0)
-    if not isinstance(sleep_performance, (int, float)) or not math.isfinite(sleep_performance):
-        sleep_performance = 70.0
-    if not isinstance(respiratory_rate, (int, float)) or not math.isfinite(respiratory_rate) or respiratory_rate <= 0:
-        respiratory_rate = 14.0
-    
-    # 计算基线
-    hrv_baseline = get_baseline(hrv_history) if hrv_history else hrv_rmssd
-    rhr_baseline = get_baseline(rhr_history) if rhr_history else rhr
-    resp_baseline = get_baseline(respiratory_history) if respiratory_history else respiratory_rate
-    
-    # HRV 分数（基于个人基线）
-    if hrv_baseline > 0:
-        hrv_score = min(100, max(0, 100 * (hrv_rmssd / hrv_baseline)))
+    fallback_rhr = 60 if gender == 'male' else 64
+    baseline_hrv = max(1.0, float(baseline_hrv or hrv_rmssd or 50))
+    baseline_rhr = max(1.0, float(baseline_rhr or rhr or fallback_rhr))
+    baseline_respiratory = max(1.0, float(baseline_respiratory or respiratory_rate or 14))
+
+    hrv_value = float(hrv_rmssd or 0)
+    rhr_value = float(rhr or baseline_rhr)
+    sleep_value = max(0.0, min(100.0, float(sleep_performance or 0)))
+    resp_value = float(respiratory_rate or baseline_respiratory)
+    consistency_value = max(0.0, min(100.0, float(sleep_consistency or 75)))
+
+    # HRV：高于 baseline 奖励，低于 baseline 惩罚
+    hrv_ratio = hrv_value / baseline_hrv if baseline_hrv > 0 else 1.0
+    if hrv_ratio >= 1.0:
+        hrv_score = min(100.0, 75.0 + (hrv_ratio - 1.0) * 60.0)
     else:
-        hrv_score = 50.0
-    
-    # RHR 分数（与基线比较，越低越好）
-    if rhr_baseline > 0:
-        rhr_ratio = rhr / rhr_baseline
-        # rhr_ratio = 1.0 时得 100 分
-        # RHR 低于基线：每低 10% 加 15 分（最高 100）
-        # RHR 高于基线：每高 10% 扣 30 分
-        if rhr_ratio <= 1.0:
-            rhr_score = min(100, 100 + (1.0 - rhr_ratio) * 150)
-        else:
-            rhr_score = max(0, 100 - (rhr_ratio - 1.0) * 300)
+        hrv_score = max(0.0, 75.0 * hrv_ratio)
+
+    # RHR：低于 baseline 更好，高于 baseline 快速扣分
+    rhr_delta = rhr_value - baseline_rhr
+    if rhr_delta <= 0:
+        rhr_score = min(100.0, 85.0 + abs(rhr_delta) * 3.0)
     else:
-        rhr_score = 50.0
-    
-    # 睡眠表现分数（直接使用百分比）
-    sleep_score = min(100, max(0, sleep_performance))
-    
-    # 呼吸率分数（与基线偏差越小越好）
-    if resp_baseline > 0:
-        resp_ratio = respiratory_rate / resp_baseline
-        # 比值 1.0 时得 100 分，每偏离 10% 扣 10 分
-        deviation = abs(resp_ratio - 1.0)
-        resp_score = max(0, 100 - deviation * 100)
+        rhr_score = max(0.0, 100.0 - rhr_delta * 6.0)
+
+    # 呼吸率偏离 baseline 视为恢复受损信号
+    resp_diff = abs(resp_value - baseline_respiratory) / baseline_respiratory if baseline_respiratory > 0 else 0.0
+    if resp_diff <= 0.03:
+        respiratory_score = 100.0
     else:
-        resp_score = 50.0
-    
-    # 睡眠规律性分数 (0-100，直接使用)
-    sleep_consistency_score = min(100, max(0, float(sleep_consistency)))
-    
-    # WHOOP 官方近似权重计算 (添加睡眠规律性)
-    recovery = int(round(
-        RECOVERY_WEIGHTS['hrv'] * hrv_score +
-        RECOVERY_WEIGHTS['rhr'] * rhr_score +
-        RECOVERY_WEIGHTS['sleep'] * sleep_score +
-        RECOVERY_WEIGHTS['sleep_consistency'] * sleep_consistency_score +
-        RECOVERY_WEIGHTS['respiratory'] * resp_score
-    ))
-    
-    recovery = max(1, min(100, recovery))
+        respiratory_score = max(0.0, 100.0 - (resp_diff - 0.03) * 250.0)
+
+    recovery = int(round(min(100.0, max(1.0,
+        0.40 * hrv_score +
+        0.25 * rhr_score +
+        0.20 * sleep_value +
+        0.10 * respiratory_score +
+        0.05 * consistency_value
+    ))))
+
     status = 'green' if recovery >= 67 else 'yellow' if recovery >= 34 else 'red'
-    
-    return RecoveryResult(
-        recovery=recovery,
-        hrv_score=round(hrv_score, 1),
-        rhr_score=round(rhr_score, 1),
-        sleep_score=round(sleep_score, 1),
-        sleep_consistency_score=round(sleep_consistency_score, 1),
-        respiratory_score=round(resp_score, 1),
-        status=status
-    )
+    return {
+        'recovery': recovery,
+        'hrv_score': round(hrv_score, 1),
+        'rhr_score': round(rhr_score, 1),
+        'sleep_score': round(sleep_value, 1),
+        'status': status
+    }
 
 # ============ 3. Sleep Performance (0-100%) ============
 
@@ -1089,246 +1149,259 @@ class HealthScoreHistory:
         return self.get_average_range(end_date, member_name, days=7, skip_days=0)
     
     def get_sleep_debt(self, date_str: str, member_name: str) -> float:
-        """获取某天的累积睡眠债。注意：sleep_debt_accumulated 在缓存顶层，不在 health_scores 内。"""
-        cache = self._get_raw_cache(date_str, member_name)
-        if cache:
-            value = cache.get('sleep_debt_accumulated', 0)
-            return float(value) if isinstance(value, (int, float)) else 0.0
-        return 0.0
+        """获取某天的累积睡眠债（从 raw cache 顶层读取，不是从 health_scores 里读）"""
+        raw = self.get_raw_cache(date_str, member_name)
+        if raw:
+            return raw.get('sleep_debt_accumulated', 0)
+        return 0
     
     def get_bedtime_waketime(self, date_str: str, member_name: str) -> Tuple[str, str]:
-        """获取就寝和起床时间"""
-        cache = self._get_raw_cache(date_str, member_name)
-        if cache:
-            return cache.get('bedtime', '--'), cache.get('waketime', '--')
+        raw = self.get_raw_cache(date_str, member_name)
+        if raw:
+            return raw.get('bedtime', '--'), raw.get('waketime', '--')
         return '--', '--'
     
     def _get_raw_cache(self, date_str: str, member_name: str) -> Optional[Dict]:
+        return self.get_raw_cache(date_str, member_name)
+
+    def get_raw_cache(self, date_str: str, member_name: str) -> Optional[Dict]:
         """获取完整缓存数据"""
         from utils import safe_member_name
         safe_name = safe_member_name(member_name)
         cache_file = self.cache_dir / f"{date_str}_{safe_name}.json"
-        
+
         if cache_file.exists():
             with open(cache_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         return None
 
-    def get_raw_cache(self, date_str: str, member_name: str) -> Optional[Dict]:
-        """公开方法：获取完整缓存数据。"""
-        return self._get_raw_cache(date_str, member_name)
+    def get_period_average(self, end_date: str, member_name: str, days: int = 7, offset_days: int = 0) -> Dict:
+        """获取某个时间窗口的评分均值。offset_days=7 表示往前错开 7 天。"""
+        end = datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=offset_days)
+        scores = []
+        for i in range(days):
+            date = (end - timedelta(days=i)).strftime('%Y-%m-%d')
+            day_scores = self.get_scores(date, member_name)
+            if day_scores:
+                scores.append(day_scores)
+
+        if not scores:
+            return {'strain': 10, 'recovery': 50, 'sleep_performance': 70}
+
+        return {
+            'strain': sum(s.get('strain', 10) for s in scores) / len(scores),
+            'recovery': sum(s.get('recovery', 50) for s in scores) / len(scores),
+            'sleep_performance': sum(s.get('sleep_performance', 70) for s in scores) / len(scores),
+        }
+
+    def get_metric_baselines(self, end_date: str, member_name: str, days: int = 21) -> Dict:
+        """获取 HRV / RHR / 呼吸率的个人 baseline，默认看前 21 天，不含当天。"""
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+        hrv_values = []
+        rhr_values = []
+        resp_values = []
+
+        for i in range(1, days + 1):
+            date = (end - timedelta(days=i)).strftime('%Y-%m-%d')
+            raw = self.get_raw_cache(date, member_name)
+            if not raw:
+                continue
+
+            hrv = raw.get('hrv', {}).get('value') if isinstance(raw.get('hrv'), dict) else None
+            rhr = raw.get('resting_hr', {}).get('value') if isinstance(raw.get('resting_hr'), dict) else None
+            resp = raw.get('respiratory_rate')
+
+            if isinstance(hrv, (int, float)) and hrv > 0:
+                hrv_values.append(float(hrv))
+            if isinstance(rhr, (int, float)) and rhr > 0:
+                rhr_values.append(float(rhr))
+            if isinstance(resp, (int, float)) and resp > 0:
+                resp_values.append(float(resp))
+
+        return {
+            'baseline_hrv': _safe_mean(hrv_values, 50.0),
+            'baseline_rhr': _safe_mean(rhr_values, 60.0),
+            'baseline_respiratory': _safe_mean(resp_values, 14.0),
+        }
+
+    def get_sleep_consistency(self, end_date: str, member_name: str, current_bedtime: str = None, current_waketime: str = None, days: int = 7) -> float:
+        """
+        用最近几天的 bedtime / waketime 近似睡眠规律性。
+        返回 0-100。
+        """
+        bed_values = []
+        wake_values = []
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+
+        for i in range(1, days + 1):
+            date = (end - timedelta(days=i)).strftime('%Y-%m-%d')
+            bedtime, waketime = self.get_bedtime_waketime(date, member_name)
+            bed_min = _time_to_minutes(bedtime, assume_bedtime=True)
+            wake_min = _time_to_minutes(waketime, assume_bedtime=False)
+            if bed_min is not None:
+                bed_values.append(bed_min)
+            if wake_min is not None:
+                wake_values.append(wake_min)
+
+        current_bed_min = _time_to_minutes(current_bedtime, assume_bedtime=True)
+        current_wake_min = _time_to_minutes(current_waketime, assume_bedtime=False)
+
+        if current_bed_min is None or current_wake_min is None:
+            return 75.0
+        if len(bed_values) < 3 or len(wake_values) < 3:
+            return 75.0
+
+        avg_bed = sum(bed_values) / len(bed_values)
+        avg_wake = sum(wake_values) / len(wake_values)
+        bed_diff = abs(current_bed_min - avg_bed)
+        wake_diff = abs(current_wake_min - avg_wake)
+        weighted_diff = 0.6 * bed_diff + 0.4 * wake_diff
+
+        if weighted_diff <= 30:
+            return 95.0
+        elif weighted_diff <= 60:
+            return 85.0
+        elif weighted_diff <= 90:
+            return 75.0
+        elif weighted_diff <= 120:
+            return 60.0
+        else:
+            return 40.0
 
 
 # ============ 7. 一键计算 ============
 
-def calculate_all_scores(data: Dict, profile: Dict, history: HealthScoreHistory,
+def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory',
                          zone_times: Dict = None) -> Dict:
-    """一键计算所有健康评分（V6.0.3 修正版）"""
-    raw_age = profile.get('age')
-    age = int(raw_age) if isinstance(raw_age, (int, float)) and raw_age > 0 else 30
-    gender = profile.get('gender', 'male')
+    """
+    一键计算所有健康评分。
+
+    改动重点：
+    1. Strain 优先使用真实/近似 zone_times，不再模拟全天 HR。
+    2. Recovery 使用真实个人 baseline（HRV / RHR / 呼吸率）。
+    3. Sleep consistency 使用历史 bedtime / waketime 近似。
+    4. Pace of Aging 使用"当前 7 天 vs 前 7 天"，不再用硬编码 previous_7day。
+    """
+    age = profile.get('age', 30) or 30
+    gender = profile.get('gender', 'male') or 'male'
     date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-    member_name = profile.get('name', '默认用户')
+    member_name = profile.get('name', '默认用户') or '默认用户'
+    workouts = data.get('workouts', []) or []
 
-    workouts = data.get('workouts') or []
-    steps = int(data.get('steps') or 0)
-    active_energy = data.get('active_energy')
-    if active_energy is None:
-        active_energy = data.get('active_energy_kcal')
-    active_energy = float(active_energy or 0)
-
-    sleep = data.get('sleep') or {}
-    sleep_total = float(sleep.get('total_hours', 0) or 0)
-    awake_hours = float(sleep.get('awake_hours', 0) or 0)
-
+    # 1) Strain
     strength_time = sum(
-        float(w.get('duration_min') or 0)
-        for w in workouts
-        if any(k in str(w.get('name', '')).lower() for k in ['strength', '力量', '举重', 'weight'])
+        w.get('duration_min', 0) for w in workouts
+        if any(k in w.get('name', '').lower() for k in ['strength', '力量', '举重', 'weight'])
     )
 
-    # 1) Strain：优先使用全天心率数据计算，其次用 workout 心率
-    resolved_zone_times = zone_times or data.get('zone_times') or {}
-    
-    # 获取静息心率用于HRR计算
-    rhr = data.get('resting_hr', {}).get('value') if isinstance(data.get('resting_hr'), dict) else None
-    if not isinstance(rhr, (int, float)) or rhr <= 0:
-        rhr = None
-    
-    if _sum_zone_minutes(resolved_zone_times) <= 0:
-        # 首先尝试使用全天心率数据（更精确）
-        hr_data = data.get('heart_rate_data') or []
-        if hr_data and len(hr_data) >= 10:  # 需要足够的数据点
-            resolved_zone_times = calculate_zone_times_from_hr_data(hr_data, age, rhr)
-        else:
-            # 退而求其次，使用 workout 心率
-            resolved_zone_times = calculate_zone_times_from_workouts(workouts, steps, age=age, rhr=rhr)
-    
-    if _sum_zone_minutes(resolved_zone_times) > 0:
-        strain = calculate_strain_from_zone_times(resolved_zone_times, strength_time)
+    candidate_zone_times = zone_times if isinstance(zone_times, dict) else data.get('zone_times', {})
+    has_zone_data = isinstance(candidate_zone_times, dict) and any(
+        isinstance(candidate_zone_times.get(f'zone_{z}', 0), (int, float)) and candidate_zone_times.get(f'zone_{z}', 0) > 0
+        for z in range(1, 6)
+    )
+
+    if has_zone_data:
+        strain_result = calculate_strain_from_zone_times(candidate_zone_times, strength_time)
+        strain = strain_result['strain']
+        final_zone_times = strain_result['zone_times']
     else:
-        # 最后退回到基于活动能量的估算
-        strain, resolved_zone_times = calculate_strain_simple(
-            active_energy,
-            steps,
-            workouts,
-            age,
-            data.get('heart_rate_data') or [],
-            rhr=rhr  # 传递静息心率用于HRR计算
-        )
+        hr_zone_times = calculate_zone_times_from_hr_data(data.get('heart_rate_data', []), age)
+        has_hr_zone_data = any(hr_zone_times.get(f'zone_{z}', 0) > 0 for z in range(1, 6))
+        if has_hr_zone_data:
+            strain_result = calculate_strain_from_zone_times(hr_zone_times, strength_time)
+            strain = strain_result['strain']
+            final_zone_times = strain_result['zone_times']
+        else:
+            strain, final_zone_times = calculate_strain_simple(
+                data.get('active_energy', data.get('active_energy_kcal', 0)),
+                data.get('steps', 0),
+                workouts,
+                age,
+                data.get('heart_rate_data', [])
+            )
 
     # 2) Sleep Performance
-    yesterday = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
-    previous_day_scores = history.get_scores(yesterday, member_name) or {}
-    prev_strain = float(previous_day_scores.get('strain', 10) or 10)
+    sleep = data.get('sleep', {}) or {}
+    prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+    previous_scores = history.get_scores(prev_date, member_name) or {}
+    prev_strain = previous_scores.get('strain', 10)
 
-    # 计算睡眠规律性（基于睡眠记录的时间差异）
-    sleep_records = sleep.get('records', [])
-    if len(sleep_records) >= 2:
-        # 计算各阶段睡眠时长的标准差变异系数作为不规律性指标
-        stage_totals = []
-        for record in sleep_records:
-            total = record.get('total', 0)
-            if total > 0:
-                stage_totals.append(total)
-        if stage_totals and len(stage_totals) >= 2:
-            import statistics
-            try:
-                mean_total = statistics.mean(stage_totals)
-                stdev_total = statistics.stdev(stage_totals) if len(stage_totals) > 1 else 0
-                # 变异系数越小越规律，转化为 0-100 的 consistency 分数
-                cv = stdev_total / mean_total if mean_total > 0 else 0
-                sleep_consistency = max(0, min(100, 100 - cv * 100))
-            except:
-                sleep_consistency = 75
-        else:
-            sleep_consistency = 75
-    else:
-        sleep_consistency = 75
-
-    sleep_latency_min = data.get('sleep_latency_min')
-    if not isinstance(sleep_latency_min, (int, float)):
-        sleep_latency_min = 20
+    current_bedtime = data.get('bedtime') or sleep.get('bedtime')
+    current_waketime = data.get('waketime') or sleep.get('waketime')
+    sleep_consistency = history.get_sleep_consistency(date_str, member_name, current_bedtime, current_waketime, days=7)
+    sleep_latency_min = data.get('sleep_latency_min') or sleep.get('sleep_latency_min') or 20
 
     sleep_result = calculate_sleep_performance(
-        sleep_total,
+        sleep.get('total_hours', 7),
         prev_strain,
-        float(sleep_consistency),
-        awake_hours * 60.0,
-        float(sleep_latency_min),
+        sleep_consistency,
+        sleep.get('awake_hours', 0) * 60,
+        sleep_latency_min,
+        baseline_need=previous_scores.get('sleep_need', 7.8) or 7.8
     )
 
-    # 3) Recovery：V6.0.4 使用 14 天历史数据计算基线
-    hrv = data.get('hrv', {}).get('value')
-    rhr = data.get('resting_hr', {}).get('value')
-    respiratory = data.get('respiratory_rate')
+    # 3) Recovery
+    hrv = data.get('hrv', {}).get('value', 50)
+    rhr = data.get('resting_hr', {}).get('value', 70)
+    respiratory = data.get('respiratory_rate', 14)
 
-    if not isinstance(hrv, (int, float)):
-        hrv = 50.0
-    if not isinstance(rhr, (int, float)):
-        rhr = 70.0 if gender == 'male' else 74.0
-    if not isinstance(respiratory, (int, float)):
-        respiratory = 14.0
-
-    # 收集 14 天历史数据
-    hrv_history = []
-    rhr_history = []
-    resp_history = []
-    for i in range(1, 15):
-        past_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
-        day_scores = history.get_scores(past_date, member_name)
-        if day_scores:
-            if day_scores.get('hrv_rmssd'):
-                hrv_history.append(day_scores['hrv_rmssd'])
-            if day_scores.get('rhr'):
-                rhr_history.append(day_scores['rhr'])
-            if day_scores.get('respiratory_rate'):
-                resp_history.append(day_scores['respiratory_rate'])
-
+    baselines = history.get_metric_baselines(date_str, member_name, days=21)
     recovery_result = calculate_recovery(
-        hrv_rmssd=float(hrv),
-        rhr=float(rhr),
-        sleep_performance=sleep_result.performance,
-        respiratory_rate=float(respiratory),
-        hrv_history=hrv_history,
-        rhr_history=rhr_history,
-        respiratory_history=resp_history,
-        gender=gender,
-        sleep_consistency=sleep_consistency,  # 添加睡眠规律性参数
+        hrv,
+        rhr,
+        sleep_result.performance,
+        respiratory or baselines['baseline_respiratory'],
+        sleep_consistency,
+        baselines['baseline_hrv'],
+        baselines['baseline_rhr'],
+        baselines['baseline_respiratory'],
+        gender
     )
 
-    # 4) Body Age：V6.0.4 使用 30 天历史数据
-    body_age_history = []
-    for i in range(1, 31):
-        past_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
-        day_data = history.get_raw_cache(past_date, member_name)
-        if day_data:
-            body_age_history.append(day_data)
-    
-    # 添加当日数据到历史
-    today_data = {
-        'date': date_str,
-        'sleep_hours': sleep_total,
-        'sleep': {'total_hours': sleep_total},
-        'steps': steps,
-        'rhr': float(rhr),
-        'resting_hr': {'value': float(rhr)},
-        'hrv': {'value': float(hrv) if hrv else 0},
-        'hrv_rmssd': float(hrv) if hrv else 0,
-        'respiratory_rate': float(respiratory) if respiratory else 0,
-        'health_scores': {
-            'recovery': recovery_result.recovery,
-            'sleep_performance': sleep_result.performance,
-            'strain': strain,
-            'rhr': float(rhr),
-            'hrv_rmssd': float(hrv) if hrv else 0,
-            'respiratory_rate': float(respiratory) if respiratory else 0,
-        }
+    # 4) Body Age
+    body_metrics = {
+        'sleep_hours': sleep.get('total_hours', 7),
+        'steps': data.get('steps', 8000),
+        'rhr': rhr
     }
-    body_age_history.insert(0, today_data)
-    
-    body_age_result = calculate_body_age(body_age_history, age, gender)
+    body_age_result = calculate_body_age(body_metrics, age, gender)
 
-    # 5) Pace of Aging：V6.0.4 使用 30 天历史数据
-    pace_history = []
-    for i in range(1, 31):
-        past_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
-        day_data = history.get_raw_cache(past_date, member_name)
-        if day_data:
-            pace_history.append(day_data)
-    
-    # 添加当日数据
-    pace_history.insert(0, today_data)
-    
-    pace = calculate_pace_of_aging(pace_history, age, gender)
-    if pace is None:
-        pace = 1.0  # 默认正常速度
-        # 数据不足时，基于 Recovery 变化计算简化版 Pace
-        previous_7day = history.get_average_range(yesterday, member_name, days=7, skip_days=6)
-        if int(previous_7day.get('days_count', 0) or 0) > 0:
-            # 使用 Recovery 变化率估算 Pace
-            prev_recovery = float(previous_7day.get('recovery', 50) or 50)
-            curr_recovery = float(recovery_result.recovery)
-            recovery_change = (curr_recovery - prev_recovery) / max(prev_recovery, 1)
-            # Recovery 下降 10% → Pace 增加 0.1
-            pace = max(0.5, min(2.0, 1.0 - recovery_change))
-        else:
-            pace = 1.0
+    # 5) Pace of Aging：当前 7 天 vs 前 7 天
+    current_7day = history.get_period_average(date_str, member_name, days=7, offset_days=0)
+    previous_7day = history.get_period_average(date_str, member_name, days=7, offset_days=7)
+    pace = calculate_pace_of_aging_simple(current_7day, previous_7day)
 
     return {
         'strain': strain,
-        'recovery': recovery_result.recovery,
-        'recovery_status': recovery_result.status,
+        'recovery': recovery_result['recovery'],
+        'recovery_status': recovery_result['status'],
         'sleep_performance': sleep_result.performance,
         'sleep_need': sleep_result.sleep_need,
         'body_age': body_age_result.body_age,
         'chronological_age': body_age_result.chronological_age,
         'age_impact': body_age_result.age_impact,
         'pace_of_aging': pace,
-        'zone_times': resolved_zone_times,
+        'zone_times': final_zone_times,
         'breakdown': {
-            'recovery_detail': asdict(recovery_result),
+            'recovery_detail': recovery_result,
             'sleep_detail': asdict(sleep_result),
             'body_age_detail': asdict(body_age_result),
-        },
+            'sleep_consistency': round(sleep_consistency, 1),
+            'sleep_latency_min': float(sleep_latency_min),
+            'baseline_hrv': round(baselines['baseline_hrv'], 1),
+            'baseline_rhr': round(baselines['baseline_rhr'], 1),
+            'baseline_respiratory': round(baselines['baseline_respiratory'], 1),
+        }
     }
+
+
+def calculate_pace_of_aging_simple(current_7day: Dict, previous_7day: Dict) -> float:
+    """简化版 Pace of Aging：当前 7 天 vs 前 7 天。"""
+    curr_recovery = current_7day.get('recovery', 50)
+    prev_recovery = previous_7day.get('recovery', 50)
+    if prev_recovery <= 0:
+        return 1.0
+    recovery_change = (curr_recovery - prev_recovery) / prev_recovery
+    # Recovery 下降 10% -> Pace 增加 0.1
+    pace = 1.0 - recovery_change
+    return max(0.5, min(2.0, pace))

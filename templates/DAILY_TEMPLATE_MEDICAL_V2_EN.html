@@ -795,20 +795,17 @@ body {
 
 <!-- Score Cards -->
 <div class="score-section">
+  <div class="score-card strain">
+    <div class="score-value">{{STRAIN}}</div>
+    <div class="score-label">Strain</div>
+  </div>
   <div class="score-card recovery">
-    <div class="score-value">{{SCORE_RECOVERY}}</div>
+    <div class="score-value">{{RECOVERY}}%</div>
     <div class="score-label">Recovery</div>
-    <span class="badge {{BADGE_RECOVERY_CLASS}}">{{BADGE_RECOVERY_TEXT}}</span>
   </div>
   <div class="score-card sleep">
-    <div class="score-value">{{SCORE_SLEEP}}</div>
-    <div class="score-label">Sleep Quality</div>
-    <span class="badge {{BADGE_SLEEP_CLASS}}">{{BADGE_SLEEP_TEXT}}</span>
-  </div>
-  <div class="score-card exercise">
-    <div class="score-value">{{SCORE_EXERCISE}}</div>
-    <div class="score-label">Exercise Complete</div>
-    <span class="badge {{BADGE_EXERCISE_CLASS}}">{{BADGE_EXERCISE_TEXT}}</span>
+    <div class="score-value">{{SLEEP_PERFORMANCE}}%</div>
+    <div class="score-label">Sleep Performance</div>
   </div>
 </div>
 
