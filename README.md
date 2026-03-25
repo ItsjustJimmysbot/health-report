@@ -1,4 +1,4 @@
-# Health Agent V6.0.3 - OpenClaw 专业健康分析 Skill
+# Health Agent V6.0.5 - OpenClaw 专业健康分析 Skill
 
 > ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
 > 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。
@@ -46,7 +46,7 @@ python3 -m playwright install chromium
 安装完成后，OpenClaw 会自动通过 `SKILL.md` 发现并启用此 Skill。
 
 ### 3. 配置文件 (config.json)
-首次使用前，请编辑 `config.json` 配置你的数据路径（V6.0.3 配置结构）：
+首次使用前，请编辑 `config.json` 配置你的数据路径（V6.0.5 配置结构）：
 
 ```json
 {
@@ -283,7 +283,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每日健康日报 - V6.0.3 标准化流程】
+【每日健康日报 - V6.0.5 标准化流程】
 1. 读取 config.json：获取配置的 Health 路径以及 language 字段 (CN 或 EN)
 2. 提取数据：为所有成员提取当日数据
    # macOS:
@@ -338,7 +338,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每周健康周报 - V6.0.3 标准化流程】
+【每周健康周报 - V6.0.5 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算日期：获取上周一至上周日日期
    # macOS:
@@ -364,7 +364,7 @@ python3 scripts/setup_oauth2.py
 
 **指令内容模板：**
 ```text
-【每月健康月报 - V6.0.3 标准化流程】
+【每月健康月报 - V6.0.5 标准化流程】
 1. 读取 config.json：获取 language 字段 (CN 或 EN)
 2. 计算月份：获取上月年份和月份
    # macOS:
@@ -467,11 +467,11 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 
 ---
 
-## ✨ V6.0.3 核心特性（含 5.8.x 兼容修复）
+## ✨ V6.0.5 核心特性（含 5.8.x 兼容修复）
 
-> 版本说明：当前发布主版本为 **V6.0.3**。文中保留的 "V5.8.1" 标识表示该能力在 5.8.1 首次引入并在 5.9.x/6.0.x 继续兼容。
+> 版本说明：当前发布主版本为 **V6.0.5**。文中保留的 "V5.8.1" 标识表示该能力在 5.8.1 首次引入并在 5.9.x/6.0.x 继续兼容。
 
-*   **健康评分系统 V6.0.3**：全新五大核心评分指标
+*   **健康评分系统 V6.0.5**：全新五大核心评分指标
     - **Strain (0-21)**: 日心血管负荷评估，基于心率区间和力量训练计算
     - **Recovery (0-100%)**: 晨间恢复度，绿/黄/红三级状态指示
     - **Sleep Performance (0-100%)**: 自适应睡眠需求评估，根据前日负荷动态调整
@@ -786,7 +786,7 @@ python3 scripts/extract_data_v5.py 2026-03-01 all
 **在定时任务中使用（推荐）：**
 在 OpenClaw 定时任务指令中使用 `all` 参数，一次生成所有成员的报告：
 ```text
-【每日健康日报 - V6.0.3 全成员流程】
+【每日健康日报 - V6.0.5 全成员流程】
 1. 读取 config.json：获取所有成员配置
 2. 提取数据：为每个成员分别提取数据
    python3 scripts/extract_data_v5.py $(date -v-1d +%Y-%m-%d) all

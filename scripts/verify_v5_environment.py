@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Health Agent V6.0.3 环境检查脚本"""
+"""Health Agent V6.0.5 环境检查脚本"""
 import sys
 import os
 import json
