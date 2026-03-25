@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [6.0.6] - 2026-03-26
+
+### Added
+- 健康风险信号检测系统 (`health_alerts.py`)
+- 支持 7 个健康风险信号检测（紧急、预警、趋势三级）
+- 在日报首页添加健康警告模块，包含 CSS 动画效果
+- 添加 MAD 异常值检测和指数平滑处理（Pace of Aging）
+- 多语言支持（CN/EN）的健康警告文本
+
+### Fixed
+- Pace of Aging 显示 "None" / "Nonex" 的问题
+- 修复模板替换使用 pace_display 变量而非原始值
+- 修复 Pace 描述逻辑覆盖 None 值导致数据不足标识丢失
+- 修复日志打印直接显示 None 的问题
+
 ## [6.0.5] - 2026-03-25
 
 ### Fixed

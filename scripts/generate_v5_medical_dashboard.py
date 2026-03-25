@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V6.0.5 AI分析报告生成器 - Medical Dashboard 模板版
+V6.0.6 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
@@ -1380,7 +1380,8 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     print(f"   Recovery: {health_scores['recovery']}% ({health_scores['recovery_status']})")
     print(f"   Sleep Performance: {health_scores['sleep_performance']}%")
     print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
-    print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
+    pace_log = health_scores['pace_of_aging'] if health_scores['pace_of_aging'] is not None else "--"
+    print(f"   Pace of Aging: {pace_log}x")
 
     # V6.0.5: Pace of Aging 数据不足处理（显示提示而非默认值）
     pace = health_scores['pace_of_aging']
@@ -1409,20 +1410,21 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{BODY_AGE}}', str(health_scores['body_age']))
     html = html.replace('{{CHRONOLOGICAL_AGE}}', str(health_scores['chronological_age']))
     html = html.replace('{{AGE_IMPACT}}', f"{health_scores['age_impact']:+.1f}")
-    html = html.replace('{{PACE_OF_AGING}}', str(health_scores['pace_of_aging']))
+    html = html.replace('{{PACE_OF_AGING}}', pace_display)
     
-    # Pace描述（V6.0.5：新范围 0.0-3.0，1.0为正常）
-    pace = health_scores['pace_of_aging']
-    if pace is None:
-        pace = 1.0
+    # Pace描述（V6.0.6：修复 None 值处理，新范围 0.0-3.0，1.0为正常）
+    raw_pace = health_scores['pace_of_aging']
     
-    if pace < 0.7:
+    if raw_pace is None:
+        pace_desc = "数据不足 ⚪" if LANGUAGE == 'CN' else "Insufficient Data ⚪"
+        pace_class = "stable"
+    elif raw_pace < 0.7:
         pace_desc = "逆龄中 🟢" if LANGUAGE == 'CN' else "Reverse Aging 🟢"
         pace_class = "reverse-aging"
-    elif pace < 1.3:
+    elif raw_pace < 1.3:
         pace_desc = "正常速度 ⚪" if LANGUAGE == 'CN' else "Normal Pace ⚪"
         pace_class = "stable"
-    elif pace < 2.0:
+    elif raw_pace < 2.0:
         pace_desc = "略快于正常 🟡" if LANGUAGE == 'CN' else "Slightly Fast 🟡"
         pace_class = "normal"
     else:
