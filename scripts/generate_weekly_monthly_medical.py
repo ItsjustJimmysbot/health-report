@@ -858,7 +858,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     avg_body_age = sum(body_ages) / len(body_ages) if body_ages else (member_cfg.get('age', 30) if member_cfg else 30)
     avg_age_impact = sum(age_impacts) / len(age_impacts) if age_impacts else 0.0
 
-    display_pace = max(0.5, min(2.0, float(avg_pace)))
+    display_pace = max(0.5, min(2.5, float(avg_pace)))
 
     html = html.replace('{{AVERAGE_PACE_OF_AGING}}', f'{display_pace:.2f}')
     html = html.replace('{{AVERAGE_BODY_AGE}}', f'{avg_body_age:.1f}')
@@ -879,15 +879,15 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         pace_desc = "数据不足 ⚪ - 需要更多天数计算趋势" if LANGUAGE == "CN" else "Insufficient Data ⚪ - More days needed"
         pace_class = "stable"
         pace_color = "#b2bec3"
-    elif display_pace < 0.85:
+    elif display_pace < 0.7:
         pace_desc = "逆龄中 🟢 - 最近趋势优于实际年龄" if LANGUAGE == "CN" else "Reverse Aging 🟢 - Trending younger"
         pace_class = "reverse"
         pace_color = "#55efc4"
-    elif display_pace <= 1.15:
+    elif display_pace < 1.3:
         pace_desc = "正常速度 ⚪ - 与实际年龄基本同步" if LANGUAGE == "CN" else "Normal Pace ⚪ - Roughly age-matched"
         pace_class = "stable"
         pace_color = "#74b9ff"
-    elif display_pace <= 1.35:
+    elif display_pace < 2.0:
         pace_desc = "略快于正常 🟡 - 建议关注恢复与睡眠" if LANGUAGE == "CN" else "Slightly Fast 🟡 - Watch recovery and sleep"
         pace_class = "normal"
         pace_color = "#fdcb6e"
