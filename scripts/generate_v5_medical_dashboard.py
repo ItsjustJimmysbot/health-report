@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from utils import (load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, 
                    KJ_TO_KCAL, count_text_units, METRIC_DEFS, CATEGORY_ORDER, CATEGORY_LABELS)
 
-# V6.0.1: 导入健康评分模块
+# V6.0.5: 导入健康评分模块
 from health_score import calculate_all_scores, HealthScoreHistory
 
 # ==================== 全局配置（从 config.json 加载）====================
@@ -389,7 +389,7 @@ def _values(metrics: dict, name: str, target_date: str = None):
     m = metrics.get(name, {})
     arr = m.get('data', []) if isinstance(m, dict) else []
 
-    # V6.0.1: 统一兼容字符串日期与数字时间戳（秒/毫秒）
+    # V6.0.5: 统一兼容字符串日期与数字时间戳（秒/毫秒）
     if target_date:
         filtered_arr = []
         for x in arr:
@@ -1349,7 +1349,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         members = CONFIG.get("members", [])
         member_cfg = members[0] if members else None
 
-    # V6.0.1: 计算新的健康评分系统
+    # V6.0.5: 计算新的健康评分系统
     cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
     history = HealthScoreHistory(cache_dir)
 
@@ -1385,7 +1385,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     elif 0.9 <= pace <= 1.1:
         print(f"   ℹ️ 提示: pace_of_aging 接近 1.0，表示衰老速度与实际年龄同步")
     
-    # V6.0.1: 新的健康评分替换
+    # V6.0.5: 新的健康评分替换
     html = html.replace('{{STRAIN}}', str(health_scores['strain']))
     html = html.replace('{{STRAIN_PERCENT}}', str(int(health_scores['strain'] / 21 * 100)))
     html = html.replace('{{RECOVERY}}', str(health_scores['recovery']))
@@ -1397,7 +1397,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{AGE_IMPACT}}', f"{health_scores['age_impact']:+.1f}")
     html = html.replace('{{PACE_OF_AGING}}', str(health_scores['pace_of_aging']))
     
-    # Pace描述（V6.0.4：新范围 0.0-3.0，1.0为正常）
+    # Pace描述（V6.0.5：新范围 0.0-3.0，1.0为正常）
     pace = health_scores['pace_of_aging']
     if pace is None:
         pace = 1.0
@@ -1667,10 +1667,12 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         sleep_total = sleep_data.get('total_hours', 0)
         sleep_need = health_scores['sleep_need']
 
-        # 计算当日睡眠债：允许少量还债
+        # V6.0.5修复: 睡眠债累积逻辑改为WHOOP式
+        # 当日睡眠超过需求时可以全部还债，但限制单日最大还债量
         daily_debt = round(sleep_need - sleep_total, 2)
         if daily_debt < 0:
-            daily_debt = max(-1.0, daily_debt)
+            # 允许全部还债，但单日最多还2小时(避免过度补偿)
+            daily_debt = max(-2.0, daily_debt)
 
         # 获取累积睡眠债（从昨天缓存）
         cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()

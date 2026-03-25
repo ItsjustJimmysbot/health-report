@@ -248,7 +248,7 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
                 print(f"⚠️  时间解析失败: {start_ts} - {e}", file=sys.stderr)
                 continue
 
-            # V6.0.0: 仅保留目标日期的运动记录，避免跨天数据混入
+            # V6.0.5: 仅保留目标日期的运动记录，避免跨天数据混入
             if start_dt.strftime('%Y-%m-%d') != date_str:
                 continue
 
@@ -394,7 +394,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     basal_energy = extract_metric_sum(metrics, 'basal_energy_burned')  # kJ
     respiratory, _ = extract_metric_avg(metrics, 'respiratory_rate')
 
-    # ===== 高级指标提取（V6.0.0 新增）=====
+    # ===== 高级指标提取（V6.0.5 新增）=====
     # 心肺能力
     vo2_max, _ = extract_metric_avg(metrics, 'vo2_max')
     physical_effort, _ = extract_metric_avg(metrics, 'physical_effort')

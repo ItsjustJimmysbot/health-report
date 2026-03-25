@@ -15,7 +15,7 @@ from pathlib import Path
 from html import escape as html_escape
 from playwright.sync_api import sync_playwright
 
-# V6.0.0: 使用共用工具函数
+# V6.0.5: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, pick_member_ai_analysis, detect_language_mismatch, MAX_MEMBERS, count_text_units
 from health_score import calculate_body_age, calculate_pace_of_aging
@@ -380,20 +380,22 @@ def safe_html_paragraph(value) -> str:
 
 
 def load_cache(date_str, member_name="默认用户"):
-    """加载单日缓存数据 - V5.8.1: 支持 safe_name 命名规则"""
+    """加载单日缓存数据 - V6.0.5: 统一使用 safe_name 命名规则
+    
+    重要: 只读取 safe_name 格式，移除旧格式回退以避免混淆
+    """
+    from utils import safe_member_name
     safe_name = safe_member_name(member_name)
 
-    # 三级读取顺序：safe_name -> 原始name -> 旧格式
-    cache_paths = [
-        CACHE_DIR / f'{date_str}_{safe_name}.json',
-        CACHE_DIR / f'{date_str}_{member_name}.json',
-        CACHE_DIR / f'{date_str}.json',  # 旧格式兜底
-    ]
+    # V6.0.5: 只使用标准 safe_name 路径
+    cache_path = CACHE_DIR / f'{date_str}_{safe_name}.json'
 
-    for cache_path in cache_paths:
-        if cache_path.exists():
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+    if cache_path.exists():
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    
+    # 调试输出帮助排查
+    print(f"   ℹ️ 缓存未找到: {cache_path}")
     return None
 
 def _sleep_total(sleep_obj: dict) -> float:
@@ -739,7 +741,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
 
-    # V6.0.0: 计算周报 Body Age (直接使用 weekly_data 列表)
+    # V6.0.5: 计算周报 Body Age (直接使用 weekly_data 列表)
     
     # 获取成员配置
     members = CONFIG.get('members', [])
@@ -757,7 +759,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
         html = html.replace('{{WEEKLY_BODY_AGE}}', '--')
         html = html.replace('{{WEEKLY_AGE_IMPACT}}', '--')
 
-    # V6.0.2: 计算本周心率区间分布
+    # V6.0.5: 计算本周心率区间分布
     weekly_zone_times = {'zone_1': 0, 'zone_2': 0, 'zone_3': 0, 'zone_4': 0, 'zone_5': 0}
     for day in weekly_data:
         hs = day.get('health_scores', {})
@@ -832,24 +834,13 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     print(f"📊 计算趋势变化...")
     previous_data = load_previous_week_data(week_dates, member_name)
 
-    # Pace 优先使用日报已缓存结果；不足时使用 simple 版本（周报只有7天数据）
+    # V6.0.5: Pace of Aging 只使用日报缓存结果，数据不足时返回None
     if len(pace_values) >= 3:
         avg_pace = sum(pace_values) / len(pace_values)
-    elif member_cfg:
-        # 周报只有7天数据，使用 simple 版本
-        from health_score import calculate_pace_of_aging_simple
-        current_7day = {'recovery': sum(d.get('health_scores', {}).get('recovery', 50) for d in weekly_data) / len(weekly_data)}
-        # 加载前一周数据
-        prev_week_dates = [(datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=7+i)).strftime('%Y-%m-%d') for i in range(7)]
-        prev_data = [load_cache(d, member_name) for d in prev_week_dates]
-        prev_data = [d for d in prev_data if d]
-        if prev_data:
-            prev_7day = {'recovery': sum(d.get('health_scores', {}).get('recovery', 50) for d in prev_data) / len(prev_data)}
-        else:
-            prev_7day = {'recovery': 50}
-        avg_pace = calculate_pace_of_aging_simple(current_7day, prev_7day)
     else:
-        avg_pace = None
+        # 数据不足时不估算，使用默认值1.0(正常)
+        avg_pace = 1.0
+        print(f"   ℹ️ Pace of Aging 数据不足({len(pace_values)}天)，使用默认值1.0")
 
     if avg_pace is None:
         avg_pace = 1.0
@@ -1098,7 +1089,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_CALORIES}}', f"{int(avg_calories):,}")
     html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
     
-    # V6.0.0: 计算月报Body Age (直接使用 monthly_data 列表)
+    # V6.0.5: 计算月报Body Age (直接使用 monthly_data 列表)
     
     # 获取成员配置
     members = CONFIG.get("members", [])

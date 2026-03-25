@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 
-# V6.0.0: 使用共用工具函数
+# V6.0.5: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
 from utils import load_config, safe_member_name, MAX_MEMBERS
 

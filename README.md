@@ -50,7 +50,7 @@ python3 -m playwright install chromium
 
 ```json
 {
-  "version": "6.0.3",
+  "version": "6.0.5",
   "members": [
     {
       "name": "Member1",
@@ -549,7 +549,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 ## config.json 结构
 ```json
 {
-  "version": "6.0.3",
+  "version": "6.0.5",
   "members": [
     {
       "name": "Jimmy",
@@ -699,7 +699,7 @@ python3 scripts/validate_config.py --config ./config.json --schema ./config.sche
 
 ```json
 {
-  "version": "6.0.3",
+  "version": "6.0.5",
   "members": [
     {
       "name": "爸爸",

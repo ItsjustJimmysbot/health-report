@@ -17,7 +17,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# ============ V6.0.4 配置常量 ============
+# ============ V6.0.5 配置常量 ============
 BASELINE_DAYS = 14              # HRV/RHR/呼吸率基线天数
 BODY_AGE_DAYS = 30              # Body Age 计算用天数
 PACE_SHORT_TERM_DAYS = 14       # Pace of Aging 短期窗口 (从7天增加到14天)
@@ -280,6 +280,16 @@ def calculate_strain_simple(active_energy: float, steps: int,
     strain = 21 * (1 - math.exp(-total_load / 80))
     strain = min(21, max(0, strain))
     
+    # V6.0.5新增: 无workout时的日常活动strain补偿
+    # 基于步数估算非运动日的cardiovascular load
+    if not workouts and steps > 0:
+        # 估算日常活动的strain: 每1000步 ≈ 0.5 strain单位
+        daily_activity_strain = min(8, steps / 1000 * 0.5)
+        # 考虑年龄因子(老年人日常活动strain略低)
+        age_factor = 1.0 if age < 40 else 0.9 if age < 60 else 0.8
+        daily_activity_strain *= age_factor
+        strain = max(strain, daily_activity_strain)
+    
     # V6.0.5: 如果有心率数据，从心率数据计算真实zone_times
     if hr_data and len(hr_data) > 0:
         zone_times = calculate_zone_times_from_hr_data(hr_data, age, rhr)
@@ -489,12 +499,10 @@ def calculate_zone_times_from_workouts(workouts: List[Dict], age: int, rhr: int 
                     else:
                         duration = 1.0
 
-                zone = get_hr_zone(int(hr), max_hr, rhr)  # 传入 rhr
+                zone = get_hr_zone(int(hr), max_hr, rhr)
                 if zone >= 1:
                     zone_times[f'zone_{zone}'] += duration
-                elif zone == 0:
-                    # Zone 0 是恢复区，计入 zone_1 但权重较低
-                    zone_times['zone_1'] += duration * 0.5
+                # V6.0.5: Zone 0 不再计入任何zone，避免strain计算偏差
             continue
 
         avg_hr = workout.get('avg_hr')
@@ -537,6 +545,10 @@ def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int, rhr: int = 
         zone = get_hr_zone(int(hr), max_hr, rhr)
         if zone >= 1:
             zone_times[zone] += duration_min
+        elif zone == 0:
+            # V6.0.5修复: Zone 0 (恢复区) 不计入任何zone，避免strain低估
+            # 这部分时间代表完全休息，对strain无贡献
+            pass
 
     return {
         'zone_1': round(zone_times[1], 1),
@@ -622,9 +634,17 @@ def calculate_recovery(hrv_rmssd: float, rhr: float,
     - 睡眠规律性
     """
     fallback_rhr = 60 if gender == 'male' else 64
-    baseline_hrv = max(1.0, float(baseline_hrv or hrv_rmssd or 50))
-    baseline_rhr = max(1.0, float(baseline_rhr or rhr or fallback_rhr))
-    baseline_respiratory = max(1.0, float(baseline_respiratory or respiratory_rate or 14))
+    # V6.0.5修复: 使用人群默认值作为fallback，而非当日值
+    population_defaults = {
+        'hrv': 50.0 if gender == 'male' else 55.0,
+        'rhr': 65.0 if gender == 'male' else 69.0,
+        'respiratory': 14.0
+    }
+    
+    # 如果baseline为None(数据不足)，使用人群默认值
+    baseline_hrv = max(1.0, float(baseline_hrv if baseline_hrv is not None else population_defaults['hrv']))
+    baseline_rhr = max(1.0, float(baseline_rhr if baseline_rhr is not None else population_defaults['rhr']))
+    baseline_respiratory = max(1.0, float(baseline_respiratory if baseline_respiratory is not None else population_defaults['respiratory']))
 
     hrv_value = float(hrv_rmssd or 0)
     rhr_value = float(rhr or baseline_rhr)
@@ -711,17 +731,26 @@ def get_age_impact(metric: str, value: float, chrono_age: int, gender: str = 'ma
     """
     计算单个指标对年龄的影响
     返回：正值 = 加速衰老，负值 = 减缓衰老
+    
+    V6.0.5说明: 阈值基于WHOOP白皮书和AHA/ACSM运动指南综合估算
+    非临床验证值，仅供参考趋势
     """
     if value is None or value <= 0:
         return 0.0
     
-    # 根据年龄调整目标值
-    if chrono_age <= 30:
-        sleep_target, steps_target, rhr_target = 7.5, 8000, 62
-    elif chrono_age <= 50:
-        sleep_target, steps_target, rhr_target = 7.0, 7000, 65
+    # V6.0.5: 更细致的年龄分层(每10年一档)
+    if chrono_age <= 25:
+        sleep_target, steps_target, rhr_target = 8.0, 9000, 60
+    elif chrono_age <= 35:
+        sleep_target, steps_target, rhr_target = 7.5, 8500, 62
+    elif chrono_age <= 45:
+        sleep_target, steps_target, rhr_target = 7.0, 7500, 65
+    elif chrono_age <= 55:
+        sleep_target, steps_target, rhr_target = 6.8, 7000, 67
+    elif chrono_age <= 65:
+        sleep_target, steps_target, rhr_target = 6.5, 6500, 70
     else:
-        sleep_target, steps_target, rhr_target = 6.5, 6000, 68
+        sleep_target, steps_target, rhr_target = 6.0, 6000, 72
     
     if gender == 'female':
         rhr_target += 4  # 女性心率通常高 3-5 bpm
@@ -869,7 +898,7 @@ def calculate_body_age(
 ) -> BodyAgeResult:
     """
     计算 Body Age
-    V6.0.4 更新：使用 30 天平均，多指标综合评估
+    V6.0.5 更新：使用 30 天平均，多指标综合评估
     
     Args:
         daily_data: 每日数据列表
@@ -941,16 +970,10 @@ def calculate_pace_of_aging(
     计算 Pace of Aging（年化衰老速度）
     V6.0.5 更新：基于生理指标趋势的回归模型
     
-    逻辑：
-    - 1.0 = 与实际年龄同步（正常）
-    - < 1.0 = 慢于实际年龄（逆龄）
-    - > 1.0 = 快于实际年龄（加速）
-    
-    新方法：基于 HRV、RHR、Recovery、Sleep Performance 的趋势
-    而不是简单的 Body Age 变化
+    重要: 数据不足时返回 None，不再使用简化版本
     """
-    # 数据完整性检查
-    if not daily_data or len(daily_data) < 7:  # 至少需要7天数据
+    # 数据完整性检查 - V6.0.5提高门槛到14天
+    if not daily_data or len(daily_data) < 14:
         return None
     
     # 提取关键生理指标
@@ -984,8 +1007,8 @@ def calculate_pace_of_aging(
         if isinstance(strain, (int, float)) and strain >= 0:
             strain_values.append(float(strain))
     
-    # 检查是否有足够的数据 (周报只有7天，降低到5天)
-    if len(hrv_values) < 5 or len(recovery_values) < 5:
+    # 检查是否有足够的数据 (V6.0.5提高到14天)
+    if len(hrv_values) < 14 or len(recovery_values) < 14:
         return None
     
     # 检查数据方差（避免所有值都一样导致趋势为0）
@@ -1034,12 +1057,12 @@ def calculate_pace_of_aging(
     recovery_normalized = normalize_trend(recovery_trend, 3.0)  # Recovery每天变化3%算显著
     sleep_normalized = normalize_trend(sleep_trend, 2.0)  # Sleep perf每天变化2%算显著
     
-    # 加权计算综合健康趋势
-    # 权重：HRV 30%, RHR 25%, Recovery 30%, Sleep 15%
+    # V6.0.5修复: 调整权重，HRV和RHR权重更高(与WHOOP更接近)
+    # 权重：HRV 35%, RHR 30%, Recovery 20%, Sleep 15%
     health_trend = (
-        0.30 * hrv_normalized +
-        0.25 * rhr_normalized +
-        0.30 * recovery_normalized +
+        0.35 * hrv_normalized +
+        0.30 * rhr_normalized +
+        0.20 * recovery_normalized +
         0.15 * sleep_normalized
     )
     
@@ -1176,7 +1199,10 @@ class HealthScoreHistory:
         }
 
     def get_metric_baselines(self, end_date: str, member_name: str, days: int = 21) -> Dict:
-        """获取 HRV / RHR / 呼吸率的个人 baseline，默认看前 21 天，不含当天。"""
+        """获取 HRV / RHR / 呼吸率的个人 baseline，默认看前 21 天，不含当天。
+        
+        V6.0.5修复: 数据不足7天时返回None，让调用方使用人群默认值而非当日值
+        """
         end = datetime.strptime(end_date, '%Y-%m-%d')
         hrv_values = []
         rhr_values = []
@@ -1199,10 +1225,26 @@ class HealthScoreHistory:
             if isinstance(resp, (int, float)) and resp > 0:
                 resp_values.append(float(resp))
 
+        # V6.0.5修复: 数据不足7天返回None，避免用当日值做baseline
+        min_days_required = 7
+        baseline_hrv = _safe_mean(hrv_values, None) if len(hrv_values) >= min_days_required else None
+        baseline_rhr = _safe_mean(rhr_values, None) if len(rhr_values) >= min_days_required else None
+        baseline_resp = _safe_mean(resp_values, None) if len(resp_values) >= min_days_required else None
+
         return {
-            'baseline_hrv': _safe_mean(hrv_values, 50.0),
-            'baseline_rhr': _safe_mean(rhr_values, 60.0),
-            'baseline_respiratory': _safe_mean(resp_values, 14.0),
+            'baseline_hrv': baseline_hrv,
+            'baseline_rhr': baseline_rhr,
+            'baseline_respiratory': baseline_resp,
+            'data_sufficient': {
+                'hrv': len(hrv_values) >= min_days_required,
+                'rhr': len(rhr_values) >= min_days_required,
+                'respiratory': len(resp_values) >= min_days_required,
+                'days_available': {
+                    'hrv': len(hrv_values),
+                    'rhr': len(rhr_values),
+                    'respiratory': len(resp_values)
+                }
+            }
         }
 
     def get_sleep_consistency(self, end_date: str, member_name: str, current_bedtime: str = None, current_waketime: str = None, days: int = 7) -> float:
@@ -1404,14 +1446,3 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
         }
     }
 
-
-def calculate_pace_of_aging_simple(current_7day: Dict, previous_7day: Dict) -> float:
-    """简化版 Pace of Aging：当前 7 天 vs 前 7 天。"""
-    curr_recovery = current_7day.get('recovery', 50)
-    prev_recovery = previous_7day.get('recovery', 50)
-    if prev_recovery <= 0:
-        return 1.0
-    recovery_change = (curr_recovery - prev_recovery) / prev_recovery
-    # Recovery 下降 10% -> Pace 增加 0.1
-    pace = 1.0 - recovery_change
-    return max(0.5, min(2.5, pace))
