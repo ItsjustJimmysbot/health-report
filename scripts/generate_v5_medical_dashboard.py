@@ -24,7 +24,8 @@ from playwright.sync_api import sync_playwright
 
 # V5.9.0: 使用共用工具函数
 sys.path.insert(0, str(Path(__file__).parent))
-from utils import load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, KJ_TO_KCAL, count_text_units
+from utils import (load_config, safe_member_name, pick_member_ai_analysis, MAX_MEMBERS, 
+                   KJ_TO_KCAL, count_text_units, METRIC_DEFS, CATEGORY_ORDER, CATEGORY_LABELS)
 
 # V6.0.1: 导入健康评分模块
 from health_score import calculate_all_scores, HealthScoreHistory
@@ -150,85 +151,6 @@ DAILY_MIN_WORDS = ANALYSIS_LIMITS.get("daily_min_words", 500)
 
 # 验证模式：strict=严格模式(不满足则报错), warn=警告模式(只提示)
 VALIDATION_MODE = CONFIG.get("validation_mode", "strict")  # 可选值: "strict", "warn"
-# =====================================================
-
-# ==================== 动态指标表配置（V5.9.0 新增）====================
-CATEGORY_ORDER = [
-    "core_health", "cardio_fitness", "sleep_recovery", "activity_mobility",
-    "running_advanced", "walking_gait", "stairs_strength", "environment_audio"
-]
-
-CATEGORY_LABELS = {
-    "CN": {
-        "core_health": "核心健康",
-        "cardio_fitness": "心肺能力",
-        "sleep_recovery": "睡眠恢复",
-        "activity_mobility": "活动与机能",
-        "running_advanced": "高级跑步指标",
-        "walking_gait": "步行步态",
-        "stairs_strength": "爬楼与下肢",
-        "environment_audio": "环境与暴露",
-    },
-    "EN": {
-        "core_health": "Core Health",
-        "cardio_fitness": "Cardio Fitness",
-        "sleep_recovery": "Sleep & Recovery",
-        "activity_mobility": "Activity & Mobility",
-        "running_advanced": "Advanced Running",
-        "walking_gait": "Walking & Gait",
-        "stairs_strength": "Stairs & Lower Body",
-        "environment_audio": "Environment & Exposure",
-    }
-}
-
-# 32项指标定义
-METRIC_DEFS = {
-    # 核心健康（10）
-    "hrv": {"category": "core_health", "importance": 10, "ai_key": "hrv", "label_cn": "HRV", "label_en": "HRV"},
-    "resting_hr": {"category": "core_health", "importance": 10, "ai_key": "resting_hr", "label_cn": "静息心率", "label_en": "Resting HR"},
-    "heart_rate_avg": {"category": "core_health", "importance": 8, "ai_key": "heart_rate_avg", "label_cn": "平均心率", "label_en": "Avg Heart Rate"},
-    "steps": {"category": "core_health", "importance": 9, "ai_key": "steps", "label_cn": "步数", "label_en": "Steps"},
-    "distance": {"category": "core_health", "importance": 8, "ai_key": "distance", "label_cn": "行走距离", "label_en": "Walking Distance"},
-    "active_energy": {"category": "core_health", "importance": 9, "ai_key": "active_energy", "label_cn": "活动能量", "label_en": "Active Energy"},
-    "spo2": {"category": "core_health", "importance": 8, "ai_key": "spo2", "label_cn": "血氧饱和度", "label_en": "SpO2"},
-    "respiratory_rate": {"category": "core_health", "importance": 7, "ai_key": "respiratory", "label_cn": "呼吸率", "label_en": "Respiratory Rate"},
-    "apple_stand_time": {"category": "core_health", "importance": 6, "ai_key": "stand", "label_cn": "站立时间", "label_en": "Stand Time"},
-    "basal_energy_burned": {"category": "core_health", "importance": 5, "ai_key": "basal", "label_cn": "基础代谢", "label_en": "Basal Energy"},
-
-    # 心肺能力（2）
-    "vo2_max": {"category": "cardio_fitness", "importance": 9, "ai_key": "vo2_max", "label_cn": "VO₂ Max", "label_en": "VO2 Max"},
-    "physical_effort": {"category": "cardio_fitness", "importance": 7, "ai_key": "physical_effort", "label_cn": "体力消耗率", "label_en": "Physical Effort"},
-
-    # 睡眠恢复（4）
-    "sleep_total_hours": {"category": "sleep_recovery", "importance": 10, "ai_key": "sleep", "label_cn": "总睡眠时长", "label_en": "Total Sleep"},
-    "sleep_deep_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": "sleep_deep_hours", "label_cn": "深睡时长", "label_en": "Deep Sleep"},
-    "sleep_rem_hours": {"category": "sleep_recovery", "importance": 8, "ai_key": "sleep_rem_hours", "label_cn": "REM时长", "label_en": "REM Sleep"},
-    "breathing_disturbances": {"category": "sleep_recovery", "importance": 7, "ai_key": "breathing_disturbances", "label_cn": "呼吸紊乱", "label_en": "Breathing Disturbances"},
-
-    # 活动与机能（4）
-    "apple_exercise_time": {"category": "activity_mobility", "importance": 8, "ai_key": "apple_exercise_time", "label_cn": "锻炼时间", "label_en": "Exercise Time"},
-    "flights_climbed": {"category": "stairs_strength", "importance": 6, "ai_key": "flights", "label_cn": "爬楼层数", "label_en": "Flights Climbed"},
-    "apple_stand_hour": {"category": "activity_mobility", "importance": 5, "ai_key": "apple_stand_hour", "label_cn": "站立小时数", "label_en": "Stand Hours"},
-    "stair_speed_up": {"category": "stairs_strength", "importance": 5, "ai_key": "stair_speed_up", "label_cn": "上楼速度", "label_en": "Stair Speed Up"},
-
-    # 高级跑步（5）
-    "running_speed": {"category": "running_advanced", "importance": 8, "ai_key": "running_speed", "label_cn": "跑步速度", "label_en": "Running Speed"},
-    "running_power": {"category": "running_advanced", "importance": 8, "ai_key": "running_power", "label_cn": "跑步功率", "label_en": "Running Power"},
-    "running_stride_length": {"category": "running_advanced", "importance": 7, "ai_key": "running_stride_length", "label_cn": "跑步步幅", "label_en": "Running Stride Length"},
-    "running_ground_contact_time": {"category": "running_advanced", "importance": 7, "ai_key": "running_ground_contact_time", "label_cn": "触地时间", "label_en": "Ground Contact Time"},
-    "running_vertical_oscillation": {"category": "running_advanced", "importance": 6, "ai_key": "running_vertical_oscillation", "label_cn": "垂直振幅", "label_en": "Vertical Oscillation"},
-
-    # 步行步态（5）
-    "walking_speed": {"category": "walking_gait", "importance": 6, "ai_key": "walking_speed", "label_cn": "步行速度", "label_en": "Walking Speed"},
-    "walking_step_length": {"category": "walking_gait", "importance": 6, "ai_key": "walking_step_length", "label_cn": "步行步长", "label_en": "Walking Step Length"},
-    "walking_heart_rate_average": {"category": "walking_gait", "importance": 5, "ai_key": "walking_heart_rate_average", "label_cn": "步行心率", "label_en": "Walking HR Avg"},
-    "walking_asymmetry_percentage": {"category": "walking_gait", "importance": 5, "ai_key": "walking_asymmetry_percentage", "label_cn": "步行不对称性", "label_en": "Walking Asymmetry"},
-    "walking_double_support_percentage": {"category": "walking_gait", "importance": 4, "ai_key": "walking_double_support_percentage", "label_cn": "双支撑时间占比", "label_en": "Double Support %"},
-
-    # 环境暴露（2）
-    "headphone_audio_exposure": {"category": "environment_audio", "importance": 5, "ai_key": "headphone_audio_exposure", "label_cn": "耳机音频暴露", "label_en": "Headphone Exposure"},
-    "environmental_audio_exposure": {"category": "environment_audio", "importance": 3, "ai_key": "environmental_audio_exposure", "label_cn": "环境音频暴露", "label_en": "Environmental Exposure"},
-}
 # =====================================================
 
 # ==================== 单位处理函数（V5.9.0 新增）====================
