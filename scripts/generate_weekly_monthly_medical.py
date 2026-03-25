@@ -741,7 +741,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WORKOUT_DAYS}}', str(workout_days))
     html = html.replace('{{WORKOUT_RATIO}}', f"{workout_days}/{len(weekly_data)} {get_text('days')}")
 
-    # V6.0.5: 计算周报 Body Age (直接使用 weekly_data 列表)
+    # V6.0.5 FIX: 计算周报 Body Age，确保只使用当前成员的数据
     
     # 获取成员配置
     members = CONFIG.get('members', [])
@@ -751,10 +751,22 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
             member_cfg = m
             break
     
-    if member_cfg:
-        body_age_result = calculate_body_age(weekly_data, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
-        html = html.replace('{{WEEKLY_BODY_AGE}}', str(body_age_result.body_age))
-        html = html.replace('{{WEEKLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
+    if member_cfg and weekly_data:
+        # FIX: 验证所有数据都属于当前成员
+        verified_weekly_data = []
+        for day in weekly_data:
+            day_member = day.get('member', '')
+            if day_member and safe_member_name(day_member) != safe_member_name(member_name):
+                continue
+            verified_weekly_data.append(day)
+        
+        if verified_weekly_data:
+            body_age_result = calculate_body_age(verified_weekly_data, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
+            html = html.replace('{{WEEKLY_BODY_AGE}}', str(body_age_result.body_age))
+            html = html.replace('{{WEEKLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
+        else:
+            html = html.replace('{{WEEKLY_BODY_AGE}}', '--')
+            html = html.replace('{{WEEKLY_AGE_IMPACT}}', '--')
     else:
         html = html.replace('{{WEEKLY_BODY_AGE}}', '--')
         html = html.replace('{{WEEKLY_AGE_IMPACT}}', '--')
@@ -1089,7 +1101,7 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
     html = html.replace('{{AVG_CALORIES}}', f"{int(avg_calories):,}")
     html = html.replace('{{AVG_STAND}}', f"{avg_stand:.1f}")
     
-    # V6.0.5: 计算月报Body Age (直接使用 monthly_data 列表)
+    # V6.0.5 FIX: 计算月报Body Age，确保只使用当前成员的数据
     
     # 获取成员配置
     members = CONFIG.get("members", [])
@@ -1099,10 +1111,24 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
             member_cfg = m
             break
     
-    if member_cfg:
-        body_age_result = calculate_body_age(monthly_data, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
-        html = html.replace('{{MONTHLY_BODY_AGE}}', str(body_age_result.body_age))
-        html = html.replace('{{MONTHLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
+    if member_cfg and monthly_data:
+        # FIX: 验证所有数据都属于当前成员，防止缓存混叠
+        verified_monthly_data = []
+        for day in monthly_data:
+            # 检查数据是否属于当前成员（通过member字段或profile.name）
+            day_member = day.get('member', '')
+            if day_member and safe_member_name(day_member) != safe_member_name(member_name):
+                continue  # 跳过其他成员的数据
+            # 兼容旧缓存格式（没有member字段）
+            verified_monthly_data.append(day)
+        
+        if verified_monthly_data:
+            body_age_result = calculate_body_age(verified_monthly_data, member_cfg.get('age', 30), member_cfg.get('gender', 'male'))
+            html = html.replace('{{MONTHLY_BODY_AGE}}', str(body_age_result.body_age))
+            html = html.replace('{{MONTHLY_AGE_IMPACT}}', f"{body_age_result.age_impact:+.1f}")
+        else:
+            html = html.replace('{{MONTHLY_BODY_AGE}}', '--')
+            html = html.replace('{{MONTHLY_AGE_IMPACT}}', '--')
     else:
         html = html.replace('{{MONTHLY_BODY_AGE}}', '--')
         html = html.replace('{{MONTHLY_AGE_IMPACT}}', '--')

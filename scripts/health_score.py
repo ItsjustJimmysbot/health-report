@@ -1413,8 +1413,9 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
         if raw:
             recent_daily_data.append(raw)
 
-    # 尝试使用完整版（需要至少5天数据）
+    # 尝试使用完整版（需要至少14天数据）
     pace_full = calculate_pace_of_aging(recent_daily_data, age, gender)
+    pace_data_sufficient = True  # FIX: 标记数据是否充足
     if pace_full is not None:
         pace = pace_full
     else:
@@ -1422,6 +1423,10 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
         current_7day = history.get_period_average(date_str, member_name, days=7, offset_days=0)
         previous_7day = history.get_period_average(date_str, member_name, days=7, offset_days=7)
         pace = calculate_pace_of_aging_simple(current_7day, previous_7day)
+        pace_data_sufficient = False  # FIX: 标记数据不足
+
+    # FIX: 将数据充足标记加入breakdown
+    recovery_result['pace_data_sufficient'] = pace_data_sufficient
 
     return {
         'strain': strain,
@@ -1433,6 +1438,7 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
         'chronological_age': body_age_result.chronological_age,
         'age_impact': body_age_result.age_impact,
         'pace_of_aging': pace,
+        'pace_data_sufficient': pace_data_sufficient,  # FIX: 新增字段
         'zone_times': final_zone_times,
         'breakdown': {
             'recovery_detail': recovery_result,
@@ -1443,6 +1449,7 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
             'baseline_hrv': round(baselines['baseline_hrv'], 1),
             'baseline_rhr': round(baselines['baseline_rhr'], 1),
             'baseline_respiratory': round(baselines['baseline_respiratory'], 1),
+            'pace_data_sufficient': pace_data_sufficient,  # FIX: 新增字段
         }
     }
 

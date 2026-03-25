@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [6.0.5] - 2026-03-25
+
+### Fixed
+- 修复多成员月报/周报 Body Age 计算时可能读取错误成员缓存的问题
+- 添加 Pace of Aging 数据充足性标记，避免数据不足时误导用户
+- 优化 Zone Times 计算路径，避免重复计算
+- 增强 Sleep Debt 注释说明，明确 WHOOP 式债务模型
+
 ## [6.0.3] - 2026-03-23
 
 ### Fixed

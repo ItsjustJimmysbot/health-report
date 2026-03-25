@@ -1668,10 +1668,13 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         sleep_need = health_scores['sleep_need']
 
         # V6.0.5修复: 睡眠债累积逻辑改为WHOOP式
-        # 当日睡眠超过需求时可以全部还债，但限制单日最大还债量
+        # 说明: 此实现模拟WHOOP的睡眠债务模型，与"睡眠银行"概念不同
+        # - 睡眠债务只增不减（通过充足睡眠减少）
+        # - 不能积累"睡眠信用"（债务不会变成负数）
+        # - 单日最多偿还2小时债务（避免过度补偿）
         daily_debt = round(sleep_need - sleep_total, 2)
         if daily_debt < 0:
-            # 允许全部还债，但单日最多还2小时(避免过度补偿)
+            # 睡眠充足：偿还债务，但单日最多还2小时
             daily_debt = max(-2.0, daily_debt)
 
         # 获取累积睡眠债（从昨天缓存）
@@ -1680,6 +1683,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
 
         prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
         prev_debt = history.get_sleep_debt(prev_date, member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
+        # 累积债务 = 昨日债务 + 今日债务，但不会小于0（无信用积累）
         accumulated_debt = max(0, prev_debt + daily_debt) if prev_debt else max(0, daily_debt)
 
         bedtime = sleep_data.get('bedtime', '--') if isinstance(sleep_data, dict) else '--'
