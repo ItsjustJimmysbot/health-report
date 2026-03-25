@@ -12,7 +12,7 @@
     "version": {
       "type": "string",
       "pattern": "^(5\\.(8|9)|6\\.0)\\.\\d+$",
-      "description": "配置版本号，格式: 5.x.x 或 6.0.x"
+      "description": "配置版本号，格式: 5.8.x、5.9.x 或 6.0.x（当前推荐 6.0.x）"
     },
     "members": {
       "type": "array",

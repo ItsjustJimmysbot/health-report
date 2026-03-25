@@ -60,6 +60,9 @@ def get_hr_zone(hr: int, max_hr: int, rhr: int = None) -> int:
     - Zone 5: >= 80% HRR (最大强度)
     
     如果未提供 RHR，回退到简单的 %MaxHR 方法
+    注意: 回退方法的阈值与HRR方法不等价，可能导致Zone分布偏差
+    - %MaxHR 回退阈值: Zone 1 >=50%, Zone 2 >=60%, Zone 3 >=70%, Zone 4 >=80%, Zone 5 >=90%
+    - 建议: 尽可能提供 RHR 以获得准确的 Strain 计算
     """
     if max_hr <= 0:
         return 0
@@ -1415,18 +1418,20 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
 
     # 尝试使用完整版（需要至少14天数据）
     pace_full = calculate_pace_of_aging(recent_daily_data, age, gender)
-    pace_data_sufficient = True  # FIX: 标记数据是否充足
+    
     if pace_full is not None:
         pace = pace_full
+        pace_data_sufficient = True
+        pace_note = ""
     else:
-        # 回退到 simple 版本
-        current_7day = history.get_period_average(date_str, member_name, days=7, offset_days=0)
-        previous_7day = history.get_period_average(date_str, member_name, days=7, offset_days=7)
-        pace = calculate_pace_of_aging_simple(current_7day, previous_7day)
-        pace_data_sufficient = False  # FIX: 标记数据不足
+        # 数据不足：返回 None 并标记，不使用简化版避免误导
+        pace = None
+        pace_data_sufficient = False
+        pace_note = "数据不足（需要至少14天）"
 
-    # FIX: 将数据充足标记加入breakdown
+    # 将数据充足标记加入breakdown
     recovery_result['pace_data_sufficient'] = pace_data_sufficient
+    recovery_result['pace_note'] = pace_note
 
     return {
         'strain': strain,

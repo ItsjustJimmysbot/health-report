@@ -751,13 +751,16 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
             member_cfg = m
             break
     
+    # V6.0.5 FIX: 计算周报 Body Age，确保只使用当前成员的数据
     if member_cfg and weekly_data:
-        # FIX: 验证所有数据都属于当前成员
+        # 验证所有数据都属于当前成员，防止缓存混叠
         verified_weekly_data = []
         for day in weekly_data:
+            # 检查数据是否属于当前成员（通过member字段）
             day_member = day.get('member', '')
             if day_member and safe_member_name(day_member) != safe_member_name(member_name):
-                continue
+                continue  # 跳过其他成员的数据
+            # 兼容旧缓存格式（没有member字段）- 接受数据
             verified_weekly_data.append(day)
         
         if verified_weekly_data:
@@ -1111,8 +1114,9 @@ def generate_monthly_report(year, month, ai_analysis, template, member_name="默
             member_cfg = m
             break
     
+    # V6.0.5 FIX: 计算月报 Body Age，确保只使用当前成员的数据
     if member_cfg and monthly_data:
-        # FIX: 验证所有数据都属于当前成员，防止缓存混叠
+        # 验证所有数据都属于当前成员，防止缓存混叠
         verified_monthly_data = []
         for day in monthly_data:
             # 检查数据是否属于当前成员（通过member字段或profile.name）

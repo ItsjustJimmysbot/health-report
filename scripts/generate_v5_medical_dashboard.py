@@ -1374,16 +1374,22 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
     print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
 
-    # V6.0.5 调试: 检查 pace_of_aging 范围 (统一范围 0.5-2.5)
+    # V6.0.5: Pace of Aging 数据不足处理（显示提示而非默认值）
     pace = health_scores['pace_of_aging']
-    # 处理 pace 为 None 的情况（数据不足时）
+    pace_data_sufficient = health_scores.get('pace_data_sufficient', False)
+    
     if pace is None:
-        pace = 1.0
-        print(f"   ℹ️ 提示: pace_of_aging 数据不足，使用默认值 1.0")
-    elif pace < 0.5 or pace > 2.5:
-        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [0.5, 2.5]")
-    elif 0.9 <= pace <= 1.1:
-        print(f"   ℹ️ 提示: pace_of_aging 接近 1.0，表示衰老速度与实际年龄同步")
+        # 数据不足时显示提示而非默认值
+        pace_display = "--"
+        pace_desc = "数据不足" if LANGUAGE == 'CN' else "Insufficient Data"
+        pace_class = "stable"
+        print(f"   ℹ️ 提示: pace_of_aging 数据不足（需要至少14天数据）")
+    else:
+        pace_display = str(pace)
+        if pace < 0.5 or pace > 2.5:
+            print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [0.5, 2.5]")
+        elif 0.9 <= pace <= 1.1:
+            print(f"   ℹ️ 提示: pace_of_aging 接近 1.0，表示衰老速度与实际年龄同步")
     
     # V6.0.5: 新的健康评分替换
     html = html.replace('{{STRAIN}}', str(health_scores['strain']))
@@ -1667,15 +1673,21 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         sleep_total = sleep_data.get('total_hours', 0)
         sleep_need = health_scores['sleep_need']
 
-        # V6.0.5修复: 睡眠债累积逻辑改为WHOOP式
-        # 说明: 此实现模拟WHOOP的睡眠债务模型，与"睡眠银行"概念不同
-        # - 睡眠债务只增不减（通过充足睡眠减少）
-        # - 不能积累"睡眠信用"（债务不会变成负数）
-        # - 单日最多偿还2小时债务（避免过度补偿）
+        # V6.0.5: 睡眠债累积逻辑（简化版睡眠银行模型）
+        # 说明: 此实现是WHOOP睡眠债务模型的简化版本
+        # - 睡眠不足时累积债务 (sleep_need - actual_sleep)
+        # - 睡眠充足时可偿还债务（最多单日2小时）
+        # - 债务下限为0（不积累"睡眠信用"，与真实WHOOP有差异）
+        # - 真实WHOOP允许负债务（信用），本实现为了简化不这么做
+
+        # 计算今日睡眠债务变化
         daily_debt = round(sleep_need - sleep_total, 2)
+        
+        # 债务偿还逻辑：睡眠充足时可以减少债务
         if daily_debt < 0:
-            # 睡眠充足：偿还债务，但单日最多还2小时
-            daily_debt = max(-2.0, daily_debt)
+            # 睡眠充足：最多偿还2小时债务
+            debt_repaid = min(abs(daily_debt), 2.0)  # 实际偿还的债务量
+            daily_debt = -debt_repaid  # 保持为负值表示偿还
 
         # 获取累积睡眠债（从昨天缓存）
         cache_dir = Path(CONFIG.get("cache_dir", str(Path(__file__).parent.parent / 'cache' / 'daily'))).expanduser()
@@ -1683,8 +1695,11 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
 
         prev_date = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
         prev_debt = history.get_sleep_debt(prev_date, member_cfg.get('name', '默认用户') if member_cfg else '默认用户')
-        # 累积债务 = 昨日债务 + 今日债务，但不会小于0（无信用积累）
-        accumulated_debt = max(0, prev_debt + daily_debt) if prev_debt else max(0, daily_debt)
+        
+        # 累积债务计算：昨日债务 - 今日偿还（或 + 今日新增）
+        if prev_debt is None:
+            prev_debt = 0.0
+        accumulated_debt = max(0.0, prev_debt + daily_debt)
 
         bedtime = sleep_data.get('bedtime', '--') if isinstance(sleep_data, dict) else '--'
         waketime = sleep_data.get('waketime', '--') if isinstance(sleep_data, dict) else '--'
