@@ -667,6 +667,8 @@ def calculate_recovery(hrv_rmssd: float, rhr: float,
         'hrv_score': round(hrv_score, 1),
         'rhr_score': round(rhr_score, 1),
         'sleep_score': round(sleep_value, 1),
+        'sleep_consistency_score': round(consistency_value, 1),
+        'respiratory_score': round(respiratory_score, 1),
         'status': status
     }
 
@@ -1056,7 +1058,7 @@ def calculate_pace_of_aging(
         pace = 1.0 + health_trend * 0.5
     
     # 限制在统一范围（与日报/周报显示一致）
-    pace = max(0.5, min(2.0, pace))
+    pace = max(0.5, min(2.5, pace))
     
     return round(pace, 2)
 

@@ -1452,14 +1452,14 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     print(f"   Body Age: {health_scores['chronological_age']} → {health_scores['body_age']}")
     print(f"   Pace of Aging: {health_scores['pace_of_aging']}x")
 
-    # V6.0.4 调试: 检查 pace_of_aging 范围 (新范围 0.0-3.0)
+    # V6.0.5 调试: 检查 pace_of_aging 范围 (统一范围 0.5-2.5)
     pace = health_scores['pace_of_aging']
     # 处理 pace 为 None 的情况（数据不足时）
     if pace is None:
         pace = 1.0
         print(f"   ℹ️ 提示: pace_of_aging 数据不足，使用默认值 1.0")
-    elif pace < 0.0 or pace > 3.0:
-        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [0.0, 3.0]")
+    elif pace < 0.5 or pace > 2.5:
+        print(f"   ⚠️ 警告: pace_of_aging ({pace}) 超出预期范围 [0.5, 2.5]")
     elif 0.9 <= pace <= 1.1:
         print(f"   ℹ️ 提示: pace_of_aging 接近 1.0，表示衰老速度与实际年龄同步")
     
