@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""健康评分算法模块 V6.0.3
+"""健康评分算法模块 V6.0.5
 
 核心评分：
 - Strain (0-21): 日心血管负荷
@@ -1414,4 +1414,4 @@ def calculate_pace_of_aging_simple(current_7day: Dict, previous_7day: Dict) -> f
     recovery_change = (curr_recovery - prev_recovery) / prev_recovery
     # Recovery 下降 10% -> Pace 增加 0.1
     pace = 1.0 - recovery_change
-    return max(0.5, min(2.0, pace))
+    return max(0.5, min(2.5, pace))

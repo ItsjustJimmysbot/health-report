@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""邮件发送Provider实现 - V6.0.3"""
+"""邮件发送Provider实现 - V6.0.5"""
 
 import os
 import sys

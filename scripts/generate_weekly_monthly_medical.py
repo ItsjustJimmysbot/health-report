@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-周报和月报生成器 - V6.0.3 Medical Dashboard版 (支持多语言 CN/EN)
+周报和月报生成器 - V6.0.5 Medical Dashboard版 (支持多语言 CN/EN)
 使用新模板 WEEKLY_TEMPLATE_MEDICAL.html / MONTHLY_TEMPLATE_MEDICAL.html
 用法:
   python3 scripts/generate_weekly_monthly_medical.py weekly START_DATE END_DATE < ai_analysis.json
@@ -443,7 +443,7 @@ def _stand_hours(day_obj: dict):
 
 
 def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, steps_values, sleep_values, lang_labels, height_px_per_chart=160):
-    """V6.0.3: 构建三个上下排列的图表 - HRV、步数、睡眠各一个"""
+    """V6.0.5: 构建三个上下排列的图表 - HRV、步数、睡眠各一个"""
     from html import escape as html_escape
     
     # 转义标签防止 XSS
@@ -606,7 +606,7 @@ def _build_triple_chartjs_template(canvas_id_prefix, display_dates, hrv_values, 
 </script>'''
 
 def generate_trend_chart(dates, hrv_values, steps_values, sleep_values, chart_type='weekly'):
-    """V6.0.3: 生成三个上下排列的Chart.js趋势图表"""
+    """V6.0.5: 生成三个上下排列的Chart.js趋势图表"""
     valid_hrv = [v for v in hrv_values if isinstance(v, (int, float))]
     if not dates or not valid_hrv:
         return f'<div style="text-align:center;color:#999;padding:40px;">{get_text("no_trend_data")}</div>'
@@ -622,7 +622,7 @@ def generate_trend_chart(dates, hrv_values, steps_values, sleep_values, chart_ty
     return _build_triple_chartjs_template('trendChart', display_dates, hrv_values, steps_values, sleep_values, lang_labels, 160)
 
 def generate_monthly_chart(dates, hrv_values, steps_values, sleep_values):
-    """V6.0.3: 生成月度三Chart.js趋势图表"""
+    """V6.0.5: 生成月度三Chart.js趋势图表"""
     valid_hrv = [v for v in hrv_values if isinstance(v, (int, float))]
     if not dates or not valid_hrv:
         return f'<div style="text-align:center;color:#999;padding:40px;">{get_text("no_monthly_data")}</div>'
@@ -806,7 +806,7 @@ def generate_weekly_report(start_date, end_date, ai_analysis, template, member_n
     html = html.replace('{{WEEKLY_TOTAL_ZONE_TIME}}', str(total_zone_hours))
     html = html.replace('{{WEEKLY_PRIMARY_ZONE}}', primary_zone)
 
-    # V6.0.3: 统一使用 health_score.py 的 Body Age / Pace of Aging 语义
+    # V6.0.5: 统一使用 health_score.py 的 Body Age / Pace of Aging 语义
     body_ages = []
     age_impacts = []
     pace_values = []

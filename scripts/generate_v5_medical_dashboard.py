@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-V6.0.3 AI分析报告生成器 - Medical Dashboard 模板版
+V6.0.5 AI分析报告生成器 - Medical Dashboard 模板版
 - 从 config.json 读取配置
 - 支持多语言切换 (CN/EN)
 - 严格真实值：缺失即'--'，不估算
@@ -1511,7 +1511,7 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     recovery_status_cn = '优秀' if health_scores['recovery'] >= 67 else '良好' if health_scores['recovery'] >= 34 else '需恢复'
     html = html.replace('{{RECOVERY_STATUS_CN}}', recovery_status_cn)
     
-    # V6.0.3: Body Age 简化版模板替换
+    # V6.0.5: Body Age 简化版模板替换
     age_impact = health_scores['age_impact']
     
     # 简化版颜色：绿色(年轻) / 红色(老化) / 蓝色(持平)
@@ -1723,15 +1723,23 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
     html = html.replace('{{AI4_DINNER}}', safe_html_paragraph(ai_analysis.get('dinner', '')))
     html = html.replace('{{AI4_SNACK}}', safe_html_paragraph(ai_analysis.get('snack', '')))
 
-    # V5.9.0: 占位符残留保护
+    # V6.0.5: 占位符残留保护 - 区分警告级别
     unresolved = re.findall(r'\{\{[^{}]+\}\}', html)
     if unresolved:
-        print(f"   ⚠️ 未替换的占位符: {unresolved[:10]}", file=sys.stderr)
-        # V6.0.3: 将未替换的占位符替换为空白，避免渲染失败
-        for placeholder in unresolved:
-            html = html.replace(placeholder, '--')
+        # 关键占位符列表 - 这些必须被替换
+        critical_patterns = ['STRAIN', 'RECOVERY', 'SLEEP_PERFORMANCE', 'BODY_AGE', 'PACE_OF_AGING']
+        critical_placeholders = [p for p in unresolved if any(pat in p for pat in critical_patterns)]
+        
+        if critical_placeholders:
+            print(f"   ❌ 关键占位符未替换: {critical_placeholders[:5]}", file=sys.stderr)
+            raise ValueError(f"关键模板占位符未替换: {critical_placeholders[:3]}")
+        else:
+            print(f"   ⚠️ 非关键占位符未替换: {unresolved[:10]}", file=sys.stderr)
+            # 仅替换非关键占位符为 '--'
+            for placeholder in unresolved:
+                html = html.replace(placeholder, '--')
 
-    # V6.0.3: 缓存保存移到函数内部，修复变量作用域问题
+    # V6.0.5: 缓存保存移到函数内部，修复变量作用域问题
     try:
         sleep_data = data.get('sleep', {})
         sleep_total = sleep_data.get('total_hours', 0)

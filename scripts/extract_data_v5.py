@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""提取Apple Health数据用于V6.0.3报告生成 - 支持多成员"""
+"""提取Apple Health数据用于V6.0.5报告生成 - 支持多成员"""
 
 import json
 import re
@@ -295,7 +295,7 @@ def extract_workout_data(date_str, workout_dir=None, health_dir=None):
             print(f"⚠️  解析单个 workout 失败: {e}", file=sys.stderr)
             continue
 
-    # V6.0.3: 添加调试信息
+    # V6.0.5: 添加调试信息
     workout_file_name = workout_file.name if workout_file else "未找到"
     if workout_file and not workouts:
         print(f"   ℹ️ 运动文件存在但无有效记录: {workout_file_name}", file=sys.stderr)
@@ -311,7 +311,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     """提取完整的一天数据 - V5.8.1: 支持多成员路径传入"""
     date = datetime.strptime(date_str, '%Y-%m-%d')
 
-    # V6.0.3: 使用传入的路径或全局默认路径
+    # V6.0.5: 使用传入的路径或全局默认路径
     if health_dir is None:
         health_dir = Path('~/Health Auto Export/Health Data').expanduser()
     else:
@@ -487,7 +487,7 @@ def extract_daily_data(date_str, health_dir=None, workout_dir=None, user_profile
     # 计算是否有运动
     has_workout = len(workouts) > 0 if workouts else False
 
-    # V6.0.3: 从 workout 心率时间线计算真实的心率区间时间
+    # V6.0.5: 从 workout 心率时间线计算真实的心率区间时间
     user_age = user_profile.get('age', 30) if user_profile else 30
     if user_age is None:
         user_age = 30
