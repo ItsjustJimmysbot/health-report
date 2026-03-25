@@ -627,7 +627,8 @@ def calculate_recovery(hrv_rmssd: float, rhr: float,
                       sleep_consistency: float,
                       baseline_hrv: float, baseline_rhr: float,
                       baseline_respiratory: float,
-                      gender: str = 'male'):
+                      gender: str = 'male',
+                      has_respiratory_data: bool = True):
     """
     Recovery 改为真正基于个人 baseline：
     - HRV 相对自身 baseline
@@ -676,12 +677,25 @@ def calculate_recovery(hrv_rmssd: float, rhr: float,
     else:
         respiratory_score = max(0.0, 100.0 - (resp_diff - 0.03) * 250.0)
 
+    # 动态调整权重：如果没有当日呼吸率数据，将呼吸率权重分配给 HRV 和 RHR
+    if not has_respiratory_data:
+        # 呼吸率权重 3% 平均分配给 HRV 和 RHR
+        weights = {
+            'hrv': 0.465,               # 45% + 1.5%
+            'rhr': 0.295,               # 28% + 1.5%
+            'sleep': 0.17,
+            'sleep_consistency': 0.07,
+            'respiratory': 0.0          # 无数据时呼吸率不贡献分数
+        }
+    else:
+        weights = RECOVERY_WEIGHTS
+
     recovery = int(round(min(100.0, max(1.0,
-        RECOVERY_WEIGHTS['hrv'] * hrv_score +
-        RECOVERY_WEIGHTS['rhr'] * rhr_score +
-        RECOVERY_WEIGHTS['sleep'] * sleep_value +
-        RECOVERY_WEIGHTS['respiratory'] * respiratory_score +
-        RECOVERY_WEIGHTS['sleep_consistency'] * consistency_value
+        weights['hrv'] * hrv_score +
+        weights['rhr'] * rhr_score +
+        weights['sleep'] * sleep_value +
+        weights['respiratory'] * respiratory_score +
+        weights['sleep_consistency'] * consistency_value
     ))))
 
     status = 'green' if recovery >= 67 else 'yellow' if recovery >= 34 else 'red'
@@ -1018,18 +1032,71 @@ def calculate_pace_of_aging(
     if len(set(hrv_values)) == 1:  # 所有值相同
         return 1.0  # 返回稳定状态
     
+    # 辅助函数：使用 MAD (Median Absolute Deviation) 检测并过滤异常值
+    def filter_outliers_mad(values, threshold=3.5):
+        """使用 MAD 方法过滤异常值，更鲁棒于非正态分布"""
+        if len(values) < 5:
+            return values  # 数据太少，不过滤
+        
+        median = sorted(values)[len(values) // 2]
+        abs_deviations = [abs(v - median) for v in values]
+        mad = sorted(abs_deviations)[len(abs_deviations) // 2]
+        
+        if mad == 0:
+            return values  # MAD 为 0 表示数据几乎相同，无异常值
+        
+        # 计算修正的 Z-score
+        filtered = []
+        for v in values:
+            modified_z = 0.6745 * (v - median) / mad
+            if abs(modified_z) <= threshold:
+                filtered.append(v)
+        
+        return filtered if len(filtered) >= 3 else values  # 至少保留3个数据点
+    
+    # 辅助函数：指数平滑
+    def exponential_smoothing(values, alpha=0.3):
+        """简单指数平滑，alpha 越大数据越平滑"""
+        if len(values) < 2:
+            return values
+        
+        smoothed = [values[0]]
+        for i in range(1, len(values)):
+            s = alpha * values[i] + (1 - alpha) * smoothed[-1]
+            smoothed.append(s)
+        return smoothed
+    
+    # 过滤异常值（使用 MAD 方法）
+    hrv_values_filtered = filter_outliers_mad(hrv_values)
+    rhr_values_filtered = filter_outliers_mad(rhr_values)
+    recovery_values_filtered = filter_outliers_mad(recovery_values)
+    sleep_perf_values_filtered = filter_outliers_mad(sleep_perf_values) if len(sleep_perf_values) >= 5 else sleep_perf_values
+    
+    # 应用指数平滑减少噪声
+    hrv_values_smoothed = exponential_smoothing(hrv_values_filtered, alpha=0.25)
+    rhr_values_smoothed = exponential_smoothing(rhr_values_filtered, alpha=0.25)
+    recovery_values_smoothed = exponential_smoothing(recovery_values_filtered, alpha=0.25)
+    sleep_perf_values_smoothed = exponential_smoothing(sleep_perf_values_filtered, alpha=0.25) if len(sleep_perf_values_filtered) >= 5 else sleep_perf_values_filtered
+
     # 计算趋势（使用简单线性回归的斜率）
     def calculate_trend(values):
         """计算趋势斜率（正值=上升，负值=下降）"""
         if len(values) < 3:
             return 0
         
-        n = len(values)
+        # 数据标准化：去除量级影响，只保留变化方向
+        mean_val = sum(values) / len(values)
+        if mean_val == 0:
+            mean_val = 1.0
+        
+        normalized = [(v - mean_val) / mean_val for v in values]
+        
+        n = len(normalized)
         x = list(range(n))
         x_mean = sum(x) / n
-        y_mean = sum(values) / n
+        y_mean = sum(normalized) / n
         
-        numerator = sum((x[i] - x_mean) * (values[i] - y_mean) for i in range(n))
+        numerator = sum((x[i] - x_mean) * (normalized[i] - y_mean) for i in range(n))
         denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
         
         # FIX: 使用阈值而不是精确零检查
@@ -1041,13 +1108,14 @@ def calculate_pace_of_aging(
         if not math.isfinite(result):
             return 0
         
-        return result
+        # 将结果缩放回原始数据的单位（每天的变化量）
+        return result * mean_val
     
-    # 计算各指标的趋势
-    hrv_trend = calculate_trend(hrv_values)  # 正=改善，负=恶化
-    rhr_trend = calculate_trend(rhr_values)  # 负=改善（RHR下降），正=恶化
-    recovery_trend = calculate_trend(recovery_values)  # 正=改善
-    sleep_trend = calculate_trend(sleep_perf_values) if len(sleep_perf_values) >= 5 else 0
+    # 计算各指标的趋势（使用平滑后的数据）
+    hrv_trend = calculate_trend(hrv_values_smoothed)  # 正=改善，负=恶化
+    rhr_trend = calculate_trend(rhr_values_smoothed)  # 负=改善（RHR下降），正=恶化
+    recovery_trend = calculate_trend(recovery_values_smoothed)  # 正=改善
+    sleep_trend = calculate_trend(sleep_perf_values_smoothed) if len(sleep_perf_values_smoothed) >= 5 else 0
     
     # 计算相对趋势（标准化到 -1 到 1 范围）
     def normalize_trend(trend, threshold):
@@ -1369,19 +1437,27 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
     # 3) Recovery
     hrv = data.get('hrv', {}).get('value', 50)
     rhr = data.get('resting_hr', {}).get('value', 70)
-    respiratory = data.get('respiratory_rate', 14)
+    respiratory = data.get('respiratory_rate')  # 不设置默认值，用于判断是否有数据
 
     baselines = history.get_metric_baselines(date_str, member_name, days=21)
+    
+    # 判断呼吸率数据是否可用
+    has_respiratory_data = respiratory is not None and isinstance(respiratory, (int, float)) and respiratory > 0
+    
+    # 如果没有当日呼吸率数据，使用 baseline 但标记为"估算"
+    respiratory_value = respiratory if has_respiratory_data else baselines['baseline_respiratory']
+    
     recovery_result = calculate_recovery(
         hrv,
         rhr,
         sleep_result.performance,
-        respiratory or baselines['baseline_respiratory'],
+        respiratory_value,
         sleep_consistency,
         baselines['baseline_hrv'],
         baselines['baseline_rhr'],
         baselines['baseline_respiratory'],
-        gender
+        gender,
+        has_respiratory_data=has_respiratory_data  # 新增参数
     )
 
     # 4) Body Age - 使用最近7天历史数据计算
@@ -1451,10 +1527,11 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
             'body_age_detail': asdict(body_age_result),
             'sleep_consistency': round(sleep_consistency, 1),
             'sleep_latency_min': float(sleep_latency_min),
-            'baseline_hrv': round(baselines['baseline_hrv'], 1),
-            'baseline_rhr': round(baselines['baseline_rhr'], 1),
-            'baseline_respiratory': round(baselines['baseline_respiratory'], 1),
-            'pace_data_sufficient': pace_data_sufficient,  # FIX: 新增字段
+            'baseline_hrv': round(baselines['baseline_hrv'], 1) if baselines['baseline_hrv'] is not None else 0.0,
+            'baseline_rhr': round(baselines['baseline_rhr'], 1) if baselines['baseline_rhr'] is not None else 0.0,
+            'baseline_respiratory': round(baselines['baseline_respiratory'], 1) if baselines['baseline_respiratory'] is not None else 0.0,
+            'pace_data_sufficient': pace_data_sufficient,
+            'has_respiratory_data': has_respiratory_data,  # 新增：标记呼吸率数据是否可用
         }
     }
 
