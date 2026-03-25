@@ -176,6 +176,13 @@ def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: int = 0
         raw = zone_times.get(f'zone_{z}', zone_times.get(z, 0)) if isinstance(zone_times, dict) else 0
         clean_zone_times[z] = float(raw) if isinstance(raw, (int, float)) else 0.0
 
+    # 总时间合理性检查（从第二个函数合并）
+    total_minutes = sum(clean_zone_times.values())
+    if total_minutes > 1440:  # 超过24小时，数据有问题
+        scale_factor = 1440.0 / total_minutes
+        for z in clean_zone_times:
+            clean_zone_times[z] *= scale_factor
+
     cardio_load = sum(clean_zone_times[z] * zone_weights[z] for z in clean_zone_times)
     muscle_load = max(0.0, float(strength_minutes)) * 0.2
     total_load = cardio_load + muscle_load
@@ -498,34 +505,6 @@ def calculate_zone_times_from_workouts(workouts: List[Dict], age: int, rhr: int 
 
     return {k: round(v, 1) for k, v in zone_times.items()}
 
-
-def calculate_strain_from_zone_times(zone_times: Dict, strength_minutes: float = 0) -> float:
-    """优先根据真实 zone_times 计算 Strain。"""
-    zone_weights = {
-        'zone_1': 0.3,
-        'zone_2': 1.0,
-        'zone_3': 2.5,
-        'zone_4': 5.0,
-        'zone_5': 10.0,
-    }
-    
-    # FIX: 添加总时间合理性检查
-    total_minutes = _sum_zone_minutes(zone_times)
-    if total_minutes > 1440:  # 超过24小时，数据有问题
-        # 按比例缩放
-        scale_factor = 1440.0 / total_minutes
-        zone_times = {k: v * scale_factor for k, v in zone_times.items()}
-    
-    cardio_load = 0.0
-    for zone, weight in zone_weights.items():
-        minutes = zone_times.get(zone, 0)
-        if isinstance(minutes, (int, float)) and minutes > 0:
-            cardio_load += float(minutes) * weight
-
-    muscle_load = max(0.0, float(strength_minutes or 0)) * 0.2
-    total_load = cardio_load + muscle_load
-    strain = 21 * (1 - math.exp(-total_load / 80.0))
-    return round(min(21, strain), 1)
 
 
 def calculate_zone_times_from_hr_data(hr_data: List[Dict], age: int, rhr: int = None) -> Dict:
