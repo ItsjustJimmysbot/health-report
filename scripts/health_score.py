@@ -1358,15 +1358,28 @@ def calculate_all_scores(data: Dict, profile: Dict, history: 'HealthScoreHistory
         gender
     )
 
-    # 4) Body Age
-    body_metrics = {
-        'sleep_hours': sleep.get('total_hours', 7),
-        'steps': data.get('steps', 8000),
-        'rhr': rhr,
-        'hrv': hrv,
-        'respiratory_rate': respiratory
-    }
-    body_age_result = calculate_body_age(body_metrics, age, gender)
+    # 4) Body Age - 使用最近7天历史数据计算
+    recent_daily_data = []
+    for i in range(7):
+        d = (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=i)).strftime('%Y-%m-%d')
+        raw = history.get_raw_cache(d, member_name)
+        if raw:
+            recent_daily_data.append(raw)
+
+    # 尝试使用历史数据（需要至少3天）
+    if len(recent_daily_data) >= 3:
+        body_age_result = calculate_body_age(recent_daily_data, age, gender)
+    else:
+        # 数据不足时构造3天相同数据（满足最小数据要求）
+        single_day = {
+            'sleep': {'total_hours': sleep.get('total_hours', 7)},
+            'steps': data.get('steps', 8000),
+            'resting_hr': {'value': rhr},
+            'hrv': {'value': hrv},
+            'respiratory_rate': respiratory
+        }
+        # 构造3天相同数据满足最小要求
+        body_age_result = calculate_body_age([single_day, single_day, single_day], age, gender)
 
     # 5) Pace of Aging：优先使用完整版，数据不足时回退到 simple
     # 获取最近14天的详细数据用于趋势计算

@@ -24,7 +24,7 @@ def load_config():
 
 
 def verify():
-    print("🔍 开始 Health Agent V6.0.0 环境检查...\n")
+    print("🔍 开始 Health Agent V6.0.5 环境检查...\n")
     
     home = Path.home()
     workspace = Path(__file__).parent.parent
