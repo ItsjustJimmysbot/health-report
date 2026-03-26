@@ -1024,9 +1024,13 @@ def calculate_pace_of_aging(
         if isinstance(strain, (int, float)) and strain >= 0:
             strain_values.append(float(strain))
     
-    # 检查是否有足够的数据 (V6.0.5提高到14天)
-    if len(hrv_values) < 14 or len(recovery_values) < 14:
+    # 检查是否有足够的数据 (V6.0.6: 降低门槛，HRV必须14天，recovery不足时用默认值)
+    if len(hrv_values) < 14:
         return None
+    
+    # recovery 数据不足时使用默认值填充
+    if len(recovery_values) < 14:
+        recovery_values = [50.0] * len(hrv_values)
     
     # 检查数据方差（避免所有值都一样导致趋势为0）
     if len(set(hrv_values)) == 1:  # 所有值相同

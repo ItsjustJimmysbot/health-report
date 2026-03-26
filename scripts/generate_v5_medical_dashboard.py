@@ -1683,15 +1683,17 @@ def generate_report(date_str, ai_analysis, template, health_dir=None, workout_di
         sleep_total = sleep_data.get('total_hours', 0)
         sleep_need = health_scores['sleep_need']
 
-        # V6.0.5: 睡眠债累积逻辑（改进版睡眠银行模型）
+        # V6.0.6: 睡眠债累积逻辑（改进版睡眠银行模型）
         # 说明: 此实现是WHOOP睡眠债务模型的改进版本
-        # - 睡眠不足时累积债务 (sleep_need - actual_sleep)
-        # - 睡眠充足时可积累"睡眠信用"（负债务），最多积累 8 小时
-        # - 债务上限 12 小时（超过此值的债务会被截断，避免永远无法还清）
-        # - 更合理的睡眠银行模型
+        # - 债务为正 (+) = 睡眠信用（睡多了，可用来偿还未来债务）
+        # - 债务为负 (-) = 睡眠欠债（睡少了，需要补觉偿还）
+        # - 债务范围: [-12, 8] 小时
+        #   * 上限 8小时: 最多积累8小时睡眠信用
+        #   * 下限 -12小时: 最多欠12小时睡眠债
+        # - 单日变化限制: 最多积累3小时信用，最多欠4小时债务
 
-        # 计算今日睡眠债务变化（正数=不足，负数=盈余）
-        daily_debt = round(sleep_total - sleep_need, 2)  # 修改为：正数表示睡眠盈余
+        # 计算今日睡眠债务变化（正数=睡眠盈余，负数=睡眠不足）
+        daily_debt = round(sleep_total - sleep_need, 2)  # 正数表示睡多了
         
         # 睡眠盈余时积累信用，但单日最多积累 3 小时信用
         # 睡眠不足时增加债务

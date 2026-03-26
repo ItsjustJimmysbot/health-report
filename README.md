@@ -1,4 +1,4 @@
-# Health Agent V6.0.5 - OpenClaw 专业健康分析 Skill
+# Health Agent V6.0.6 - OpenClaw 专业健康分析 Skill
 
 > ⚡ 快速执行请看 `SKILL.md`（面向 Agent 的简版说明）  
 > 📘 本文档是完整用户手册（安装、配置、排障、最佳实践）。
@@ -50,7 +50,7 @@ python3 -m playwright install chromium
 
 ```json
 {
-  "version": "6.0.5",
+  "version": "6.0.6",
   "members": [
     {
       "name": "Member1",
@@ -549,7 +549,7 @@ python3 scripts/send_health_report_email.py 2026-03-01 0 report1.pdf report2.pdf
 ## config.json 结构
 ```json
 {
-  "version": "6.0.5",
+  "version": "6.0.6",
   "members": [
     {
       "name": "Jimmy",
@@ -699,7 +699,7 @@ python3 scripts/validate_config.py --config ./config.json --schema ./config.sche
 
 ```json
 {
-  "version": "6.0.5",
+  "version": "6.0.6",
   "members": [
     {
       "name": "爸爸",
